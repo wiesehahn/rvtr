@@ -1,0 +1,24 @@
+Package: rvtr
+Type: Package
+Title: Relief Visualization for Large Rasters and Mosaics
+Version: 0.1.0
+Authors@R: person("Jens", "Wiesehahn", email = "wiesehahn.jens@gmail.com",
+                  role = c("aut", "cre"))
+Description: Sky-view factor, positive openness and the archaeological
+    Visualization for Archaeological Topography (VAT) blend, following the
+    Relief Visualization Toolbox (Kokalj & Somrak 2019). The horizon search
+    runs as a fused, OpenMP-parallel C++ kernel, and rasters are processed
+    tile by tile so memory use stays bounded regardless of input size. A
+    mosaic of many rasters is handled by wrapping it in a GDAL virtual
+    raster, so horizon searches read across file boundaries seamlessly and
+    tile edges show no seams.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports: Rcpp, gdalraster, methods, grDevices
+LinkingTo: Rcpp
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+SystemRequirements: GDAL, C++17
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
