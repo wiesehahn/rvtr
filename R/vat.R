@@ -30,14 +30,37 @@
 
 #' VAT terrain presets
 #'
-#' Parameter sets for [rvt_vat()], from RVT's `default_terrains_settings.json`.
-#' `rvt_preset_general` suits typical relief; `rvt_preset_flat` uses a larger
-#' search radius and more noise removal for subtle micro-relief on flat ground.
-#' Pass a customised copy (e.g. `modifyList(rvt_preset_general, list(radius_max = 15))`)
-#' to tune either preset.
+#' The two parameter sets that [rvt_vat()] renders and averages.
+#' `rvt_preset_general` suits ordinary relief; `rvt_preset_flat` looks further
+#' out and filters noise harder, to bring up the subtle micro-relief typical of
+#' flat ground.
 #'
-#' @format A list with `sun_elevation`, `slope`, `svf`, `opns` (normalisation
-#'   ranges), `radius_max` and `noise_removal`.
+#' Both are plain lists, so the way to adjust one is a modified copy:
+#' `modifyList(rvt_preset_general, list(radius_max = 20))`.
+#'
+#' @format A list with:
+#' \describe{
+#'   \item{`sun_elevation`}{height of the sun above the horizon, in degrees,
+#'     for the hillshade layer. Lower angles throw longer shadows and
+#'     exaggerate faint relief - hence 15 for flat terrain against 35 for
+#'     general.}
+#'   \item{`slope`}{the slope range, in degrees, stretched across the layer's
+#'     full brightness range. Slopes past the upper end are clipped, so a
+#'     narrower range gives more contrast among gentle slopes (15 for flat
+#'     terrain, 50 for general).}
+#'   \item{`svf`}{the same idea for the sky-view factor layer - the
+#'     sky-fraction range that gets stretched. `c(0.9, 1)` on flat terrain
+#'     spreads out what would otherwise be an almost invisible band of
+#'     values.}
+#'   \item{`opns`}{the same again for the positive openness layer, in
+#'     degrees.}
+#'   \item{`radius_max`}{how far the horizon search behind the openness and
+#'     sky-view factor layers looks, in pixels. As in [rvt_svf()], scale it
+#'     with your pixel size.}
+#'   \item{`noise_removal`}{0-3, ignoring progressively more of the innermost
+#'     pixels of each search ray.}
+#' }
+#' @seealso [rvt_vat()]
 #' @name rvt_presets
 NULL
 
@@ -86,9 +109,9 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
                        rvt_compat = FALSE) {
   # edge padding for the derivatives, matching rvt.vis.slope_aspect()
   pad_sa <- 1L
+  sun_el <- vapply(presets, function(p) p$sun_elevation, numeric(1))
   sa <- slope_hillshade(.pad_edge(tile, pad_sa), pad_sa, nrow(tile), ncol(tile),
-                         xres, yres, 315,
-                         vapply(presets, function(p) p$sun_elevation, numeric(1)),
+                         xres, yres, rep(315, length(sun_el)), sun_el,
                          threads)
   slope_deg <- sa$slope * 180 / pi
 
@@ -100,7 +123,7 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
     pad <- as.integer(p$radius_max + 1L)
     h <- horizon_svf_opns(.pad_reflect(tile, pad), pad, nrow(tile), ncol(tile),
                            off$dx, off$dy, off$dist, off$starts, off$ends,
-                           TRUE, TRUE, threads)
+                           TRUE, TRUE, FALSE, numeric(0), threads)
     stacks[[i]] <- .vat_stack(sa$hillshade[[i]], slope_deg, h$opns, h$svf, p, rvt_compat)
   }
 
@@ -113,9 +136,58 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
 
 #' Archaeological VAT (combined)
 #'
-#' Visualization for Archaeological Topography: a blend of hillshade, slope,
-#' positive openness and sky-view factor, rendered once with a general-terrain
-#' preset and once with a flat-terrain preset and averaged. Values are 0-1.
+#' Visualization for Archaeological Topography: a ready-made composite for
+#' spotting earthworks, combining four different views of the terrain into a
+#' single greyscale image so you don't have to read several rasters side by
+#' side. Values are 0-1, ready to display directly.
+#'
+#' Each ingredient contributes something the others lack: hillshade gives the
+#' eye the familiar sense of relief, slope sharpens edges, positive openness
+#' lifts convex features such as banks and mounds, and sky-view factor darkens
+#' enclosed ground such as ditches. The whole thing is rendered twice - once
+#' with settings for ordinary relief, once tuned for flat ground where
+#' features are subtle - and the two are averaged, so a single run works
+#' reasonably across both without retuning.
+#'
+#' If you want to interpret actual numbers rather than look at a picture, this
+#' is the wrong tool: it is a display product, and the blending discards the
+#' physical units of its ingredients. Use [rvt_msrm()] (heights in metres) or
+#' [rvt_openness()] (angles in degrees) for that.
+#'
+#' @section How it works:
+#' For each of the two presets ([rvt_presets]), the DEM is turned into four
+#' layers, each stretched to 0-1 over a range set by the preset, then stacked
+#' from the bottom up:
+#'
+#' * **hillshade** at the preset's sun elevation, from the north-west - the
+#'   background everything else is laid over;
+#' * **slope**, inverted so flat ground is bright, blended over it at half
+#'   strength;
+#' * **positive openness**, blended in Overlay mode, which lightens what is
+#'   already light and darkens what is already dark, so convex features gain
+#'   contrast without washing the image out;
+#' * **sky-view factor**, multiplied in at a quarter strength, which only
+#'   darkens - deepening enclosed ground.
+#'
+#' The two resulting images are then averaged. The horizon searches use each
+#' preset's own `radius_max` and `noise_removal`, so the flat-terrain pass
+#' looks further out and filters more aggressively than the general one.
+#' Computation is at native resolution, tile by tile.
+#'
+#' @section Tuning:
+#' * The two presets are ordinary lists, so the easiest adjustment is a
+#'   modified copy - for example
+#'   `modifyList(rvt_preset_general, list(radius_max = 20))` to make the
+#'   general pass respond to larger features. See [rvt_presets] for the
+#'   fields and what they mean.
+#' * To render a single terrain type rather than the average of two, pass the
+#'   same preset twice, e.g. `presets = list(rvt_preset_flat, rvt_preset_flat)`.
+#'   This is worth doing when your area really is uniformly flat, since the
+#'   general-terrain pass otherwise dilutes the contrast the flat preset was
+#'   tuned to give.
+#' * `num_directions` is shared by both passes and behaves as in [rvt_svf()].
+#' * `rvt_compat` exists only for checking output against rvt-py and should
+#'   be left alone otherwise; see its parameter description.
 #'
 #' @inheritParams rvt_svf
 #' @param presets list of two parameter sets, general first then flat; see

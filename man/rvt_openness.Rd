@@ -23,12 +23,12 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{num_directions}{number of search directions (RVT default 16)}
+\item{num_directions}{number of compass directions scanned (default 16)}
 
-\item{radius_max}{maximum search radius in \emph{pixels} (RVT default 10)}
+\item{radius_max}{how far to look, in \emph{pixels} (default 10)}
 
-\item{noise_removal}{0-3, raises the minimum search radius to ignore
-near-cell noise (RVT svf_noise: 0/10/20/40 percent of \code{radius_max})}
+\item{noise_removal}{0-3; raises the minimum search radius to ignore
+near-cell noise (0, 10, 20 or 40 percent of \code{radius_max})}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -43,9 +43,89 @@ near-cell noise (RVT svf_noise: 0/10/20/40 percent of \code{radius_max})}
 \code{out_path}, invisibly
 }
 \description{
-Mean zenith angle of the horizon, in degrees.
+The average angle from straight up (the zenith) down to the horizon, in
+degrees. Flat ground gives exactly 90 degrees. Above 90 means the cell
+stands proud of its surroundings - ridges, mounds, bank tops, wall lines;
+below 90 means it sits enclosed - ditches, hollows, the inside of a bank.
 }
+\details{
+This measures the same horizon as \code{\link[=rvt_svf]{rvt_svf()}} but keeps more of its range.
+Sky-view factor compresses everything above the horizontal into a narrow
+band just below 1, whereas openness spreads convex, flat and concave
+terrain out evenly around 90 degrees - so the edges of low earthworks tend
+to come out crisper. Values are not restricted to 0-90: around 107 degrees
+is reached on strongly convex terrain in the bundled sample tile.
+}
+\section{How it works}{
+
+The horizon search is identical to \code{\link[=rvt_svf]{rvt_svf()}} - same directions, same
+sampling along each ray, same use of true ground distance - with two
+differences in how the horizon angles are combined:
+\itemize{
+\item Horizons below the horizontal are \strong{not} clamped. A cell looking down
+into falling ground keeps its negative angle, which is what lets convex
+terrain rise above 90 degrees.
+\item The result is \verb{90 - mean(horizon angle)} in degrees, over all directions.
+}
+
+Like sky-view factor it runs at native resolution, tile by tile, with
+tiles overlapping by the search radius. Elevation units must match the map
+units for the angles to mean anything.
+}
+
+\section{Tuning}{
+
+The parameters behave exactly as in \code{\link[=rvt_svf]{rvt_svf()}} - \code{radius_max} sets the
+size of features the result responds to and should be scaled with your
+pixel size, \code{num_directions} trades smoothness against time, and
+\code{noise_removal} protects against speckle immediately next to a cell.
+
+A common pairing is to compute this alongside \code{\link[=rvt_openness_negative]{rvt_openness_negative()}}:
+the positive image favours convex features, the negative one concave, and
+comparing or differencing the two separates banks from ditches more
+clearly than either does alone.
+}
+
+\section{Recommended settings}{
+
+As for \code{\link[=rvt_svf]{rvt_svf()}}: Kokalj and Hesse (2017) use a \strong{10 m} radius (so 10
+pixels on a 1 m DEM, 40 on a 0.25 m one) with 16 directions, and suggest
+displaying positive openness with a linear stretch of 65-95 degrees on
+varied terrain, 85-91 on very flat ground, 55-95 on steep or complex
+ground.
+
+Because openness ignores the mathematical horizon and takes in the whole
+sphere, the image comes out notably \emph{flat} - the broad shape of the
+landscape largely disappears, rather as if the trend had been removed.
+That costs you the intuitive read of the terrain that sky-view factor
+keeps, and makes interpretation a little harder, but it buys two things:
+the result is not washed out by gentle or steep slopes and so works across
+varied topography, and a given feature looks much the same wherever it sits
+\itemize{
+\item on the flat or partway up a hillside. Doneus (2013) makes the point that
+this consistency of "signature" is what makes openness well suited to
+automated feature detection, not just to looking.
+}
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_openness(dem)
+}
+\references{
+Yokoyama, R., Shirasawa, M. and Pike, R. J. (2002) Visualizing Topography
+by Openness: A New Application of Image Processing to Digital Elevation
+Models. \emph{Photogrammetric Engineering and Remote Sensing} 68, 251-266.
+
+Doneus, M. (2013) Openness as Visualization Technique for Interpretative
+Mapping of Airborne LiDAR Derived Digital Terrain Models. \emph{Remote Sensing}
+5, 6427-6442.
+
+Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
+Visualization: A Guide to Good Practice}. Ljubljana: Založba ZRC.
+\doi{10.3986/9789612549848}
+}
+\seealso{
+\code{\link[=rvt_openness_negative]{rvt_openness_negative()}} for the concave counterpart,
+\code{\link[=rvt_svf]{rvt_svf()}} for the 0-1 sky-fraction version of the same horizon.
 }

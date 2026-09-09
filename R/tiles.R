@@ -47,6 +47,22 @@ rvt_threads <- function(n = NULL) {
         mat[, rep(nc, pad), drop = FALSE])
 }
 
+## Mirror-pad *repeating* the edge cell (numpy's mode="symmetric"), and unlike
+## .pad_reflect() it copes with `pad` larger than the matrix by folding
+## repeatedly. MSTP needs this: its windows reach 2023 px, far beyond a small
+## raster, and edge-replicate padding there would fill the window with copies
+## of one value, collapsing the standard deviation MSTP divides by.
+.mirror_index <- function(n, pad) {
+  i <- seq_len(n + 2 * pad) - pad - 1L      # 0-based source index, may be <0
+  period <- 2L * n
+  i <- i %% period
+  ifelse(i >= n, period - 1L - i, i) + 1L   # fold, back to 1-based
+}
+
+.pad_symmetric <- function(mat, pad) {
+  mat[.mirror_index(nrow(mat), pad), .mirror_index(ncol(mat), pad), drop = FALSE]
+}
+
 ## Mirror-pad without repeating the edge cell (numpy's mode="reflect"), used
 ## to extend the raster beyond its own edge for the horizon search - it
 ## extrapolates terrain more plausibly there than a flat edge-replicate would.
@@ -100,13 +116,14 @@ rvt_threads <- function(n = NULL) {
 ## Plain tiled GeoTIFF used as scratch space while tiles are written one
 ## window at a time (see .process_tiled()) - not the final output, see
 ## .finalize_cog().
-.create_scratch <- function(src, path, tile_size, nx, ny, nodata_value = -9999) {
+.create_scratch <- function(src, path, tile_size, nx, ny, nbands = 1L,
+                             nodata_value = -9999) {
   # Internal block size is aligned to the write tiles: if blocks straddle tile
   # boundaries GDAL decompresses and recompresses the same block once per
   # touching tile, which inflates the file several-fold.
   bs <- max(16, (min(tile_size, nx, ny) %/% 16) * 16)
   gdalraster::rasterFromRaster(
-    srcfile = src, dstfile = path, nbands = 1, dtName = "Float32",
+    srcfile = src, dstfile = path, nbands = nbands, dtName = "Float32",
     init = nodata_value,
     options = c("COMPRESS=DEFLATE", "PREDICTOR=3", "ZLEVEL=9", "TILED=YES",
                  paste0("BLOCKXSIZE=", bs), paste0("BLOCKYSIZE=", bs)),
@@ -139,19 +156,28 @@ rvt_threads <- function(n = NULL) {
   invisible(out_path)
 }
 
-.write_window <- function(path, mat, x0, y0, nodata_value = -9999) {
+## `bands` is a list of equally sized matrices, one per output band.
+.write_window <- function(path, bands, x0, y0, nodata_value = -9999) {
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = FALSE)
   on.exit(ds$close())
-  mat[is.na(mat)] <- nodata_value
-  ds$write(1L, x0, y0, ncol(mat), nrow(mat), as.vector(t(mat)))
-  ds$setNoDataValue(1L, nodata_value)
+  for (b in seq_along(bands)) {
+    mat <- bands[[b]]
+    mat[is.na(mat)] <- nodata_value
+    ds$write(b, x0, y0, ncol(mat), nrow(mat), as.vector(t(mat)))
+    ds$setNoDataValue(b, nodata_value)
+  }
   invisible(NULL)
 }
 
 ## Tile-by-tile driver. `fun(tile, xres, yres)` receives a tile *including* its
-## overlap border and must return a named list of matrices of the same
-## dimensions; the overlap is cropped here before writing. Only one tile is
-## held in memory at a time, so input size is bounded by disk, not RAM.
+## overlap border and must return a named list, one entry per output: either a
+## matrix, or a list of matrices for a multi-band output. The overlap is
+## cropped here before writing. Only one tile is held in memory at a time, so
+## input size is bounded by disk, not RAM.
+##
+## `nbands` says how many bands each output has, and has to be known up front
+## because the scratch file is created before the first tile runs. Named to
+## match `out_paths`; anything not listed is single-band.
 ##
 ## Outputs are written to scratch files during tiling, then converted to
 ## Cloud-Optimized GeoTIFFs at the requested paths once complete (see
@@ -159,12 +185,17 @@ rvt_threads <- function(n = NULL) {
 ## huge result (rvt_plot() does exactly this) or a full-resolution window of
 ## it, without touching the rest of the file.
 .process_tiled <- function(src, out_paths, overlap, tile_size, fun,
-                            band = 1L, progress = FALSE, threads = rvt_threads()) {
+                            band = 1L, progress = FALSE, threads = rvt_threads(),
+                            nbands = NULL) {
   info <- .dem_info(src, band)
   nx <- info$nx; ny <- info$ny
 
+  nb <- stats::setNames(rep(1L, length(out_paths)), names(out_paths))
+  if (!is.null(nbands)) nb[names(nbands)] <- as.integer(nbands)
+
   scratch_paths <- lapply(out_paths, function(p) tempfile(fileext = ".tif"))
-  for (nm in names(out_paths)) .create_scratch(src, scratch_paths[[nm]], tile_size, nx, ny)
+  for (nm in names(out_paths))
+    .create_scratch(src, scratch_paths[[nm]], tile_size, nx, ny, nb[[nm]])
 
   x0s <- seq(0, nx - 1, by = tile_size)
   y0s <- seq(0, ny - 1, by = tile_size)
@@ -190,8 +221,10 @@ rvt_threads <- function(n = NULL) {
 
       for (nm in names(out_paths)) {
         m <- res[[nm]]
+        if (!is.list(m)) m <- list(m)
         .write_window(scratch_paths[[nm]],
-                       m[(top + 1):(top + rows), (left + 1):(left + cols), drop = FALSE],
+                       lapply(m, function(b)
+                         b[(top + 1):(top + rows), (left + 1):(left + cols), drop = FALSE]),
                        x0, y0)
       }
 

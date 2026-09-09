@@ -23,12 +23,12 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{num_directions}{number of search directions (RVT default 16)}
+\item{num_directions}{number of compass directions scanned (default 16)}
 
-\item{radius_max}{maximum search radius in \emph{pixels} (RVT default 10)}
+\item{radius_max}{how far to look, in \emph{pixels} (default 10)}
 
-\item{noise_removal}{0-3, raises the minimum search radius to ignore
-near-cell noise (RVT svf_noise: 0/10/20/40 percent of \code{radius_max})}
+\item{noise_removal}{0-3; raises the minimum search radius to ignore
+near-cell noise (0, 10, 20 or 40 percent of \code{radius_max})}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -44,10 +44,94 @@ near-cell noise (RVT svf_noise: 0/10/20/40 percent of \code{radius_max})}
 pipe-friendly: \code{dem |> rvt_svf("svf.tif")}.
 }
 \description{
-Portion of the sky visible from each cell, in the range 0-1. Follows the
-Relief Visualization Toolbox implementation (Zaksek et al. 2011).
+How much of the sky each cell can see, from 0 (completely enclosed - the
+bottom of a narrow pit or gorge) to 1 (completely open - flat ground or a
+summit). Flat ground gives exactly 1.
 }
+\details{
+It looks like the terrain lit by a uniformly bright overcast sky. There is
+no sun position, so nothing disappears into cast shadow and no feature is
+favoured just because it happens to face the light - which makes it a good
+general-purpose alternative to hillshade when features may run in any
+direction. Hollows, ditches and the insides of banks come out dark; ridges,
+mounds and open ground come out bright.
+}
+\section{How it works}{
+
+From each cell the terrain is scanned outwards along \code{num_directions}
+evenly spaced compass directions (16 by default, i.e. every 22.5 degrees):
+\itemize{
+\item Along each direction, samples are taken out to \code{radius_max} pixels,
+finely enough (three samples per pixel) that no pixel the ray crosses is
+skipped; duplicates are then dropped.
+\item For each sample, the angle from the cell up to that sample is computed
+from the elevation difference over the true ground distance. Pixel size
+is taken into account, so non-square pixels are handled correctly - but
+it also means \strong{the elevation units must match the map units} (metres
+over metres) for the angles to be meaningful.
+\item The steepest angle found along a direction is that direction's horizon.
+Horizons below the horizontal are treated as horizontal, since a cell on
+a summit sees a full half-dome and no more.
+\item The result is the mean of \verb{1 - sin(horizon angle)} over all directions.
+}
+
+Everything runs at the raster's native resolution, tile by tile, with
+tiles overlapping by the search radius so the result never depends on how
+the raster was split up.
+}
+
+\section{Tuning}{
+
+\itemize{
+\item \code{radius_max} is the main control: it sets the size of the features the
+result responds to. The default 10 pixels is 10 m on a 1 m DEM but only
+2.5 m on a 0.25 m DEM, so \strong{scale it with your resolution}. Small radii
+emphasise fine local texture; large radii bring in shading from more
+distant landforms and take proportionally longer.
+\item \code{num_directions} trades smoothness for time (cost is roughly linear).
+16 is the usual choice; 32 reduces the faint directional banding that
+can appear in smooth terrain.
+\item \code{noise_removal} skips the innermost pixels of each ray. Raise it on
+noisy DEMs - vegetation or point-cloud speckle right next to a cell can
+otherwise set that cell's horizon on its own. Kokalj and Hesse note this
+markedly improves visibility of archaeological features where the data
+suffer from flight-strip misalignment or were gridded finer than the
+point density really supports.
+}
+}
+
+\section{Recommended settings}{
+
+Kokalj and Hesse (2017) suggest, for archaeological work on any terrain, a
+\strong{10 m} search radius with \strong{16 directions}. Note that is metres while
+\code{radius_max} is pixels: 10 on a 1 m DEM, but 40 on a 0.25 m one. Much
+larger radii belong to other disciplines - they cite 10 km for
+meteorological work - and only generalise archaeological detail away.
+
+For display they suggest a linear stretch of 0.65-1.0 on varied terrain and
+0.9-1.0 on very flat ground, where the useful values are otherwise squeezed
+into a narrow band just below 1.
+
+It works best on moderate to steep topography, where it brings out
+depressions and features lying on slopes. On flat or very gentle ground it
+is largely limited to negative features - pits, ditches, quarries, dolines -
+and becomes very sensitive to DEM noise, which is where \code{noise_removal}
+earns its keep.
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_svf(dem)
+}
+\references{
+Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
+Visualization: A Guide to Good Practice}. Prostor, kraj, čas 14. Ljubljana:
+Založba ZRC. \doi{10.3986/9789612549848}
+
+Zakšek, K., Oštir, K. and Kokalj, Ž. (2011) Sky-View Factor as a Relief
+Visualization Technique. \emph{Remote Sensing} 3, 398-415.
+}
+\seealso{
+\code{\link[=rvt_openness]{rvt_openness()}} for a related measure of the same horizon that
+spreads convex and concave terrain over a wider range.
 }

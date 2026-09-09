@@ -6,7 +6,7 @@
 \alias{rvtr-package}
 \title{rvtr: Relief Visualization for Large Rasters and Mosaics}
 \description{
-Sky-view factor, positive openness and the archaeological Visualization for Archaeological Topography (VAT) blend, following the Relief Visualization Toolbox (Kokalj & Somrak 2019). The horizon search runs as a fused, OpenMP-parallel C++ kernel, and rasters are processed tile by tile so memory use stays bounded regardless of input size. A mosaic of many rasters is handled by wrapping it in a GDAL virtual raster, so horizon searches read across file boundaries seamlessly and tile edges show no seams.
+Topographic visualizations following the Relief Visualization Toolbox (Kokalj & Somrak 2019): hillshade, multi-directional hillshade, cast shadow, slope, isotropic and anisotropic sky-view factor, sky illumination, positive and negative openness, local dominance, simple and multi-scale relief models, multi-scale topographic position, and the archaeological Visualization for Archaeological Topography (VAT) blend. Horizon-search and box-filter kernels run as fused, OpenMP-parallel C++, and rasters are processed tile by tile so memory use stays bounded regardless of input size. A mosaic of many rasters is handled by wrapping it in a GDAL virtual raster, so searches read across file boundaries seamlessly and tile edges show no seams.
 }
 \details{
 Every function takes a DEM path (or, for \code{\link[=rvt_mosaic]{rvt_mosaic()}} and the functions
@@ -22,8 +22,50 @@ tiles |> rvt_mosaic() |> rvt_svf("svf.tif")
 dem |> rvt_vat("vat.tif") |> rvt_plot()
 }\if{html}{\out{</div>}}
 
-Main functions: \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_openness]{rvt_openness()}}, \code{\link[=rvt_vat]{rvt_vat()}}, \code{\link[=rvt_mosaic]{rvt_mosaic()}},
-\code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
+Metrics: \code{\link[=rvt_hillshade]{rvt_hillshade()}}, \code{\link[=rvt_multi_hillshade]{rvt_multi_hillshade()}}, \code{\link[=rvt_shadow]{rvt_shadow()}},
+\code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_asvf]{rvt_asvf()}}, \code{\link[=rvt_sky_illumination]{rvt_sky_illumination()}},
+\code{\link[=rvt_openness]{rvt_openness()}}, \code{\link[=rvt_openness_negative]{rvt_openness_negative()}}, \code{\link[=rvt_local_dominance]{rvt_local_dominance()}},
+\code{\link[=rvt_slrm]{rvt_slrm()}}, \code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_mstp]{rvt_mstp()}}, \code{\link[=rvt_vat]{rvt_vat()}}.
+
+Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
+}
+\section{Choosing a visualization}{
+
+Kokalj and Hesse's \emph{Guide to Good Practice} (2017) is the standard
+reference on this, and its advice is worth summarising here. The headline
+point is that \strong{no single visualization is enough}: in almost every case
+several are needed, and the choice depends on the topography, on the size
+and shape of what you are looking for, and on whether you are trying to
+\emph{spot} something or to \emph{interpret} something already spotted.
+
+Start with \code{\link[=rvt_hillshade]{rvt_hillshade()}} for an overview, since it gives the most
+natural-looking read of the terrain and helps you judge what else is worth
+running. Then work outwards roughly in this order, adjusting for terrain:
+
+\describe{
+\item{flat ground and gentle slopes}{hillshade with a low sun (under 10
+degrees), then \code{\link[=rvt_slrm]{rvt_slrm()}} (~20 m filter), \code{\link[=rvt_local_dominance]{rvt_local_dominance()}}
+(10-20 m), then \code{\link[=rvt_openness]{rvt_openness()}} (10 m). Sky-view factor is weakest
+here - on flat ground it mostly shows negative features and is very
+noise-sensitive.}
+\item{moderate slopes}{hillshade (~30 degrees), \code{\link[=rvt_svf]{rvt_svf()}} (10 m),
+\code{\link[=rvt_slrm]{rvt_slrm()}} (~20 m), \code{\link[=rvt_local_dominance]{rvt_local_dominance()}} (10-20 m),
+\code{\link[=rvt_openness]{rvt_openness()}} (10 m).}
+\item{steep or complex topography}{hillshade (45 degrees or more),
+\code{\link[=rvt_svf]{rvt_svf()}} (10 m), \code{\link[=rvt_local_dominance]{rvt_local_dominance()}} (10-20 m), \code{\link[=rvt_openness]{rvt_openness()}}
+(10 m). Openness is particularly at home here, since removing the
+overall landform means slopes don't saturate the image.}
+}
+
+All of those radii are in \strong{metres}, while this package takes pixels -
+multiply by four on a 0.25 m DEM. Each function's own help page carries the
+detailed settings and display stretches for its metric.
+}
+
+\references{
+Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
+Visualization: A Guide to Good Practice}. Prostor, kraj, čas 14. Ljubljana:
+Založba ZRC. \doi{10.3986/9789612549848}
 }
 \author{
 \strong{Maintainer}: Jens Wiesehahn \email{wiesehahn.jens@gmail.com}

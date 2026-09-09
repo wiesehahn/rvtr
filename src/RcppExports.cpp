@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // horizon_svf_opns
-List horizon_svf_opns(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, bool want_svf, bool want_opns, int threads);
-RcppExport SEXP _rvtr_horizon_svf_opns(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP want_svfSEXP, SEXP want_opnsSEXP, SEXP threadsSEXP) {
+List horizon_svf_opns(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, bool want_svf, bool want_opns, bool want_asvf, NumericVector dir_weight, int threads);
+RcppExport SEXP _rvtr_horizon_svf_opns(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP want_svfSEXP, SEXP want_opnsSEXP, SEXP want_asvfSEXP, SEXP dir_weightSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -27,14 +27,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type dir_end(dir_endSEXP);
     Rcpp::traits::input_parameter< bool >::type want_svf(want_svfSEXP);
     Rcpp::traits::input_parameter< bool >::type want_opns(want_opnsSEXP);
+    Rcpp::traits::input_parameter< bool >::type want_asvf(want_asvfSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dir_weight(dir_weightSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(horizon_svf_opns(padded, pad, nrow_out, ncol_out, dx, dy, dist, dir_start, dir_end, want_svf, want_opns, threads));
+    rcpp_result_gen = Rcpp::wrap(horizon_svf_opns(padded, pad, nrow_out, ncol_out, dx, dy, dist, dir_start, dir_end, want_svf, want_opns, want_asvf, dir_weight, threads));
     return rcpp_result_gen;
 END_RCPP
 }
 // slope_hillshade
-List slope_hillshade(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, double sun_azimuth, NumericVector sun_elevations, int threads);
-RcppExport SEXP _rvtr_slope_hillshade(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP sun_azimuthSEXP, SEXP sun_elevationsSEXP, SEXP threadsSEXP) {
+List slope_hillshade(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, NumericVector sun_azimuths, NumericVector sun_elevations, int threads);
+RcppExport SEXP _rvtr_slope_hillshade(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP sun_azimuthsSEXP, SEXP sun_elevationsSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -44,17 +46,99 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
     Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
     Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< double >::type sun_azimuth(sun_azimuthSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sun_azimuths(sun_azimuthsSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type sun_elevations(sun_elevationsSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(slope_hillshade(padded, pad, nrow_out, ncol_out, xres, yres, sun_azimuth, sun_elevations, threads));
+    rcpp_result_gen = Rcpp::wrap(slope_hillshade(padded, pad, nrow_out, ncol_out, xres, yres, sun_azimuths, sun_elevations, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// local_dominance_kernel
+NumericMatrix local_dominance_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector dx, IntegerVector dy, NumericVector dist, NumericVector weight, double observer_height, int threads);
+RcppExport SEXP _rvtr_local_dominance_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP weightSEXP, SEXP observer_heightSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dx(dxSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dy(dySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< double >::type observer_height(observer_heightSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(local_dominance_kernel(padded, pad, nrow_out, ncol_out, dx, dy, dist, weight, observer_height, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// msrm_kernel
+NumericMatrix msrm_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector radii, int threads);
+RcppExport SEXP _rvtr_msrm_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP radiiSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type radii(radiiSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(msrm_kernel(padded, pad, nrow_out, ncol_out, radii, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// max_deviation_kernel
+NumericMatrix max_deviation_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, int r_min, int r_max, int r_step, int threads);
+RcppExport SEXP _rvtr_max_deviation_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP r_minSEXP, SEXP r_maxSEXP, SEXP r_stepSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< int >::type r_min(r_minSEXP);
+    Rcpp::traits::input_parameter< int >::type r_max(r_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type r_step(r_stepSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(max_deviation_kernel(padded, pad, nrow_out, ncol_out, r_min, r_max, r_step, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sky_illumination_kernel
+NumericMatrix sky_illumination_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, NumericVector dir_azimuth, bool overcast, int threads);
+RcppExport SEXP _rvtr_sky_illumination_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP dir_azimuthSEXP, SEXP overcastSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dx(dxSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dy(dySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dir_start(dir_startSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dir_end(dir_endSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dir_azimuth(dir_azimuthSEXP);
+    Rcpp::traits::input_parameter< bool >::type overcast(overcastSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(sky_illumination_kernel(padded, pad, nrow_out, ncol_out, xres, yres, dx, dy, dist, dir_start, dir_end, dir_azimuth, overcast, threads));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rvtr_horizon_svf_opns", (DL_FUNC) &_rvtr_horizon_svf_opns, 12},
+    {"_rvtr_horizon_svf_opns", (DL_FUNC) &_rvtr_horizon_svf_opns, 14},
     {"_rvtr_slope_hillshade", (DL_FUNC) &_rvtr_slope_hillshade, 9},
+    {"_rvtr_local_dominance_kernel", (DL_FUNC) &_rvtr_local_dominance_kernel, 10},
+    {"_rvtr_msrm_kernel", (DL_FUNC) &_rvtr_msrm_kernel, 6},
+    {"_rvtr_max_deviation_kernel", (DL_FUNC) &_rvtr_max_deviation_kernel, 8},
+    {"_rvtr_sky_illumination_kernel", (DL_FUNC) &_rvtr_sky_illumination_kernel, 14},
     {NULL, NULL, 0}
 };
 

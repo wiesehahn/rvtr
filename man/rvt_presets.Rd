@@ -7,8 +7,28 @@
 \alias{rvt_preset_flat}
 \title{VAT terrain presets}
 \format{
-A list with \code{sun_elevation}, \code{slope}, \code{svf}, \code{opns} (normalisation
-ranges), \code{radius_max} and \code{noise_removal}.
+A list with:
+\describe{
+\item{\code{sun_elevation}}{height of the sun above the horizon, in degrees,
+for the hillshade layer. Lower angles throw longer shadows and
+exaggerate faint relief - hence 15 for flat terrain against 35 for
+general.}
+\item{\code{slope}}{the slope range, in degrees, stretched across the layer's
+full brightness range. Slopes past the upper end are clipped, so a
+narrower range gives more contrast among gentle slopes (15 for flat
+terrain, 50 for general).}
+\item{\code{svf}}{the same idea for the sky-view factor layer - the
+sky-fraction range that gets stretched. \code{c(0.9, 1)} on flat terrain
+spreads out what would otherwise be an almost invisible band of
+values.}
+\item{\code{opns}}{the same again for the positive openness layer, in
+degrees.}
+\item{\code{radius_max}}{how far the horizon search behind the openness and
+sky-view factor layers looks, in pixels. As in \code{\link[=rvt_svf]{rvt_svf()}}, scale it
+with your pixel size.}
+\item{\code{noise_removal}}{0-3, ignoring progressively more of the innermost
+pixels of each search ray.}
+}
 
 An object of class \code{list} of length 6.
 
@@ -20,10 +40,16 @@ rvt_preset_general
 rvt_preset_flat
 }
 \description{
-Parameter sets for \code{\link[=rvt_vat]{rvt_vat()}}, from RVT's \code{default_terrains_settings.json}.
-\code{rvt_preset_general} suits typical relief; \code{rvt_preset_flat} uses a larger
-search radius and more noise removal for subtle micro-relief on flat ground.
-Pass a customised copy (e.g. \code{modifyList(rvt_preset_general, list(radius_max = 15))})
-to tune either preset.
+The two parameter sets that \code{\link[=rvt_vat]{rvt_vat()}} renders and averages.
+\code{rvt_preset_general} suits ordinary relief; \code{rvt_preset_flat} looks further
+out and filters noise harder, to bring up the subtle micro-relief typical of
+flat ground.
+}
+\details{
+Both are plain lists, so the way to adjust one is a modified copy:
+\code{modifyList(rvt_preset_general, list(radius_max = 20))}.
+}
+\seealso{
+\code{\link[=rvt_vat]{rvt_vat()}}
 }
 \keyword{datasets}

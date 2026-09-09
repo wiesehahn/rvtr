@@ -10,6 +10,7 @@ rvt_plot(
   col = grDevices::hcl.colors(256, "Grays"),
   legend = FALSE,
   axes = FALSE,
+  band = NULL,
   ...
 )
 }
@@ -26,6 +27,11 @@ first}
 \item{legend}{show a colour scale (default \code{FALSE}, just the image)}
 
 \item{axes}{show axes with coordinates (default \code{FALSE})}
+
+\item{band}{which band to draw, for multi-band results such as
+\code{\link[=rvt_multi_hillshade]{rvt_multi_hillshade()}}; or three band numbers to draw as red, green and
+blue. Defaults to band 1, except for a 3-band raster, which is drawn as
+RGB (which is what \code{\link[=rvt_mstp]{rvt_mstp()}} wants).}
 
 \item{...}{passed on to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}, e.g. \code{main = "..."}
 for a title}

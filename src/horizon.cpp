@@ -30,6 +30,8 @@ List horizon_svf_opns(NumericMatrix padded,
                       IntegerVector dir_end,
                       bool want_svf,
                       bool want_opns,
+                      bool want_asvf,
+                      NumericVector dir_weight,
                       int threads) {
 
   const int ndir = dir_start.size();
@@ -38,13 +40,22 @@ List horizon_svf_opns(NumericMatrix padded,
 
   NumericMatrix svf(want_svf ? nrow_out : 1, want_svf ? ncol_out : 1);
   NumericMatrix opns(want_opns ? nrow_out : 1, want_opns ? ncol_out : 1);
+  NumericMatrix asvf(want_asvf ? nrow_out : 1, want_asvf ? ncol_out : 1);
   double *SVF = &svf[0];
   double *OPNS = &opns[0];
+  double *ASVF = &asvf[0];
 
   const int *DX = &dx[0];
   const int *DY = &dy[0];
   const int *DS = &dir_start[0];
   const int *DE = &dir_end[0];
+
+  // Anisotropy: one weight per direction, largest towards the bright part of
+  // the sky. Normalising by their total (rather than by ndir) keeps the
+  // result on the same 0-1 scale as plain SVF.
+  const double *W = want_asvf ? &dir_weight[0] : NULL;
+  double weight_total = 0.0;
+  if (want_asvf) for (int d = 0; d < ndir; ++d) weight_total += W[d];
 
   // reciprocals turn a division per offset per pixel into a multiply
   std::vector<double> inv_dist(dist.size());
@@ -66,11 +77,13 @@ List horizon_svf_opns(NumericMatrix padded,
       if (ISNAN(centre)) {
         if (want_svf) SVF[out_idx] = NA_REAL;
         if (want_opns) OPNS[out_idx] = NA_REAL;
+        if (want_asvf) ASVF[out_idx] = NA_REAL;
         continue;
       }
 
       double svf_sum = 0.0;
       double opns_sum = 0.0;
+      double asvf_sum = 0.0;
 
       for (int d = 0; d < ndir; ++d) {
         // No valid neighbour in this direction (only reachable beside
@@ -86,23 +99,32 @@ List horizon_svf_opns(NumericMatrix padded,
           if (s > max_slope) max_slope = s;
         }
         const double ang = std::atan(max_slope);
-        if (want_svf) svf_sum += 1.0 - std::sin(ang > 0.0 ? ang : 0.0);
+        if (want_svf || want_asvf) {
+          const double vis = 1.0 - std::sin(ang > 0.0 ? ang : 0.0);
+          if (want_svf) svf_sum += vis;
+          if (want_asvf) asvf_sum += vis * W[d];
+        }
         if (want_opns) opns_sum += ang;
       }
 
       if (want_svf) SVF[out_idx] = svf_sum / ndir;
       if (want_opns) OPNS[out_idx] = 90.0 - (opns_sum / ndir) * rad2deg;
+      if (want_asvf) ASVF[out_idx] = asvf_sum / weight_total;
     }
   }
 
   return List::create(_["svf"] = want_svf ? svf : NumericMatrix(0, 0),
-                      _["opns"] = want_opns ? opns : NumericMatrix(0, 0));
+                      _["opns"] = want_opns ? opns : NumericMatrix(0, 0),
+                      _["asvf"] = want_asvf ? asvf : NumericMatrix(0, 0));
 }
 
 
-// Slope (radians) plus one hillshade per requested sun elevation, sharing the
-// same derivative computation. Formulas follow rvt.vis.slope_aspect() and
-// rvt.vis.hillshade() so output is comparable with RVT.
+// Slope (radians) plus one hillshade per requested sun position, sharing the
+// same derivative computation. `sun_azimuths` and `sun_elevations` are paired
+// element by element, so this covers one sun (rvt_hillshade), several
+// elevations from one direction (rvt_vat) and several directions at one
+// elevation (rvt_multi_hillshade) without recomputing the derivatives each
+// time. Pass empty vectors for slope only.
 //
 // [[Rcpp::export]]
 List slope_hillshade(NumericMatrix padded,
@@ -111,32 +133,34 @@ List slope_hillshade(NumericMatrix padded,
                      int ncol_out,
                      double xres,
                      double yres,
-                     double sun_azimuth,
+                     NumericVector sun_azimuths,
                      NumericVector sun_elevations,
                      int threads) {
 
   const int pnrow = padded.nrow();
   const double *P = &padded[0];
-  const int n_el = sun_elevations.size();
+  const int n_sun = sun_elevations.size();
+  if (sun_azimuths.size() != n_sun)
+    stop("sun_azimuths and sun_elevations must be the same length");
 
   NumericMatrix slope(nrow_out, ncol_out);
   double *SLP = &slope[0];
 
-  List hs(n_el);
-  std::vector<double*> HS(n_el);
-  for (int e = 0; e < n_el; ++e) {
+  List hs(n_sun);
+  std::vector<double*> HS(n_sun);
+  for (int e = 0; e < n_sun; ++e) {
     NumericMatrix m(nrow_out, ncol_out);
     hs[e] = m;
     HS[e] = &(as<NumericMatrix>(hs[e]))[0];
   }
 
-  std::vector<double> zenith(n_el), cos_z(n_el), sin_z(n_el);
-  for (int e = 0; e < n_el; ++e) {
-    zenith[e] = M_PI / 2.0 - sun_elevations[e] * M_PI / 180.0;
-    cos_z[e] = std::cos(zenith[e]);
-    sin_z[e] = std::sin(zenith[e]);
+  std::vector<double> cos_z(n_sun), sin_z(n_sun), az_rad(n_sun);
+  for (int e = 0; e < n_sun; ++e) {
+    const double zenith = M_PI / 2.0 - sun_elevations[e] * M_PI / 180.0;
+    cos_z[e] = std::cos(zenith);
+    sin_z[e] = std::sin(zenith);
+    az_rad[e] = sun_azimuths[e] * M_PI / 180.0;
   }
-  const double az_rad = sun_azimuth * M_PI / 180.0;
 
 #ifdef _OPENMP
   #pragma omp parallel for num_threads(threads) schedule(static)
@@ -150,14 +174,23 @@ List slope_hillshade(NumericMatrix padded,
       const double centre = P[pi + (R_xlen_t)pj * pnrow];
       if (ISNAN(centre)) {
         SLP[out_idx] = NA_REAL;
-        for (int e = 0; e < n_el; ++e) HS[e][out_idx] = NA_REAL;
+        for (int e = 0; e < n_sun; ++e) HS[e][out_idx] = NA_REAL;
         continue;
       }
 
-      const double left  = P[pi + (R_xlen_t)(pj - 1) * pnrow];
-      const double right = P[pi + (R_xlen_t)(pj + 1) * pnrow];
-      const double up    = P[(pi - 1) + (R_xlen_t)pj * pnrow];
-      const double down  = P[(pi + 1) + (R_xlen_t)pj * pnrow];
+      // A NoData neighbour falls back to the centre cell's own elevation,
+      // which is the same edge-replicate rule already applied at the raster
+      // boundary - just extended to holes in the interior. Without it a valid
+      // cell touching a hole would go NoData itself, eroding a one-pixel ring
+      // around every hole, and none of the other metrics here do that.
+      double left  = P[pi + (R_xlen_t)(pj - 1) * pnrow];
+      double right = P[pi + (R_xlen_t)(pj + 1) * pnrow];
+      double up    = P[(pi - 1) + (R_xlen_t)pj * pnrow];
+      double down  = P[(pi + 1) + (R_xlen_t)pj * pnrow];
+      if (ISNAN(left))  left  = centre;
+      if (ISNAN(right)) right = centre;
+      if (ISNAN(up))    up    = centre;
+      if (ISNAN(down))  down  = centre;
 
       // rvt.vis.slope_aspect(): dzdx from (left - right), dzdy from (below - above)
       double dzdx = ((left - right) / 2.0) / xres;
@@ -170,9 +203,9 @@ List slope_hillshade(NumericMatrix padded,
 
       SLP[out_idx] = slp;
       const double cos_slp = std::cos(slp), sin_slp = std::sin(slp);
-      const double cos_asp = std::cos(asp - az_rad);
-      for (int e = 0; e < n_el; ++e) {
-        double v = cos_z[e] * cos_slp + sin_z[e] * sin_slp * cos_asp;
+      for (int e = 0; e < n_sun; ++e) {
+        double v = cos_z[e] * cos_slp
+                 + sin_z[e] * sin_slp * std::cos(asp - az_rad[e]);
         HS[e][out_idx] = v < 0.0 ? 0.0 : v;
       }
     }

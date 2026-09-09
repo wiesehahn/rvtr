@@ -23,7 +23,7 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{num_directions}{number of search directions (RVT default 16)}
+\item{num_directions}{number of compass directions scanned (default 16)}
 
 \item{presets}{list of two parameter sets, general first then flat; see
 \link{rvt_presets}}
@@ -47,10 +47,67 @@ comparing output against rvt-py.}
 pipe-friendly: \code{dem |> rvt_vat("vat.tif")}.
 }
 \description{
-Visualization for Archaeological Topography: a blend of hillshade, slope,
-positive openness and sky-view factor, rendered once with a general-terrain
-preset and once with a flat-terrain preset and averaged. Values are 0-1.
+Visualization for Archaeological Topography: a ready-made composite for
+spotting earthworks, combining four different views of the terrain into a
+single greyscale image so you don't have to read several rasters side by
+side. Values are 0-1, ready to display directly.
 }
+\details{
+Each ingredient contributes something the others lack: hillshade gives the
+eye the familiar sense of relief, slope sharpens edges, positive openness
+lifts convex features such as banks and mounds, and sky-view factor darkens
+enclosed ground such as ditches. The whole thing is rendered twice - once
+with settings for ordinary relief, once tuned for flat ground where
+features are subtle - and the two are averaged, so a single run works
+reasonably across both without retuning.
+
+If you want to interpret actual numbers rather than look at a picture, this
+is the wrong tool: it is a display product, and the blending discards the
+physical units of its ingredients. Use \code{\link[=rvt_msrm]{rvt_msrm()}} (heights in metres) or
+\code{\link[=rvt_openness]{rvt_openness()}} (angles in degrees) for that.
+}
+\section{How it works}{
+
+For each of the two presets (\link{rvt_presets}), the DEM is turned into four
+layers, each stretched to 0-1 over a range set by the preset, then stacked
+from the bottom up:
+\itemize{
+\item \strong{hillshade} at the preset's sun elevation, from the north-west - the
+background everything else is laid over;
+\item \strong{slope}, inverted so flat ground is bright, blended over it at half
+strength;
+\item \strong{positive openness}, blended in Overlay mode, which lightens what is
+already light and darkens what is already dark, so convex features gain
+contrast without washing the image out;
+\item \strong{sky-view factor}, multiplied in at a quarter strength, which only
+darkens - deepening enclosed ground.
+}
+
+The two resulting images are then averaged. The horizon searches use each
+preset's own \code{radius_max} and \code{noise_removal}, so the flat-terrain pass
+looks further out and filters more aggressively than the general one.
+Computation is at native resolution, tile by tile.
+}
+
+\section{Tuning}{
+
+\itemize{
+\item The two presets are ordinary lists, so the easiest adjustment is a
+modified copy - for example
+\code{modifyList(rvt_preset_general, list(radius_max = 20))} to make the
+general pass respond to larger features. See \link{rvt_presets} for the
+fields and what they mean.
+\item To render a single terrain type rather than the average of two, pass the
+same preset twice, e.g. \code{presets = list(rvt_preset_flat, rvt_preset_flat)}.
+This is worth doing when your area really is uniformly flat, since the
+general-terrain pass otherwise dilutes the contrast the flat preset was
+tuned to give.
+\item \code{num_directions} is shared by both passes and behaves as in \code{\link[=rvt_svf]{rvt_svf()}}.
+\item \code{rvt_compat} exists only for checking output against rvt-py and should
+be left alone otherwise; see its parameter description.
+}
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_vat(dem)
