@@ -201,12 +201,13 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_vat(dem)
 #' @export
-rvt_vat <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_vat <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16,
                 presets = list(rvt_preset_general, rvt_preset_flat),
                 tile_size = NULL, threads = rvt_threads(),
                 rvt_compat = FALSE, overwrite = FALSE, progress = FALSE) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

@@ -117,9 +117,10 @@
 #' dem |> rvt_resample(4) |> rvt_curvature() |> rvt_plot()
 #' @export
 rvt_resample <- function(src, res, method = "cubic",
-                          out_path = tempfile(fileext = ".tif"),
+                          out_path = fs::file_temp(ext = "tif"),
                           threads = rvt_threads(), overwrite = FALSE) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   src <- rvt_mosaic(src)
 
   res <- as.numeric(res)

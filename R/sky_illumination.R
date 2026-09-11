@@ -120,14 +120,15 @@
 #' # small radius to keep the example quick
 #' rvt_sky_illumination(dem, reach = 10, num_directions = 8)
 #' @export
-rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                   sky_model = c("overcast", "uniform"),
                                   num_directions = 32, reach = 100,
                                   pyramid_px = 100, pyramid_factor = 4,
                                   tile_size = NULL, threads = rvt_threads(),
                                   overwrite = FALSE, progress = FALSE) {
   sky_model <- match.arg(sky_model)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -215,14 +216,15 @@ rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_shadow(dem, sun_elevation = 15, reach = 30)
 #' @export
-rvt_shadow <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_shadow <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         sun_azimuth = 315, sun_elevation = 35, reach = 100,
                         pyramid_px = 100, pyramid_factor = 4,
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   if (length(sun_azimuth) != 1L)
     stop("`sun_azimuth` must be a single direction", call. = FALSE)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

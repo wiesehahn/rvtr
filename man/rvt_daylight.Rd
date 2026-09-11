@@ -6,7 +6,7 @@
 \usage{
 rvt_daylight(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   start_day = 1,
   end_day = 365,
   day_step = 5,

@@ -6,7 +6,7 @@
 \usage{
 rvt_mstp(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   local = c(3, 21, 2),
   meso = c(23, 203, 18),
   broad = c(223, 2023, 180),

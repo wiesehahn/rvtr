@@ -137,12 +137,13 @@
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_local_dominance(dem)
 #' @export
-rvt_local_dominance <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_local_dominance <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  min_rad = 10, max_rad = 20, rad_inc = 1,
                                  angular_res = 15, observer_height = 1.7,
                                  tile_size = NULL, threads = rvt_threads(),
                                  overwrite = FALSE, progress = FALSE) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

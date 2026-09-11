@@ -100,13 +100,14 @@ rvt_geomorphon_classes <- c(
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_geomorphons(dem, search = 10)
 #' @export
-rvt_geomorphons <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_geomorphons <- function(dem, out_path = fs::file_temp(ext = "tif"),
                              search = 20, skip = 1, flat_threshold = 1,
                              flat_distance = 0,
                              tile_size = NULL, threads = rvt_threads(),
                              overwrite = FALSE, progress = FALSE) {
   if (flat_threshold < 0) stop("`flat_threshold` must not be negative", call. = FALSE)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

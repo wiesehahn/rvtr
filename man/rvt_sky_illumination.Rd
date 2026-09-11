@@ -6,7 +6,7 @@
 \usage{
 rvt_sky_illumination(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   sky_model = c("overcast", "uniform"),
   num_directions = 32,
   reach = 100,

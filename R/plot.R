@@ -101,6 +101,7 @@
 rvt_plot <- function(path, max_dim = 1000,
                       col = grDevices::hcl.colors(256, "Grays"),
                       legend = FALSE, axes = FALSE, band = NULL, ...) {
+  path <- .as_path(path)
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
   on.exit(ds$close())
   nx <- ds$getRasterXSize(); ny <- ds$getRasterYSize()

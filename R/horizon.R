@@ -81,7 +81,8 @@
                           negate = FALSE, want_asvf = FALSE,
                           dir_weight = numeric(0),
                           pyramid_px = 100, pyramid_factor = 4) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -234,7 +235,7 @@
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_svf(dem)
 #' @export
-rvt_svf <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_svf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
                 pyramid_px = 100, pyramid_factor = 4,
                 tile_size = NULL, threads = rvt_threads(),
@@ -317,7 +318,7 @@ rvt_svf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_asvf(dem)
 #' @export
-rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
                 main_direction = 315, level = 1,
                 pyramid_px = 100, pyramid_factor = 4,
@@ -411,7 +412,7 @@ rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_openness(dem)
 #' @export
-rvt_openness <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_openness <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,
                      pyramid_px = 100, pyramid_factor = 4,
                      tile_size = NULL, threads = rvt_threads(),
@@ -474,7 +475,7 @@ rvt_openness <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_openness_negative(dem)
 #' @export
-rvt_openness_negative <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_openness_negative <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,
                      pyramid_px = 100, pyramid_factor = 4,
                      tile_size = NULL, threads = rvt_threads(),

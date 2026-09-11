@@ -94,13 +94,14 @@
 #' rvt_curvature(dem)
 #' rvt_curvature(dem, type = "plan")
 #' @export
-rvt_curvature <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            type = c("profile", "plan", "tangential", "mean",
                                     "minimal", "maximal", "gaussian", "total"),
                            tile_size = NULL, threads = rvt_threads(),
                            overwrite = FALSE, progress = FALSE) {
   type <- match.arg(type)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -183,12 +184,13 @@ rvt_curvature <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_log(dem, sigma = 3)
 #' @export
-rvt_log <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_log <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      sigma = 2, tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
   if (!is.finite(sigma) || sigma <= 0)
     stop("`sigma` must be a positive distance in map units", call. = FALSE)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

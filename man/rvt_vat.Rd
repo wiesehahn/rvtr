@@ -6,7 +6,7 @@
 \usage{
 rvt_vat(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   num_directions = 16,
   presets = list(rvt_preset_general, rvt_preset_flat),
   tile_size = NULL,

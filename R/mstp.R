@@ -81,7 +81,7 @@
 #' rvt_mstp(dem, local = c(3, 21, 2), meso = c(23, 103, 18),
 #'          broad = c(123, 223, 50))
 #' @export
-rvt_mstp <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_mstp <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       local = c(3, 21, 2), meso = c(23, 203, 18),
                       broad = c(223, 2023, 180), lightness = 1.2,
                       tile_size = NULL, threads = rvt_threads(),
@@ -94,7 +94,8 @@ rvt_mstp <- function(dem, out_path = tempfile(fileext = ".tif"),
     if (s[2] < s[1])
       stop("`", nm, "`: min_radius must not exceed max_radius", call. = FALSE)
   }
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)

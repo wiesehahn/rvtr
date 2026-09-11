@@ -6,7 +6,7 @@
 \usage{
 rvt_curvature(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   type = c("profile", "plan", "tangential", "mean", "minimal", "maximal", "gaussian",
     "total"),
   tile_size = NULL,

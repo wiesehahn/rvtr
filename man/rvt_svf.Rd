@@ -6,7 +6,7 @@
 \usage{
 rvt_svf(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   num_directions = 16,
   reach = 10,
   noise_removal = 0,

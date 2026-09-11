@@ -4,7 +4,7 @@
 \alias{rvt_mosaic}
 \title{Present one or many rasters as a single dataset}
 \usage{
-rvt_mosaic(dem, vrt_path = tempfile(fileext = ".vrt"), cl_arg = NULL)
+rvt_mosaic(dem, vrt_path = fs::file_temp(ext = "vrt"), cl_arg = NULL)
 }
 \arguments{
 \item{dem}{a path, or a character vector of paths to mosaic. A directory,

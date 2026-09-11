@@ -60,6 +60,20 @@ rvt_threads <- function(n = NULL) {
   px
 }
 
+## Every path a user hands in goes through here. fs normalises separators, so
+## a Windows path written with backslashes reaches GDAL as something it can
+## open, and expands "~", which GDAL does not do at all - `rvt_svf(dem,
+## "~/svf.tif")` would otherwise create a directory called "~".
+.as_path <- function(p) fs::path_expand(fs::path(p))
+
+## Delete if present. fs::file_delete() errors on a missing file, which is the
+## wrong behaviour in an on.exit() handler that may run after a failure.
+.rm_path <- function(p) {
+  p <- p[fs::file_exists(p)]
+  if (length(p)) fs::file_delete(p)
+  invisible(NULL)
+}
+
 .dem_info <- function(path, band = 1L) {
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
   on.exit(ds$close())
@@ -205,7 +219,7 @@ rvt_threads <- function(n = NULL) {
                 "-co", "RESAMPLING=AVERAGE",
                 "-co", paste0("NUM_THREADS=", threads)),
     quiet = TRUE)
-  unlink(scratch_path)
+  .rm_path(scratch_path)
   invisible(out_path)
 }
 
@@ -265,7 +279,7 @@ rvt_threads <- function(n = NULL) {
   nb <- stats::setNames(rep(1L, length(out_paths)), names(out_paths))
   if (!is.null(nbands)) nb[names(nbands)] <- as.integer(nbands)
 
-  scratch_paths <- lapply(out_paths, function(p) tempfile(fileext = ".tif"))
+  scratch_paths <- lapply(out_paths, function(p) fs::file_temp(ext = "tif"))
   for (nm in names(out_paths))
     .create_scratch(src, scratch_paths[[nm]], tile_size, nx, ny, nb[[nm]])
 

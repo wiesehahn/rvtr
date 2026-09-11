@@ -6,7 +6,7 @@
 \usage{
 rvt_dev(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   radius = 20,
   tile_size = NULL,
   threads = rvt_threads(),

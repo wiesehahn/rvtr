@@ -6,7 +6,7 @@
 \usage{
 rvt_local_dominance(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   min_rad = 10,
   max_rad = 20,
   rad_inc = 1,

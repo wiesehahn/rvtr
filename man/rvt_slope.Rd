@@ -6,7 +6,7 @@
 \usage{
 rvt_slope(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   units = c("degree", "radian", "percent"),
   tile_size = NULL,
   threads = rvt_threads(),

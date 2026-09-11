@@ -87,12 +87,13 @@
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_slope(dem)
 #' @export
-rvt_slope <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_slope <- function(dem, out_path = fs::file_temp(ext = "tif"),
                        units = c("degree", "radian", "percent"),
                        tile_size = NULL, threads = rvt_threads(),
                        overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -182,11 +183,12 @@ rvt_slope <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_hillshade(dem)
 #' @export
-rvt_hillshade <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            sun_azimuth = 315, sun_elevation = 35,
                            tile_size = NULL, threads = rvt_threads(),
                            overwrite = FALSE, progress = FALSE) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -241,12 +243,13 @@ rvt_hillshade <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_aspect(dem)
 #' @export
-rvt_aspect <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_aspect <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         units = c("degree", "radian"),
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
@@ -336,19 +339,20 @@ rvt_aspect <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_multi_hillshade(dem)
 #' @export
-rvt_multi_hillshade <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_multi_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  sun_elevation = 45, z_factor = 1,
                                  tile_size = NULL, threads = rvt_threads(),
                                  overwrite = FALSE, progress = FALSE) {
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   # gdaldem tiles internally and writes Byte, with 0 reserved for NoData - no
   # valid cell ever comes out 0 - so the rescale below cannot collide with a
   # legitimately black value. -compute_edges keeps the outer ring of cells
   # instead of leaving a NoData border.
-  scratch <- tempfile(fileext = ".tif")
-  on.exit(unlink(scratch), add = TRUE)
+  scratch <- fs::file_temp(ext = "tif")
+  on.exit(.rm_path(scratch), add = TRUE)
   gdalraster::dem_proc("hillshade", dem, scratch,
     mode_options = c("-multidirectional", "-compute_edges",
                       "-alt", format(sun_elevation, scientific = FALSE),

@@ -6,7 +6,7 @@
 \usage{
 rvt_hillshade(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   sun_azimuth = 315,
   sun_elevation = 35,
   tile_size = NULL,

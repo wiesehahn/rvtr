@@ -164,7 +164,7 @@
 #' rvt_insolation(dem, start_day = 91, end_day = 273, component = "all",
 #'                reach = 40)
 #' @export
-rvt_insolation <- function(dem, out_path = tempfile(fileext = ".tif"),
+rvt_insolation <- function(dem, out_path = fs::file_temp(ext = "tif"),
                             start_day = 1, end_day = 365, day_step = 5,
                             dates = NULL, time_step = 30,
                             linke = 3,
@@ -179,7 +179,8 @@ rvt_insolation <- function(dem, out_path = tempfile(fileext = ".tif"),
   component <- match.arg(component)
   sky_model <- match.arg(sky_model)
   units <- match.arg(units)
-  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  out_path <- .as_path(out_path)
+  if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   if (!is.numeric(linke) || length(linke) != 1L || !is.finite(linke) || linke < 1)
     stop("`linke` must be a single number of at least 1", call. = FALSE)
   dem <- rvt_mosaic(dem)

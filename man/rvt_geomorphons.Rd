@@ -6,7 +6,7 @@
 \usage{
 rvt_geomorphons(
   dem,
-  out_path = tempfile(fileext = ".tif"),
+  out_path = fs::file_temp(ext = "tif"),
   search = 20,
   skip = 1,
   flat_threshold = 1,
