@@ -9,7 +9,9 @@ Description: Topographic visualizations following the Relief Visualization
     cast shadow, slope, isotropic and anisotropic sky-view factor, sky
     illumination, positive and negative openness, local dominance, simple and
     multi-scale relief models, multi-scale topographic position, and the
-    archaeological Visualization for Archaeological Topography (VAT) blend.
+    archaeological Visualization for Archaeological Topography (VAT) blend;
+    together with aspect, curvature, Laplacian-of-Gaussian edge enhancement
+    and the geomorphons landform classification.
     Horizon-search and box-filter kernels run as fused, OpenMP-parallel C++,
     and rasters are processed tile by tile so memory use stays bounded
     regardless of input size. A mosaic of many rasters is handled by

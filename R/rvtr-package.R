@@ -13,12 +13,29 @@
 #' dem |> rvt_vat("vat.tif") |> rvt_plot()
 #' ```
 #'
-#' Metrics: [rvt_hillshade()], [rvt_multi_hillshade()], [rvt_shadow()],
-#' [rvt_slope()], [rvt_svf()], [rvt_asvf()], [rvt_sky_illumination()],
-#' [rvt_openness()], [rvt_openness_negative()], [rvt_local_dominance()],
-#' [rvt_slrm()], [rvt_msrm()], [rvt_mstp()], [rvt_vat()].
+#' Shaded relief: [rvt_hillshade()], [rvt_multi_hillshade()], [rvt_shadow()].
 #'
-#' Support: [rvt_mosaic()], [rvt_threads()], [rvt_plot()].
+#' Openness and sky: [rvt_svf()], [rvt_asvf()], [rvt_openness()],
+#' [rvt_openness_negative()], [rvt_sky_illumination()],
+#' [rvt_local_dominance()].
+#'
+#' Sun and energy: [rvt_daylight()] (hours of direct sun),
+#' [rvt_insolation()] (clear-sky energy, kWh/m2), [rvt_shadow()].
+#'
+#' Surface form: [rvt_slope()], [rvt_aspect()], [rvt_curvature()],
+#' [rvt_log()], [rvt_geomorphons()].
+#'
+#' Trend removal: [rvt_slrm()] (also [rvt_tpi()]), [rvt_dev()], [rvt_msrm()],
+#' [rvt_mstp()].
+#'
+#' Composite: [rvt_vat()].
+#'
+#' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()].
+#'
+#' Not reimplemented here, because `gdalraster` already does them well and at
+#' comparable speed: terrain ruggedness index and roughness, via
+#' `gdalraster::dem_proc(mode = "TRI")` and `mode = "roughness"`. Its
+#' `mode = "TPI"` is fixed to a 3x3 window; [rvt_tpi()] takes any radius.
 #'
 #' @section Choosing a visualization:
 #' Kokalj and Hesse's *Guide to Good Practice* (2017) is the standard
@@ -47,9 +64,32 @@
 #'     overall landform means slopes don't saturate the image.}
 #' }
 #'
-#' All of those radii are in **metres**, while this package takes pixels -
-#' multiply by four on a 0.25 m DEM. Each function's own help page carries the
+#' Those radii are in **metres**, and so is every distance this package takes,
+#' so they can be used as published. Each function's own help page carries the
 #' detailed settings and display stretches for its metric.
+#'
+#' @section Working at more than one scale:
+#' The same ground answers differently at different resolutions: metre-scale
+#' detail on a 0.25 m DTM, landform structure on a 2 m version of it. Since
+#' detail cannot be invented, that means coarsening - [rvt_resample()] does it,
+#' and pipes straight into any metric:
+#'
+#' ```r
+#' dem |> rvt_resample(2) |> rvt_curvature() |> rvt_plot()
+#' ```
+#'
+#' For metrics that take a radius, widening the radius is often the better way
+#' to change scale - it keeps the fine detail in the input instead of
+#' discarding it, and for [rvt_slrm()], [rvt_msrm()], [rvt_dev()] and
+#' [rvt_mstp()] it costs nothing extra. Coarsening is the right tool when the
+#' metric has no radius at all ([rvt_slope()], [rvt_aspect()],
+#' [rvt_curvature()], [rvt_log()]). See [rvt_resample()] for the full
+#' comparison.
+#'
+#' The horizon-search metrics get both at once: `reach` (see [rvt_reach])
+#' keeps near terrain at full resolution while reading distant terrain from
+#' coarser copies, so microrelief and mountains are accounted for in the same
+#' pass and the cost grows only with the logarithm of the distance.
 #'
 #' @references
 #' Kokalj, Ž. and Hesse, R. (2017) *Airborne Laser Scanning Raster Data

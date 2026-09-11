@@ -68,3 +68,45 @@ they're a local development aid for spot-checking, not a shipped fixture. The
 "agrees with rvt-py" tests skip themselves when these files are missing. To run
 them, regenerate the files with `rvt-py` (see Provenance above) and drop them
 back in this folder.
+
+## Alpine tiles (`dgm1_*.tif`) — mountain terrain and a real mosaic
+
+| file | what | committed to git? |
+|---|---|---|
+| `dgm1_659_5258.tif`, `dgm1_660_5258.tif`, `dgm1_659_5259.tif`, `dgm1_660_5259.tif` | four adjacent 1 km DTM tiles around the Partnachklamm, 1 m, ETRS89 / UTM 32N | no — local dev only |
+
+`dtm1.tif` is gentle lowland: 71 m of relief over a kilometre. That makes it a
+poor test of anything where *distant* terrain matters, and this package now has
+several such features (`reach` and its multi-resolution search, `rvt_daylight`,
+`rvt_shadow`). These four tiles are the opposite case — a gorge in the
+Wetterstein with **494 m of relief** over the same footprint.
+
+How much difference that makes, measured as positive openness at a 25 m reach
+against a 400 m one, away from the raster edge:
+
+| | mean abs difference | max |
+|---|---|---|
+| `dtm1.tif` (Lower Saxony) | 0.197° | 2.31° |
+| `dgm1_*` mosaic (Partnachklamm) | **6.220°** | **47.56°** |
+
+They also form a genuine four-file 2 × 2 mosaic (2000 × 2000 m, no NoData),
+which the mosaic-identity test uses — the `dtm1.tif` version of that test
+splits one file into quadrants, so it cannot catch anything that only goes
+wrong across real file boundaries.
+
+### Fetching them
+
+Open data from the Bavarian survey authority
+(<https://geodaten.bayern.de/opengeodata/>, CC BY 4.0). To restore them:
+
+```r
+tiles <- c("659_5259", "660_5259", "659_5258", "660_5258")
+for (t in tiles) {
+  download.file(paste0("https://download1.bayernwolke.de/a/dgm/dgm1/", t, ".tif"),
+                file.path("inst/extdata", paste0("dgm1_", t, ".tif")), mode = "wb")
+}
+```
+
+Gitignored (`inst/extdata/dgm1_*`) for the same reason as the `rvt_*` files —
+about 15 MB of data that is reproducible in one command. The tests that use
+them skip themselves when they are missing.

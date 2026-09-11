@@ -37,8 +37,10 @@ library(rvtr)
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 
 rvt_hillshade(dem)           # shaded relief, 0-1
-rvt_multi_hillshade(dem)     # shaded relief from 16 directions, one band each
+rvt_multi_hillshade(dem)     # shaded relief lit from four sides at once
 rvt_shadow(dem)              # cast shadow, 1 lit / 0 shadowed
+rvt_daylight(dem)            # hours of direct sun per day, over a year
+rvt_insolation(dem)          # clear-sky solar energy, kWh/m2 per year
 rvt_slope(dem)               # steepness, degrees
 rvt_svf(dem)                 # sky-view factor, 0-1
 rvt_asvf(dem)                # anisotropic sky-view factor, 0-1
@@ -46,23 +48,37 @@ rvt_sky_illumination(dem)    # diffuse sky illumination, flat ground = 1
 rvt_openness(dem)            # positive openness, degrees
 rvt_openness_negative(dem)   # negative openness, degrees
 rvt_local_dominance(dem)     # local dominance
-rvt_slrm(dem)                # simple local relief model, metres
+rvt_slrm(dem)                # simple local relief model, metres (= rvt_tpi)
+rvt_dev(dem)                 # deviation from mean elevation, standardised
 rvt_msrm(dem)                # multi-scale relief model, metres
 rvt_mstp(dem)                # multi-scale topographic position, RGB
 rvt_vat(dem)                 # archaeological VAT (combined), 0-1
+
+rvt_aspect(dem)              # direction each cell faces, degrees
+rvt_curvature(dem)           # profile curvature; convex +, concave -
+rvt_log(dem, sigma = 3)      # Laplacian of Gaussian, edges at a chosen scale
+rvt_geomorphons(dem)         # landform class per cell (10 classes)
 ```
 
 For your own data, swap `dem` for a path to your DEM, and pass an output path
 if you want to keep the file, e.g. `rvt_svf(dem, "svf.tif")`. The DEM is always
 the first argument, so these also work with the pipe: `dem |> rvt_vat("vat.tif")`.
 
+**Every distance is in map units** — metres, normally — never pixels. So
+`rvt_svf(dem, reach = 10)` looks 10 m out whether the DEM is 2 m or 0.25 m, and
+the radii published in the literature can be typed in as they stand. Distances
+snap to whole cells: a request smaller than one cell is an error rather than a
+silent round-up, and anything the grid can't hit closely says so.
+
 ### Which one to reach for
 
 | function | what it shows | flat ground reads |
 |---|---|---|
 | `rvt_hillshade()` | classic shaded relief from one sun position; intuitive, but features along the light fade out | varies |
-| `rvt_multi_hillshade()` | the same from many directions at once, one band each, so nothing is hidden in every band | varies |
+| `rvt_multi_hillshade()` | the same lit from four directions at once — nothing is hidden and no side is left in deep shadow, at the cost of some contrast | varies |
 | `rvt_shadow()` | true cast shadow for a sun position — unlike hillshade, terrain in the way actually blocks the light | 1 (lit) |
+| `rvt_daylight()` | hours of direct sun per day, integrated over the year (or any day range) — cast shadow and slope aspect together | day length |
+| `rvt_insolation()` | clear-sky solar **energy** in kWh/m², beam and diffuse, following GRASS `r.sun`'s ESRA model — what the hour counts are a proxy for | varies |
 | `rvt_slope()` | steepness alone; very sharp on breaks of slope, and noisy on noisy DEMs | 0° |
 | `rvt_svf()` | how much sky each cell sees — like an overcast sky with no sun direction, so nothing hides in shadow | 1 |
 | `rvt_asvf()` | sky-view factor under a sky brighter on one side: directional like a hillshade, but nothing is lost to shadow | 1 |
@@ -72,16 +88,20 @@ the first argument, so these also work with the pipe: `dem |> rvt_vat("vat.tif")
 | `rvt_local_dominance()` | how far the surroundings fall away below an observer standing there; good at low, spread-out features | 1 |
 | `rvt_slrm()` | height above/below the smoothed terrain **in metres**, at one scale you choose | 0 |
 | `rvt_msrm()` | the same idea across a range of scales at once, so you needn't know the feature size up front | 0 |
+| `rvt_dev()` | the same standardised by local roughness, so a bank on flat ground and a terrace on a rough hillside read alike | 0 |
 | `rvt_mstp()` | RGB composite colouring each cell by the *scale* at which it stands out: blue fine, green mid, red broad | dark |
+| `rvt_curvature()` | how sharply the ground bends — the natural detector for breaks of slope, but noisy | 0 |
+| `rvt_log()` | the same idea with a scale knob: edges at the size you ask for, noise below it suppressed | 0 |
+| `rvt_geomorphons()` | a landform **class** per cell (ridge, spur, hollow, valley…) rather than a number | flat |
 | `rvt_vat()` | ready-made greyscale composite of four of the above, tuned for spotting earthworks | — |
 
 Each help page (`?rvt_svf` and so on) has a **How it works** section covering the
 sampling geometry, a **Tuning** section on adapting the parameters, and a
 **Recommended settings** section drawing on Kokalj & Hesse's *Guide to Good
 Practice* — what each metric suits, what it can't show, and the values and
-display stretches that work in flat, moderate and steep terrain. Note their
-radii are in metres while these functions take pixels, so the defaults suit
-1 m data and want scaling for anything finer.
+display stretches that work in flat, moderate and steep terrain. Their radii
+are in metres, and so is every distance these functions take, so the published
+values can be used as they stand.
 
 `?rvtr` collects the guide's advice on **which** visualization to reach for in
 which terrain, and in what order. The short version: start with a hillshade
@@ -104,6 +124,59 @@ one raster (verified bit-for-bit against a single-file run):
 tiles <- list.files("dtm_tiles", "\\.tif$", full.names = TRUE)
 tiles |> rvt_vat("vat_mosaic.tif")
 ```
+
+### Scale of analysis
+
+Most of these metrics answer a different question at a different resolution —
+metre-scale detail on a 0.25 m DTM, landform structure on a 2 m version of the
+same ground. `rvt_resample()` coarsens a raster (it refuses to go finer; detail
+that was never measured can't be invented) and pipes straight on:
+
+```r
+dem |> rvt_resample(2) |> rvt_curvature() |> rvt_plot()
+```
+
+Use `method = "mode"` for categorical rasters such as `rvt_geomorphons()`
+output, so classes stay classes.
+
+Coarsening isn't the only scale knob, and often not the best one — for
+`rvt_slrm()`, `rvt_msrm()`, `rvt_dev()` and `rvt_mstp()` a wider radius costs
+nothing and keeps the fine detail in the input. Coarsening earns its place
+where the metric has no radius at all (`rvt_slope()`, `rvt_aspect()`,
+`rvt_curvature()`, `rvt_log()`), or to make a horizon-search metric affordable
+— on a 4000×4000 0.25 m tile, sky-view factor over a 10 m reach takes 15.8 s,
+against 0.6 s on the 1 m version of the same ground. `?rvt_resample` has the
+full comparison.
+
+### Looking a long way out
+
+The horizon-search metrics — `rvt_svf()`, `rvt_asvf()`, both `rvt_openness()`
+functions, `rvt_daylight()`, `rvt_shadow()` and `rvt_sky_illumination()` — scan
+out to `reach` metres. Doing all of that at full resolution would make cost
+grow in proportion to the distance, which is why "far enough to catch the ridge
+across the valley" would be unaffordable on fine data.
+
+So the full-resolution scan stops after 100 cells and everything beyond that is
+read from coarser and coarser copies of the same DEM. Because 100 *cells* is
+100 m on a 1 m DEM but only 25 m on a 0.25 m one, that is where the switch
+happens: a `reach` inside it is a single, exact, full-resolution scan, and
+anything longer adds levels — on a 0.25 m DEM, `reach = 1600` uses 0.25 m data
+out to 25 m, then 1 m to 100 m, 4 m to 400 m and 16 m to 1600 m.
+
+```r
+dem |> rvt_svf(reach = 400)     # 400 m out, without a 400 px search
+```
+
+Cost then grows with the *logarithm* of the distance. Accuracy barely moves —
+against a true full-resolution search of the same reach, sky-view factor differs
+by 2×10⁻⁵ and openness by 0.0025°, because a feature's effect on the horizon is
+`atan(height / distance)` and distant detail is worth very little. `?rvt_reach`
+has the details, including the two knobs (`pyramid_px`, `pyramid_factor`) and
+why the coarse levels use maximum rather than average resampling.
+
+It matters when distant terrain genuinely shades or encloses the site. On flat
+ground the far field contributes almost nothing, so a `reach` short enough to
+stay within the full-resolution scan — and therefore exact — is all you need.
 
 ### Large rasters
 
@@ -154,7 +227,7 @@ Sky illumination searches the horizon at full resolution rather than through
 RVT's multi-level DEM pyramid. The pyramid exists to make the default 100 px
 radius affordable in numpy; the C++ kernel here is fast enough not to need the
 approximation, at the cost of taking about a minute on a 4000 × 4000 raster —
-drop `radius_max` if that matters more than exactness. With rvt-py forced to a
+drop `reach` if that matters more than exactness. With rvt-py forced to a
 single resolution too, the two agree to a correlation of 0.997.
 
 That gives confidence the algorithms are implemented correctly without locking

@@ -29,12 +29,12 @@ first}
 \item{axes}{show axes with coordinates (default \code{FALSE})}
 
 \item{band}{which band to draw, for multi-band results such as
-\code{\link[=rvt_multi_hillshade]{rvt_multi_hillshade()}}; or three band numbers to draw as red, green and
-blue. Defaults to band 1, except for a 3-band raster, which is drawn as
-RGB (which is what \code{\link[=rvt_mstp]{rvt_mstp()}} wants).}
+\code{\link[=rvt_mstp]{rvt_mstp()}}; or three band numbers to draw as red, green and blue.
+Defaults to band 1, except for a 3-band raster, which is drawn as RGB
+(which is what \code{\link[=rvt_mstp]{rvt_mstp()}} wants).}
 
-\item{...}{passed on to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}, e.g. \code{main = "..."}
-for a title}
+\item{...}{passed on to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}} - see \strong{Controlling the
+stretch} and \strong{Other display options} below}
 }
 \value{
 \code{path}, invisibly. \code{path} is the first argument, so this is
@@ -48,8 +48,78 @@ orientation, a colour scale stretched to the data's own range, and NoData
 handling. This just adds a downsampled read (so a huge raster still
 renders fast) and a path-in, path-out interface for piping.
 }
+\section{Controlling the stretch}{
+
+By default the colours are stretched across the data's full range, which is
+often the wrong choice: a handful of extreme cells then compress everything
+interesting into the middle of the palette. Two arguments override it,
+both passed through to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# fixed values - anything outside is clipped to the end colours
+rvt_plot(p, minmax_def = c(-0.05, 0.05))
+
+# or cut percentiles, when you don't know the range in advance
+rvt_plot(p, minmax_pct_cut = c(2, 98))
+}\if{html}{\out{</div>}}
+
+The difference is easy to underestimate. Minimal curvature on the bundled
+sample tile spans -1.41 to 0.87, but its 2nd-98th percentile range is only
+-0.20 to 0.12 - so the default stretch spends most of the palette on
+outliers.
+
+For any \strong{signed} result - curvature, \code{\link[=rvt_log]{rvt_log()}}, \code{\link[=rvt_slrm]{rvt_slrm()}},
+\code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_dev]{rvt_dev()}} - keep the range \strong{symmetric about zero} and use
+a diverging palette, or zero will not land on the palette's neutral centre
+and convex will stop reading as the opposite of concave:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{div <- grDevices::hcl.colors(256, "Blue-Red 3")
+p |> rvt_plot(col = div, minmax_def = c(-0.3, 0.3), legend = TRUE)
+}\if{html}{\out{</div>}}
+
+Turning the \code{legend} on while choosing a stretch is worth the space - it is
+the only way to see what the range you picked actually was. Note the legend
+is drawn for single-band images only; an RGB composite has no one scale to
+show.
+
+Which numbers to use is metric-dependent, and each metric's own help page
+carries the stretches recommended in the literature - see the
+\emph{Recommended settings} section of \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_openness]{rvt_openness()}} and the
+rest.
+}
+
+\section{Other display options}{
+
+Anything \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}} accepts works here. The ones worth
+knowing:
+\itemize{
+\item \code{main = "..."} for a title; \code{axes = TRUE} adds coordinate axes.
+\item \code{col} takes any colour ramp. Use a diverging one for signed data, a
+\strong{discrete} one for \code{\link[=rvt_geomorphons]{rvt_geomorphons()}} - its values are class codes, so
+a continuous ramp implies an order that isn't there:
+\code{rvt_plot(g, col = grDevices::hcl.colors(10, "Spectral"))}.
+\item \code{band = i} picks one band out of a multi-band result; a 3-band one such
+as \code{\link[=rvt_mstp]{rvt_mstp()}} is drawn as RGB automatically.
+\item \code{max_dim} caps the rendered size. Downsampling happens during the read,
+so previewing a huge raster is cheap - and cheaper still on the
+Cloud-Optimized GeoTIFFs this package writes, which carry overviews.
+}
+
+One caveat when arranging several plots side by side: \code{legend = TRUE}
+splits the device with \code{\link[graphics:layout]{graphics::layout()}}, which overrides any
+\code{par(mfrow = ...)} you have set, so every panel after the first is lost.
+Leave the legend off for multi-panel figures, or draw each panel to its own
+device.
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_plot(dem)
 rvt_plot(dem, legend = TRUE, axes = TRUE, main = basename(dem))
+
+# signed data: diverging palette, symmetric stretch
+div <- grDevices::hcl.colors(256, "Blue-Red 3")
+dem |> rvt_slrm() |> rvt_plot(col = div, minmax_def = c(-1, 1), legend = TRUE)
+
+# percentile stretch when the range isn't known
+dem |> rvt_curvature() |> rvt_plot(col = div, minmax_pct_cut = c(2, 98))
 }

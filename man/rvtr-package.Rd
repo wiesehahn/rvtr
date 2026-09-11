@@ -6,7 +6,7 @@
 \alias{rvtr-package}
 \title{rvtr: Relief Visualization for Large Rasters and Mosaics}
 \description{
-Topographic visualizations following the Relief Visualization Toolbox (Kokalj & Somrak 2019): hillshade, multi-directional hillshade, cast shadow, slope, isotropic and anisotropic sky-view factor, sky illumination, positive and negative openness, local dominance, simple and multi-scale relief models, multi-scale topographic position, and the archaeological Visualization for Archaeological Topography (VAT) blend. Horizon-search and box-filter kernels run as fused, OpenMP-parallel C++, and rasters are processed tile by tile so memory use stays bounded regardless of input size. A mosaic of many rasters is handled by wrapping it in a GDAL virtual raster, so searches read across file boundaries seamlessly and tile edges show no seams.
+Topographic visualizations following the Relief Visualization Toolbox (Kokalj & Somrak 2019): hillshade, multi-directional hillshade, cast shadow, slope, isotropic and anisotropic sky-view factor, sky illumination, positive and negative openness, local dominance, simple and multi-scale relief models, multi-scale topographic position, and the archaeological Visualization for Archaeological Topography (VAT) blend; together with aspect, curvature, Laplacian-of-Gaussian edge enhancement and the geomorphons landform classification. Horizon-search and box-filter kernels run as fused, OpenMP-parallel C++, and rasters are processed tile by tile so memory use stays bounded regardless of input size. A mosaic of many rasters is handled by wrapping it in a GDAL virtual raster, so searches read across file boundaries seamlessly and tile edges show no seams.
 }
 \details{
 Every function takes a DEM path (or, for \code{\link[=rvt_mosaic]{rvt_mosaic()}} and the functions
@@ -22,12 +22,29 @@ tiles |> rvt_mosaic() |> rvt_svf("svf.tif")
 dem |> rvt_vat("vat.tif") |> rvt_plot()
 }\if{html}{\out{</div>}}
 
-Metrics: \code{\link[=rvt_hillshade]{rvt_hillshade()}}, \code{\link[=rvt_multi_hillshade]{rvt_multi_hillshade()}}, \code{\link[=rvt_shadow]{rvt_shadow()}},
-\code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_asvf]{rvt_asvf()}}, \code{\link[=rvt_sky_illumination]{rvt_sky_illumination()}},
-\code{\link[=rvt_openness]{rvt_openness()}}, \code{\link[=rvt_openness_negative]{rvt_openness_negative()}}, \code{\link[=rvt_local_dominance]{rvt_local_dominance()}},
-\code{\link[=rvt_slrm]{rvt_slrm()}}, \code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_mstp]{rvt_mstp()}}, \code{\link[=rvt_vat]{rvt_vat()}}.
+Shaded relief: \code{\link[=rvt_hillshade]{rvt_hillshade()}}, \code{\link[=rvt_multi_hillshade]{rvt_multi_hillshade()}}, \code{\link[=rvt_shadow]{rvt_shadow()}}.
 
-Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
+Openness and sky: \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_asvf]{rvt_asvf()}}, \code{\link[=rvt_openness]{rvt_openness()}},
+\code{\link[=rvt_openness_negative]{rvt_openness_negative()}}, \code{\link[=rvt_sky_illumination]{rvt_sky_illumination()}},
+\code{\link[=rvt_local_dominance]{rvt_local_dominance()}}.
+
+Sun and energy: \code{\link[=rvt_daylight]{rvt_daylight()}} (hours of direct sun),
+\code{\link[=rvt_insolation]{rvt_insolation()}} (clear-sky energy, kWh/m2), \code{\link[=rvt_shadow]{rvt_shadow()}}.
+
+Surface form: \code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rvt_aspect()}}, \code{\link[=rvt_curvature]{rvt_curvature()}},
+\code{\link[=rvt_log]{rvt_log()}}, \code{\link[=rvt_geomorphons]{rvt_geomorphons()}}.
+
+Trend removal: \code{\link[=rvt_slrm]{rvt_slrm()}} (also \code{\link[=rvt_tpi]{rvt_tpi()}}), \code{\link[=rvt_dev]{rvt_dev()}}, \code{\link[=rvt_msrm]{rvt_msrm()}},
+\code{\link[=rvt_mstp]{rvt_mstp()}}.
+
+Composite: \code{\link[=rvt_vat]{rvt_vat()}}.
+
+Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_resample]{rvt_resample()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
+
+Not reimplemented here, because \code{gdalraster} already does them well and at
+comparable speed: terrain ruggedness index and roughness, via
+\code{gdalraster::dem_proc(mode = "TRI")} and \code{mode = "roughness"}. Its
+\code{mode = "TPI"} is fixed to a 3x3 window; \code{\link[=rvt_tpi]{rvt_tpi()}} takes any radius.
 }
 \section{Choosing a visualization}{
 
@@ -57,9 +74,33 @@ noise-sensitive.}
 overall landform means slopes don't saturate the image.}
 }
 
-All of those radii are in \strong{metres}, while this package takes pixels -
-multiply by four on a 0.25 m DEM. Each function's own help page carries the
+Those radii are in \strong{metres}, and so is every distance this package takes,
+so they can be used as published. Each function's own help page carries the
 detailed settings and display stretches for its metric.
+}
+
+\section{Working at more than one scale}{
+
+The same ground answers differently at different resolutions: metre-scale
+detail on a 0.25 m DTM, landform structure on a 2 m version of it. Since
+detail cannot be invented, that means coarsening - \code{\link[=rvt_resample]{rvt_resample()}} does it,
+and pipes straight into any metric:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem |> rvt_resample(2) |> rvt_curvature() |> rvt_plot()
+}\if{html}{\out{</div>}}
+
+For metrics that take a radius, widening the radius is often the better way
+to change scale - it keeps the fine detail in the input instead of
+discarding it, and for \code{\link[=rvt_slrm]{rvt_slrm()}}, \code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_dev]{rvt_dev()}} and
+\code{\link[=rvt_mstp]{rvt_mstp()}} it costs nothing extra. Coarsening is the right tool when the
+metric has no radius at all (\code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rvt_aspect()}},
+\code{\link[=rvt_curvature]{rvt_curvature()}}, \code{\link[=rvt_log]{rvt_log()}}). See \code{\link[=rvt_resample]{rvt_resample()}} for the full
+comparison.
+
+The horizon-search metrics get both at once: \code{reach} (see \link{rvt_reach})
+keeps near terrain at full resolution while reading distant terrain from
+coarser copies, so microrelief and mountains are accounted for in the same
+pass and the cost grows only with the logarithm of the distance.
 }
 
 \references{
