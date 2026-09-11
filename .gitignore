@@ -1,0 +1,24 @@
+# R
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# compiled code (Rcpp build artifacts)
+src/*.o
+src/*.so
+src/*.dll
+
+# build products
+*.tar.gz
+*.Rcheck/
+
+# local-only reference data (see inst/extdata/README.md for how to restore)
+inst/extdata/rvt_*
+inst/extdata/dgm1_*
+claude.md
+
+# written into the working directory by whitebox_tools.exe
+settings.json
+
+.positai

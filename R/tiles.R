@@ -19,6 +19,47 @@ rvt_threads <- function(n = NULL) {
   getOption("rvtr.threads", default = max(1L, parallel::detectCores()))
 }
 
+## Every distance a user gives is in map units (metres, normally) and has to
+## become a whole number of cells. Three rules, by what the distance is for:
+##
+##   "outer"  the far edge of a search window. Below one cell the raster simply
+##            cannot answer the question, so this is an error rather than a
+##            silent zero - which would otherwise produce a plausible-looking
+##            result that means nothing (a sky-view factor of 1 everywhere).
+##   "inner"  an inner radius or skip, where 0 is meaningful ("don't skip").
+##   "step"   spacing between samples. Finer than the grid just means "every
+##            cell", so it is clamped rather than refused.
+##
+## The halfway case is spelled out rather than left to round(), which rounds
+## halves to *even*: round(2.5) is 2 while round(3.5) is 4, so a 5 m radius on
+## a 2 m DEM and a 7 m radius on the same DEM would round in opposite
+## directions.
+.cells <- function(d, res, what, kind = c("outer", "inner", "step")) {
+  kind <- match.arg(kind)
+  if (!is.numeric(d) || length(d) != 1L || !is.finite(d) || d < 0)
+    stop("`", what, "` must be a single non-negative distance in map units",
+          call. = FALSE)
+
+  # Tested against the request, not the rounded count: half a cell would round
+  # *up* to one, which would answer a question the raster cannot resolve.
+  if (kind == "outer" && d < res * (1 - 1e-9))
+    stop(sprintf("`%s` = %s is smaller than one cell (%s); the finest this raster supports is %s.",
+                  what, format(d), format(res), format(res)), call. = FALSE)
+
+  px <- floor(d / res + 0.5)
+  if (kind == "step") px <- max(1, px)
+  px <- as.integer(px)
+
+  # Say so only when the grid could not honour the request closely - silent for
+  # the usual case of a round distance on a matching resolution.
+  eff <- px * res
+  if (d > 0 && abs(eff - d) > 0.1 * d)
+    message(sprintf("`%s`: %s snapped to %d cell%s = %s (cell size %s)",
+                     what, format(d), px, if (px == 1L) "" else "s",
+                     format(eff), format(res)))
+  px
+}
+
 .dem_info <- function(path, band = 1L) {
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
   on.exit(ds$close())
@@ -83,8 +124,9 @@ rvt_threads <- function(n = NULL) {
 ## Angles run counterclockwise from east; row shifts are negated because the
 ## raster row index increases southward.
 .direction_offsets <- function(num_directions, radius_max, radius_min,
-                                xres, yres, oversample = 3) {
-  angles <- (2 * pi / num_directions) * (0:(num_directions - 1))
+                                xres, yres, oversample = 3, angles = NULL) {
+  if (is.null(angles))
+    angles <- (2 * pi / num_directions) * (0:(num_directions - 1))
   radii <- seq(radius_min, radius_max, by = 1 / oversample)
 
   per_dir <- lapply(angles, function(a) {
@@ -105,6 +147,17 @@ rvt_threads <- function(n = NULL) {
        starts = as.integer(c(0L, utils::head(ends, -1))),
        ends = as.integer(ends),
        angles = angles)
+}
+
+## Offsets indexed by *compass bearing* rather than by the counterclockwise-
+## from-east convention above: direction d points at bearing d * 360/n. The
+## daylight kernel needs this so a sun azimuth maps onto a direction index by
+## arithmetic instead of a lookup.
+.azimuth_offsets <- function(num_directions, radius_max, xres, yres,
+                              oversample = 3, rmin = 1) {
+  bearings <- (360 / num_directions) * (0:(num_directions - 1))
+  .direction_offsets(num_directions, radius_max, rmin, xres, yres, oversample,
+                      angles = ((90 - bearings) %% 360) * pi / 180)
 }
 
 ## Minimum search radius grows with the noise-removal level, matching RVT's
@@ -184,11 +237,30 @@ rvt_threads <- function(n = NULL) {
 ## .finalize_cog()) - so a caller can cheaply read a low-res overview of a
 ## huge result (rvt_plot() does exactly this) or a full-resolution window of
 ## it, without touching the rest of the file.
+##
+## `aux` adds further, coarser rasters read alongside each tile - the pyramid
+## levels of .pyramid_plan(). Each entry is `list(path, fac, overlap)`, where
+## `fac` is how many full-resolution cells one of its cells covers. For every
+## tile the matching window is read from each, widened by that level's own
+## overlap, and `fun` is called as `fun(tile, xres, yres, ctx)` with `ctx`
+## carrying those windows plus the tile's global pixel offset (which the
+## kernel needs to map an output cell onto a coarse cell).
+##
+## The aux windows are deliberately *not* padded. A window always spans
+## [first coarse cell of the tile - overlap, last + overlap], so a sample can
+## only fall outside it where the raster itself ends - which means clamping to
+## the window is clamping to the raster, and stays identical however the
+## raster is tiled.
 .process_tiled <- function(src, out_paths, overlap, tile_size, fun,
                             band = 1L, progress = FALSE, threads = rvt_threads(),
-                            nbands = NULL) {
+                            nbands = NULL, aux = NULL) {
   info <- .dem_info(src, band)
   nx <- info$nx; ny <- info$ny
+
+  if (!is.null(aux)) aux <- lapply(aux, function(a) {
+    ai <- .dem_info(a$path)
+    c(a, list(nx = ai$nx, ny = ai$ny, nodata = ai$nodata))
+  })
 
   nb <- stats::setNames(rep(1L, length(out_paths)), names(out_paths))
   if (!is.null(nbands)) nb[names(nbands)] <- as.integer(nbands)
@@ -217,7 +289,28 @@ rvt_threads <- function(n = NULL) {
                             cols + left + right, rows + top + bottom,
                             info$nodata, band)
 
-      res <- fun(tile, info$xres, info$yres)
+      res <- if (is.null(aux)) {
+        fun(tile, info$xres, info$yres)
+      } else {
+        # the kernels compute every cell of the tile, overlap band included,
+        # so the coarse window has to span the tile's full extent - not just
+        # the part that gets written
+        gx0 <- x0 - left; gy0 <- y0 - top
+        gx1 <- gx0 + (cols + left + right) - 1L
+        gy1 <- gy0 + (rows + top + bottom) - 1L
+        wins <- lapply(aux, function(a) {
+          cx0 <- max(0L, (gx0 %/% a$fac) - a$overlap)
+          cy0 <- max(0L, (gy0 %/% a$fac) - a$overlap)
+          cx1 <- min(a$nx - 1L, (gx1 %/% a$fac) + a$overlap)
+          cy1 <- min(a$ny - 1L, (gy1 %/% a$fac) + a$overlap)
+          list(m = .read_window(a$path, cx0, cy0, cx1 - cx0 + 1L, cy1 - cy0 + 1L,
+                                 a$nodata),
+                cx0 = as.integer(cx0), cy0 = as.integer(cy0),
+                fac = as.integer(a$fac))
+        })
+        fun(tile, info$xres, info$yres,
+            list(aux = wins, x0 = x0 - left, y0 = y0 - top))
+      }
 
       for (nm in names(out_paths)) {
         m <- res[[nm]]

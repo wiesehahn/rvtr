@@ -10,6 +10,92 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// curvature_kernel
+NumericMatrix curvature_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int type, int threads);
+RcppExport SEXP _rvtr_curvature_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP typeSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(curvature_kernel(padded, pad, nrow_out, ncol_out, xres, yres, type, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// log_kernel
+NumericMatrix log_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, NumericVector gauss, int threads);
+RcppExport SEXP _rvtr_log_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP gaussSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type gauss(gaussSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(log_kernel(padded, pad, nrow_out, ncol_out, gauss, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// daylight_kernel
+NumericMatrix daylight_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int tile_x0, int tile_y0, List aux_mats, IntegerVector aux_fac, IntegerVector aux_cx0, IntegerVector aux_cy0, List off_dx, List off_dy, List off_dist, List off_start, List off_end, NumericVector sun_azimuth, NumericVector sun_altitude, int threads);
+RcppExport SEXP _rvtr_daylight_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP tile_x0SEXP, SEXP tile_y0SEXP, SEXP aux_matsSEXP, SEXP aux_facSEXP, SEXP aux_cx0SEXP, SEXP aux_cy0SEXP, SEXP off_dxSEXP, SEXP off_dySEXP, SEXP off_distSEXP, SEXP off_startSEXP, SEXP off_endSEXP, SEXP sun_azimuthSEXP, SEXP sun_altitudeSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< int >::type tile_x0(tile_x0SEXP);
+    Rcpp::traits::input_parameter< int >::type tile_y0(tile_y0SEXP);
+    Rcpp::traits::input_parameter< List >::type aux_mats(aux_matsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_fac(aux_facSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cx0(aux_cx0SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cy0(aux_cy0SEXP);
+    Rcpp::traits::input_parameter< List >::type off_dx(off_dxSEXP);
+    Rcpp::traits::input_parameter< List >::type off_dy(off_dySEXP);
+    Rcpp::traits::input_parameter< List >::type off_dist(off_distSEXP);
+    Rcpp::traits::input_parameter< List >::type off_start(off_startSEXP);
+    Rcpp::traits::input_parameter< List >::type off_end(off_endSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sun_azimuth(sun_azimuthSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sun_altitude(sun_altitudeSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(daylight_kernel(padded, pad, nrow_out, ncol_out, xres, yres, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0, off_dx, off_dy, off_dist, off_start, off_end, sun_azimuth, sun_altitude, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// geomorphons_kernel
+NumericMatrix geomorphons_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, double flat_threshold, double flat_distance, int threads);
+RcppExport SEXP _rvtr_geomorphons_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP flat_thresholdSEXP, SEXP flat_distanceSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dx(dxSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dy(dySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dir_start(dir_startSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dir_end(dir_endSEXP);
+    Rcpp::traits::input_parameter< double >::type flat_threshold(flat_thresholdSEXP);
+    Rcpp::traits::input_parameter< double >::type flat_distance(flat_distanceSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(geomorphons_kernel(padded, pad, nrow_out, ncol_out, dx, dy, dist, dir_start, dir_end, flat_threshold, flat_distance, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // horizon_svf_opns
 List horizon_svf_opns(NumericMatrix padded, int pad, int nrow_out, int ncol_out, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, bool want_svf, bool want_opns, bool want_asvf, NumericVector dir_weight, int threads);
 RcppExport SEXP _rvtr_horizon_svf_opns(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP want_svfSEXP, SEXP want_opnsSEXP, SEXP want_asvfSEXP, SEXP dir_weightSEXP, SEXP threadsSEXP) {
@@ -50,6 +136,72 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type sun_elevations(sun_elevationsSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
     rcpp_result_gen = Rcpp::wrap(slope_hillshade(padded, pad, nrow_out, ncol_out, xres, yres, sun_azimuths, sun_elevations, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// horizon_pyramid
+List horizon_pyramid(NumericMatrix padded, int pad, int nrow_out, int ncol_out, int tile_x0, int tile_y0, List aux_mats, IntegerVector aux_fac, IntegerVector aux_cx0, IntegerVector aux_cy0, List off_dx, List off_dy, List off_dist, List off_start, List off_end, bool want_svf, bool want_opns, bool want_asvf, NumericVector dir_weight, int threads);
+RcppExport SEXP _rvtr_horizon_pyramid(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP tile_x0SEXP, SEXP tile_y0SEXP, SEXP aux_matsSEXP, SEXP aux_facSEXP, SEXP aux_cx0SEXP, SEXP aux_cy0SEXP, SEXP off_dxSEXP, SEXP off_dySEXP, SEXP off_distSEXP, SEXP off_startSEXP, SEXP off_endSEXP, SEXP want_svfSEXP, SEXP want_opnsSEXP, SEXP want_asvfSEXP, SEXP dir_weightSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< int >::type tile_x0(tile_x0SEXP);
+    Rcpp::traits::input_parameter< int >::type tile_y0(tile_y0SEXP);
+    Rcpp::traits::input_parameter< List >::type aux_mats(aux_matsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_fac(aux_facSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cx0(aux_cx0SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cy0(aux_cy0SEXP);
+    Rcpp::traits::input_parameter< List >::type off_dx(off_dxSEXP);
+    Rcpp::traits::input_parameter< List >::type off_dy(off_dySEXP);
+    Rcpp::traits::input_parameter< List >::type off_dist(off_distSEXP);
+    Rcpp::traits::input_parameter< List >::type off_start(off_startSEXP);
+    Rcpp::traits::input_parameter< List >::type off_end(off_endSEXP);
+    Rcpp::traits::input_parameter< bool >::type want_svf(want_svfSEXP);
+    Rcpp::traits::input_parameter< bool >::type want_opns(want_opnsSEXP);
+    Rcpp::traits::input_parameter< bool >::type want_asvf(want_asvfSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dir_weight(dir_weightSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(horizon_pyramid(padded, pad, nrow_out, ncol_out, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0, off_dx, off_dy, off_dist, off_start, off_end, want_svf, want_opns, want_asvf, dir_weight, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// insolation_kernel
+List insolation_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int tile_x0, int tile_y0, List aux_mats, IntegerVector aux_fac, IntegerVector aux_cx0, IntegerVector aux_cy0, List off_dx, List off_dy, List off_dist, List off_start, List off_end, NumericVector sun_azimuth, NumericVector sun_altitude, NumericVector air_mass0, NumericVector extraterrestrial, NumericVector dir_azimuth, double linke, double diffuse_sum, bool overcast, int threads);
+RcppExport SEXP _rvtr_insolation_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP tile_x0SEXP, SEXP tile_y0SEXP, SEXP aux_matsSEXP, SEXP aux_facSEXP, SEXP aux_cx0SEXP, SEXP aux_cy0SEXP, SEXP off_dxSEXP, SEXP off_dySEXP, SEXP off_distSEXP, SEXP off_startSEXP, SEXP off_endSEXP, SEXP sun_azimuthSEXP, SEXP sun_altitudeSEXP, SEXP air_mass0SEXP, SEXP extraterrestrialSEXP, SEXP dir_azimuthSEXP, SEXP linkeSEXP, SEXP diffuse_sumSEXP, SEXP overcastSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< int >::type tile_x0(tile_x0SEXP);
+    Rcpp::traits::input_parameter< int >::type tile_y0(tile_y0SEXP);
+    Rcpp::traits::input_parameter< List >::type aux_mats(aux_matsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_fac(aux_facSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cx0(aux_cx0SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cy0(aux_cy0SEXP);
+    Rcpp::traits::input_parameter< List >::type off_dx(off_dxSEXP);
+    Rcpp::traits::input_parameter< List >::type off_dy(off_dySEXP);
+    Rcpp::traits::input_parameter< List >::type off_dist(off_distSEXP);
+    Rcpp::traits::input_parameter< List >::type off_start(off_startSEXP);
+    Rcpp::traits::input_parameter< List >::type off_end(off_endSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sun_azimuth(sun_azimuthSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sun_altitude(sun_altitudeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type air_mass0(air_mass0SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type extraterrestrial(extraterrestrialSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dir_azimuth(dir_azimuthSEXP);
+    Rcpp::traits::input_parameter< double >::type linke(linkeSEXP);
+    Rcpp::traits::input_parameter< double >::type diffuse_sum(diffuse_sumSEXP);
+    Rcpp::traits::input_parameter< bool >::type overcast(overcastSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(insolation_kernel(padded, pad, nrow_out, ncol_out, xres, yres, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0, off_dx, off_dy, off_dist, off_start, off_end, sun_azimuth, sun_altitude, air_mass0, extraterrestrial, dir_azimuth, linke, diffuse_sum, overcast, threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -108,8 +260,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // sky_illumination_kernel
-NumericMatrix sky_illumination_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, IntegerVector dx, IntegerVector dy, NumericVector dist, IntegerVector dir_start, IntegerVector dir_end, NumericVector dir_azimuth, bool overcast, int threads);
-RcppExport SEXP _rvtr_sky_illumination_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP dxSEXP, SEXP dySEXP, SEXP distSEXP, SEXP dir_startSEXP, SEXP dir_endSEXP, SEXP dir_azimuthSEXP, SEXP overcastSEXP, SEXP threadsSEXP) {
+NumericMatrix sky_illumination_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int tile_x0, int tile_y0, List aux_mats, IntegerVector aux_fac, IntegerVector aux_cx0, IntegerVector aux_cy0, List off_dx, List off_dy, List off_dist, List off_start, List off_end, NumericVector dir_azimuth, bool overcast, int threads);
+RcppExport SEXP _rvtr_sky_illumination_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP tile_x0SEXP, SEXP tile_y0SEXP, SEXP aux_matsSEXP, SEXP aux_facSEXP, SEXP aux_cx0SEXP, SEXP aux_cy0SEXP, SEXP off_dxSEXP, SEXP off_dySEXP, SEXP off_distSEXP, SEXP off_startSEXP, SEXP off_endSEXP, SEXP dir_azimuthSEXP, SEXP overcastSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -119,26 +271,38 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
     Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
     Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dx(dxSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dy(dySEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type dist(distSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dir_start(dir_startSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dir_end(dir_endSEXP);
+    Rcpp::traits::input_parameter< int >::type tile_x0(tile_x0SEXP);
+    Rcpp::traits::input_parameter< int >::type tile_y0(tile_y0SEXP);
+    Rcpp::traits::input_parameter< List >::type aux_mats(aux_matsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_fac(aux_facSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cx0(aux_cx0SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type aux_cy0(aux_cy0SEXP);
+    Rcpp::traits::input_parameter< List >::type off_dx(off_dxSEXP);
+    Rcpp::traits::input_parameter< List >::type off_dy(off_dySEXP);
+    Rcpp::traits::input_parameter< List >::type off_dist(off_distSEXP);
+    Rcpp::traits::input_parameter< List >::type off_start(off_startSEXP);
+    Rcpp::traits::input_parameter< List >::type off_end(off_endSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type dir_azimuth(dir_azimuthSEXP);
     Rcpp::traits::input_parameter< bool >::type overcast(overcastSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(sky_illumination_kernel(padded, pad, nrow_out, ncol_out, xres, yres, dx, dy, dist, dir_start, dir_end, dir_azimuth, overcast, threads));
+    rcpp_result_gen = Rcpp::wrap(sky_illumination_kernel(padded, pad, nrow_out, ncol_out, xres, yres, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0, off_dx, off_dy, off_dist, off_start, off_end, dir_azimuth, overcast, threads));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rvtr_curvature_kernel", (DL_FUNC) &_rvtr_curvature_kernel, 8},
+    {"_rvtr_log_kernel", (DL_FUNC) &_rvtr_log_kernel, 6},
+    {"_rvtr_daylight_kernel", (DL_FUNC) &_rvtr_daylight_kernel, 20},
+    {"_rvtr_geomorphons_kernel", (DL_FUNC) &_rvtr_geomorphons_kernel, 12},
     {"_rvtr_horizon_svf_opns", (DL_FUNC) &_rvtr_horizon_svf_opns, 14},
     {"_rvtr_slope_hillshade", (DL_FUNC) &_rvtr_slope_hillshade, 9},
+    {"_rvtr_horizon_pyramid", (DL_FUNC) &_rvtr_horizon_pyramid, 20},
+    {"_rvtr_insolation_kernel", (DL_FUNC) &_rvtr_insolation_kernel, 26},
     {"_rvtr_local_dominance_kernel", (DL_FUNC) &_rvtr_local_dominance_kernel, 10},
     {"_rvtr_msrm_kernel", (DL_FUNC) &_rvtr_msrm_kernel, 6},
     {"_rvtr_max_deviation_kernel", (DL_FUNC) &_rvtr_max_deviation_kernel, 8},
-    {"_rvtr_sky_illumination_kernel", (DL_FUNC) &_rvtr_sky_illumination_kernel, 14},
+    {"_rvtr_sky_illumination_kernel", (DL_FUNC) &_rvtr_sky_illumination_kernel, 20},
     {NULL, NULL, 0}
 };
 
