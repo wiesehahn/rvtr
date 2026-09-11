@@ -39,6 +39,15 @@ Trend removal: \code{\link[=rvt_slrm]{rvt_slrm()}} (also \code{\link[=rvt_tpi]{r
 
 Composite: \code{\link[=rvt_vat]{rvt_vat()}}.
 
+Preparing a surface: \code{\link[=rvt_fill]{rvt_fill()}} closes NoData gaps, \code{\link[=rvt_smooth]{rvt_smooth()}}
+removes noise without rounding off breaks of slope. Both are worth
+considering before the noise-sensitive metrics - curvature, LoG,
+geomorphons - and in that order, since smoothing cannot average across a
+hole:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem |> rvt_fill() |> rvt_smooth() |> rvt_curvature()
+}\if{html}{\out{</div>}}
+
 Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_resample]{rvt_resample()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
 
 Not reimplemented here, because \code{gdalraster} already does them well and at

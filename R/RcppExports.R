@@ -49,3 +49,7 @@ sky_illumination_kernel <- function(padded, pad, nrow_out, ncol_out, xres, yres,
     .Call(`_rvtr_sky_illumination_kernel`, padded, pad, nrow_out, ncol_out, xres, yres, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0, off_dx, off_dy, off_dist, off_start, off_end, dir_azimuth, overcast, threads)
 }
 
+smooth_kernel <- function(padded, pad, nrow_out, ncol_out, xres, yres, radius, norm_diff_deg, iterations, max_diff, threads) {
+    .Call(`_rvtr_smooth_kernel`, padded, pad, nrow_out, ncol_out, xres, yres, radius, norm_diff_deg, iterations, max_diff, threads)
+}
+

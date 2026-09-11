@@ -289,6 +289,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// smooth_kernel
+NumericMatrix smooth_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int radius, double norm_diff_deg, int iterations, double max_diff, int threads);
+RcppExport SEXP _rvtr_smooth_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP radiusSEXP, SEXP norm_diff_degSEXP, SEXP iterationsSEXP, SEXP max_diffSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< int >::type radius(radiusSEXP);
+    Rcpp::traits::input_parameter< double >::type norm_diff_deg(norm_diff_degSEXP);
+    Rcpp::traits::input_parameter< int >::type iterations(iterationsSEXP);
+    Rcpp::traits::input_parameter< double >::type max_diff(max_diffSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(smooth_kernel(padded, pad, nrow_out, ncol_out, xres, yres, radius, norm_diff_deg, iterations, max_diff, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rvtr_curvature_kernel", (DL_FUNC) &_rvtr_curvature_kernel, 8},
@@ -303,6 +324,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rvtr_msrm_kernel", (DL_FUNC) &_rvtr_msrm_kernel, 6},
     {"_rvtr_max_deviation_kernel", (DL_FUNC) &_rvtr_max_deviation_kernel, 8},
     {"_rvtr_sky_illumination_kernel", (DL_FUNC) &_rvtr_sky_illumination_kernel, 20},
+    {"_rvtr_smooth_kernel", (DL_FUNC) &_rvtr_smooth_kernel, 11},
     {NULL, NULL, 0}
 };
 

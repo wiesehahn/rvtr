@@ -125,6 +125,29 @@ tiles <- list.files("dtm_tiles", "\\.tif$", full.names = TRUE)
 tiles |> rvt_vat("vat_mosaic.tif")
 ```
 
+### Preparing a surface
+
+Two preprocessing steps, both optional and both pipeable:
+
+```r
+dem |> rvt_fill() |> rvt_smooth() |> rvt_curvature() |> rvt_plot()
+```
+
+`rvt_fill()` interpolates across NoData holes. Worth doing first, because a
+hole is not just a missing answer — the derivative metrics lose a ring of cells
+around every one, and the horizon metrics treat a hole as *transparent*, so a
+gappy DSM reads brighter than the real surface.
+
+`rvt_smooth()` removes noise while leaving breaks of slope sharp, using Sun et
+al.'s feature-preserving method (as in WhiteboxTools' `FeaturePreservingSmoothing`).
+That distinction is the whole point: on a noisy scarp a Gaussian of comparable
+strength removes slightly more noise but smears the step over 6 cells, while
+this keeps it exactly 1 cell wide. Useful before `rvt_curvature()`,
+`rvt_log()` and `rvt_geomorphons()`, which all amplify high-frequency noise by
+construction.
+
+Fill before you smooth — smoothing cannot sensibly average across a hole.
+
 ### Scale of analysis
 
 Most of these metrics answer a different question at a different resolution —

@@ -30,6 +30,16 @@
 #'
 #' Composite: [rvt_vat()].
 #'
+#' Preparing a surface: [rvt_fill()] closes NoData gaps, [rvt_smooth()]
+#' removes noise without rounding off breaks of slope. Both are worth
+#' considering before the noise-sensitive metrics - curvature, LoG,
+#' geomorphons - and in that order, since smoothing cannot average across a
+#' hole:
+#'
+#' ```r
+#' dem |> rvt_fill() |> rvt_smooth() |> rvt_curvature()
+#' ```
+#'
 #' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()].
 #'
 #' Not reimplemented here, because `gdalraster` already does them well and at

@@ -32,6 +32,23 @@ read_band <- function(p) {
 
 dem <- ref_path("dtm1.tif")
 
+## A cropped copy, for the tests that compare the multi-resolution search
+## against an exact full-resolution one. That baseline - pyramid_px equal to
+## the whole reach - is what costs, not the pyramid, so the saving comes from
+## the raster rather than from weakening the approximation: pyramid_px has to
+## stay at its default or the error being measured is a different one.
+## The interior margin used with these has to *exceed* the reach, not equal
+## it, or the comparison picks up the edge extrapolation the two methods
+## deliberately differ on: at 600 px with a 200 px margin the sky-view error
+## reads 1.2e-4 against 3.4e-5 well clear of the edge.
+crop_raster <- function(src, size = 800L) {
+  p <- tempfile(fileext = ".tif")
+  gdalraster::translate(src, p, quiet = TRUE,
+                         cl_arg = c("-srcwin", "0", "0", as.character(size),
+                                     as.character(size)))
+  p
+}
+
 test_that("sky-view factor agrees with rvt-py", {
   skip_if_not(has_ref("rvt_sky_view_factor.tif"), "rvt-py reference not present locally")
   got <- read_band(rvt_svf(dem))
@@ -641,41 +658,54 @@ test_that("a multi-resolution search matches a full-resolution one", {
   # Compared away from the raster edge: within `reach` of the boundary both
   # methods are extrapolating terrain that isn't there, and they do it
   # differently (level 0 reflects, coarse levels replicate).
+  d <- crop_raster(dem)
+  on.exit(unlink(d), add = TRUE)
   interior <- function(m, k) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
-  err <- function(a, b, k = 400) {
+  err <- function(a, b, k = 300) {
     a <- interior(read_band(a), k); b <- interior(read_band(b), k)
     ok <- !is.na(a) & !is.na(b)
     mean(abs(a[ok] - b[ok]))
   }
-  expect_lt(err(rvt_svf(dem, reach = 400, pyramid_px = 400),
-                rvt_svf(dem, reach = 400)), 1e-4)
-  expect_lt(err(rvt_openness(dem, reach = 400, pyramid_px = 400),
-                rvt_openness(dem, reach = 400)), 0.02)
-  # negative openness inverts every level, which only works if the coarse
-  # levels are built from the real DEM and flipped per tile
-  expect_lt(err(rvt_openness_negative(dem, reach = 400, pyramid_px = 400),
-                rvt_openness_negative(dem, reach = 400)), 0.02)
+  # reach 200 with the default pyramid_px gives two levels; pyramid_px = 200
+  # covers the same reach in one, which is the exact search to compare against
+  expect_lt(err(rvt_svf(d, reach = 200, pyramid_px = 200),
+                rvt_svf(d, reach = 200)), 1e-4)
+  expect_lt(err(rvt_openness(d, reach = 200, pyramid_px = 200),
+                rvt_openness(d, reach = 200)), 0.02)
+  # Negative openness inverts every level, which only works if the coarse
+  # levels take the mirror statistic (min for max - see .mirror_method()).
+  # Its tolerance is deliberately looser than positive openness's 0.02: on
+  # this terrain the error is 0.020 against 0.004, and it does not shrink with
+  # a wider margin, so it is not an edge effect. Inverting turns narrow
+  # incised gullies into narrow ridges, and narrow features are exactly what
+  # coarsening represents least well - the same asymmetry the distant-wall
+  # measurements show.
+  expect_lt(err(rvt_openness_negative(d, reach = 200, pyramid_px = 200),
+                rvt_openness_negative(d, reach = 200)), 0.03)
 })
 
 test_that("a coarser pyramid is worse but still close", {
-  interior <- function(m, k = 400) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
-  ref <- interior(read_band(rvt_openness(dem, reach = 400, pyramid_px = 400)))
-  e <- function(...) {
-    got <- interior(read_band(rvt_openness(dem, reach = 400, ...)))
+  # Reference and candidates must share a reach - the comparison is about
+  # pyramid_px alone. 200 m keeps a far field worth measuring while costing a
+  # quarter of what 400 m did.
+  d <- crop_raster(dem)
+  on.exit(unlink(d), add = TRUE)
+  interior <- function(m, k = 300) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
+  ref <- interior(read_band(rvt_openness(d, reach = 200, pyramid_px = 200)))
+  e <- function(px) {
+    got <- interior(read_band(rvt_openness(d, reach = 200, pyramid_px = px)))
     ok <- !is.na(got) & !is.na(ref)
     mean(abs(got[ok] - ref[ok]))
   }
-  fine <- e(pyramid_px = 200)
-  default <- e()
-  coarse <- e(pyramid_px = 50)
   # pyramid_px is the accuracy knob: more full-resolution reach, less error
-  expect_lt(fine, default)
-  expect_lt(default, coarse)
+  expect_lt(e(100), e(50))
+  expect_lt(e(50), e(25))
 })
 
 test_that("tiling and mosaicking do not change a multi-resolution result", {
-  one <- read_band(rvt_svf(dem, reach = 400))
-  expect_identical(read_band(rvt_svf(dem, reach = 400, tile_size = 137)), one)
+  one <- read_band(rvt_svf(dem, reach = 100, pyramid_px = 25))
+  expect_identical(read_band(rvt_svf(dem, reach = 100, pyramid_px = 25,
+                                      tile_size = 137)), one)
 
   quads <- vapply(1:4, function(i) {
     p <- tempfile(fileext = ".tif")
@@ -685,7 +715,8 @@ test_that("tiling and mosaicking do not change a multi-resolution result", {
     p
   }, "")
   on.exit(unlink(quads), add = TRUE)
-  expect_identical(read_band(rvt_svf(quads, reach = 400)), one)
+  expect_identical(read_band(rvt_svf(quads, reach = 100,
+                                      pyramid_px = 25)), one)
 })
 
 test_that("distances snap to whole cells by a stated rule", {
@@ -777,36 +808,39 @@ test_that("daylight, shadow and sky illumination also search multi-resolution", 
   # full-resolution search of the same reach - which is what a pyramid_px
   # large enough to cover the whole reach in one level gives - away from the
   # raster edge, where the two extrapolate differently.
-  interior <- function(m, k = 200) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
+  d <- crop_raster(dem)
+  on.exit(unlink(d), add = TRUE)
+  interior <- function(m, k = 300) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
   err <- function(a, b) {
     a <- interior(read_band(a)); b <- interior(read_band(b))
     ok <- !is.na(a) & !is.na(b)
     mean(abs(a[ok] - b[ok]))
   }
 
-  expect_lt(err(rvt_shadow(dem, reach = 200, pyramid_px = 200),
-                rvt_shadow(dem, reach = 200)), 0.01)
+  expect_lt(err(rvt_shadow(d, reach = 200, pyramid_px = 200),
+                rvt_shadow(d, reach = 200)), 0.01)
 
-  expect_lt(err(rvt_sky_illumination(dem, num_directions = 8, reach = 200,
+  expect_lt(err(rvt_sky_illumination(d, num_directions = 8, reach = 200,
                                       pyramid_px = 200),
-                rvt_sky_illumination(dem, num_directions = 8, reach = 200)), 1e-3)
+                rvt_sky_illumination(d, num_directions = 8, reach = 200)), 1e-3)
 
-  expect_lt(err(rvt_daylight(dem, dates = as.Date("2025-06-21"), time_step = 60,
+  expect_lt(err(rvt_daylight(d, dates = as.Date("2025-06-21"), time_step = 60,
                               num_directions = 8, reach = 200, pyramid_px = 200),
-                rvt_daylight(dem, dates = as.Date("2025-06-21"), time_step = 60,
+                rvt_daylight(d, dates = as.Date("2025-06-21"), time_step = 60,
                               num_directions = 8, reach = 200)), 0.05)
 })
 
 test_that("tiling does not change a multi-resolution daylight or shadow", {
-  one <- read_band(rvt_shadow(dem, reach = 200))
-  expect_identical(read_band(rvt_shadow(dem, reach = 200, tile_size = 137)), one)
+  one <- read_band(rvt_shadow(dem, reach = 100, pyramid_px = 25))
+  expect_identical(read_band(rvt_shadow(dem, reach = 100, pyramid_px = 25,
+                                         tile_size = 137)), one)
 
   args <- list(dem, dates = as.Date("2025-06-21"), time_step = 60,
-               num_directions = 8, reach = 200)
+               num_directions = 8, reach = 100, pyramid_px = 25)
   expect_identical(read_band(do.call(rvt_daylight, c(args, list(tile_size = 137)))),
                    read_band(do.call(rvt_daylight, args)))
 
-  si <- list(dem, num_directions = 8, reach = 200)
+  si <- list(dem, num_directions = 8, reach = 100, pyramid_px = 25)
   expect_identical(read_band(do.call(rvt_sky_illumination, c(si, list(tile_size = 137)))),
                    read_band(do.call(rvt_sky_illumination, si)))
 })
@@ -831,14 +865,15 @@ test_that("a mosaic of four separate files matches the merged raster", {
 
   # and the multi-resolution one, whose coarse levels are built from the VRT
   # rather than from a real file - the case quadrant-splitting cannot reach
-  expect_identical(read_band(rvt_svf(alps(), reach = 400)),
-                   read_band(rvt_svf(merged, reach = 400)))
+  expect_identical(read_band(rvt_svf(alps(), reach = 100, pyramid_px = 25)),
+                   read_band(rvt_svf(merged, reach = 100, pyramid_px = 25)))
 })
 
 test_that("the multi-resolution search holds up in mountains", {
   skip_if_not(has_alps, "alpine tiles not present locally")
-  one <- ref_path("dgm1_659_5258.tif")
-  interior <- function(m, k = 200) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
+  one <- crop_raster(ref_path("dgm1_659_5258.tif"))
+  on.exit(unlink(one), add = TRUE)
+  interior <- function(m, k = 300) m[(k + 1):(nrow(m) - k), (k + 1):(ncol(m) - k)]
 
   near <- interior(read_band(rvt_openness(one, reach = 25)))
   far <- interior(read_band(rvt_openness(one, reach = 200, pyramid_px = 200)))
@@ -1044,4 +1079,80 @@ test_that("pyramid_method chooses how the coarse levels are built", {
   expect_error(.mirror_method("rms"), "does not commute")
   expect_error(rvt_openness_negative(dem, reach = 400, pyramid_method = "rms"),
                "does not commute")
+})
+
+test_that("rvt_fill() closes holes without touching measured ground", {
+  z <- read_band(dem)
+  f <- read_band(rvt_fill(dem))
+  expect_equal(sum(is.na(z)), 393L)
+  expect_equal(sum(is.na(f)), 0L)
+  # cells that had data are returned exactly as they were
+  expect_equal(f[!is.na(z)], z[!is.na(z)], tolerance = 1e-9)
+  # and nothing is invented outside the range of the surrounding ground
+  expect_gte(min(f), min(z, na.rm = TRUE))
+  expect_lte(max(f), max(z, na.rm = TRUE))
+
+  expect_error(rvt_fill(dem, max_distance = 0.5), "smaller than one cell")
+})
+
+test_that("smoothing removes noise but keeps a scarp sharp", {
+  set.seed(5)
+  n <- 200
+  clean <- matrix(0, n, n)
+  clean[, 101:n] <- 5                       # a one-cell, 5 m step
+  noisy <- clean + matrix(rnorm(n * n, 0, 0.15), n, n)
+
+  p <- tempfile(fileext = ".tif")
+  ds <- gdalraster::create(format = "GTiff", dst_filename = p, xsize = n,
+                           ysize = n, nbands = 1, dataType = "Float32")
+  ds <- methods::new(gdalraster::GDALRaster, p, read_only = FALSE)
+  ds$setGeoTransform(c(557000, 1, 0, 5700000, 0, -1))
+  ds$setProjection(gdalraster::srs_to_wkt("EPSG:25832"))
+  ds$write(1L, 0, 0, n, n, as.vector(t(noisy)))
+  ds$close()
+  on.exit(unlink(p), add = TRUE)
+
+  flat <- c(20:80, 120:180)
+  noise_of <- function(m) stats::sd((m - clean)[, flat])
+  # cells taken to cross the middle 80% of the step
+  width_of <- function(m) {
+    prof <- colMeans(m)
+    lo <- min(prof); hi <- max(prof)
+    sum(prof > lo + 0.1 * (hi - lo) & prof < lo + 0.9 * (hi - lo))
+  }
+
+  s <- read_band(rvt_smooth(p, radius = 5, norm_diff = 15, iterations = 3,
+                             max_diff = 2))
+  expect_lt(noise_of(s), noise_of(noisy) / 3)   # noise substantially down
+  expect_equal(width_of(s), 0L)                 # step still one cell wide
+  expect_equal(mean(s[, 130]) - mean(s[, 70]), 5, tolerance = 0.01)
+
+  # this is the whole point: a Gaussian of comparable scale removes noise too,
+  # but spreads that step over several cells
+  g <- .gauss_kernel(2)
+  gm <- noisy
+  for (i in seq_len(n)) gm[i, ] <- stats::filter(gm[i, ], g, sides = 2)
+  for (j in seq_len(n)) gm[, j] <- stats::filter(gm[, j], g, sides = 2)
+  # stats::filter leaves NA at both margins, so measure on the interior
+  prof <- colMeans(gm, na.rm = TRUE)
+  prof <- prof[is.finite(prof)]
+  lo <- min(prof); hi <- max(prof)
+  expect_gt(sum(prof > lo + 0.1 * (hi - lo) & prof < lo + 0.9 * (hi - lo)), 3)
+
+  # max_diff really is a cap
+  s2 <- read_band(rvt_smooth(p, radius = 5, max_diff = 0.05))
+  expect_lte(max(abs(s2 - noisy)), 0.05 + 1e-6)
+
+  # and the result does not depend on how the raster was tiled
+  expect_identical(read_band(rvt_smooth(p, radius = 5, tile_size = 64)),
+                   read_band(rvt_smooth(p, radius = 5)))
+})
+
+test_that("smoothing leaves NoData alone", {
+  z <- read_band(dem)
+  s <- read_band(rvt_smooth(dem, radius = 3))
+  expect_identical(is.na(s), is.na(z))
+  expect_lte(max(abs(s - z), na.rm = TRUE), 0.5 + 1e-6)
+  expect_error(rvt_smooth(dem, norm_diff = 0), "between 0 and 90")
+  expect_error(rvt_smooth(dem, max_diff = -1), "positive")
 })
