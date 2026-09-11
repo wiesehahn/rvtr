@@ -9,7 +9,9 @@ rvt_shadow(
   out_path = tempfile(fileext = ".tif"),
   sun_azimuth = 315,
   sun_elevation = 35,
-  radius_max = 100,
+  reach = 100,
+  pyramid_px = 100,
+  pyramid_factor = 4,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -28,8 +30,16 @@ produce seams}
 \item{sun_elevation}{height of the sun above the horizon, in degrees
 (default 35)}
 
-\item{radius_max}{how far along the ray to look for blocking terrain, in
-\emph{pixels} (default 100)}
+\item{reach}{how far along the ray to look for blocking terrain, in
+\strong{map units} (metres, normally; default 100). Scanned at full
+resolution for the first \code{pyramid_px} cells (100 by default, so 100 m on
+a 1 m DEM); past that the search reads from progressively coarser copies
+of the DEM, so a shadow cast from kilometres away stays affordable - see
+\link{rvt_reach}}
+
+\item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
+pixels scanned per level (default 100, the accuracy knob) and how much
+coarser each level is than the last (default 4). Only used with \code{reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -59,7 +69,7 @@ spotting earthworks.
 \section{How it works}{
 
 A single ray is traced from each cell towards \code{sun_azimuth}, out to
-\code{radius_max} pixels, keeping the steepest angle up to the terrain along it -
+\code{reach}, keeping the steepest angle up to the terrain along it -
 the horizon in the sun's direction. If that horizon stands higher than
 \code{sun_elevation}, the sun is blocked and the cell is in shadow.
 
@@ -71,7 +81,7 @@ radius. The output is 0 or 1, with NoData preserved.
 \section{Tuning}{
 
 \itemize{
-\item \code{radius_max} sets how far a shadow can reach. A shadow cast by terrain
+\item \code{reach} sets how far a shadow can reach. A shadow cast by terrain
 further away than this is missed, so it needs to cover the tallest
 feature divided by the tangent of the sun elevation - a 20 m rise at 10
 degrees casts a shadow about 113 m long. Low sun therefore needs a large
@@ -83,11 +93,42 @@ only steep ground.
 }
 }
 
+\section{Direct sun versus diffuse sky}{
+
+Three functions here measure light reaching the ground, and they answer
+different questions:
+
+\describe{
+\item{\code{\link[=rvt_daylight]{rvt_daylight()}}}{\strong{Direct} sunlight, \strong{integrated over time}: how
+many hours the sun itself reaches a cell across a day, a season or a
+year. Needs a date range and a latitude, and answers in hours. A
+clear-sky quantity.}
+\item{\code{\link[=rvt_sky_illumination]{rvt_sky_illumination()}}}{\strong{Diffuse} skylight, at \strong{no particular
+time}: how much light a cell receives from the sky dome as a whole,
+given both its horizon and the way it tilts. No date, no sun position,
+no latitude; the answer is relative, with flat open ground at 1. An
+overcast-sky quantity.}
+\item{\code{\link[=rvt_shadow]{rvt_shadow()}}}{Direct sunlight at \strong{one instant} - a single frame
+of what \code{\link[=rvt_daylight]{rvt_daylight()}} integrates.}
+\item{\code{\link[=rvt_insolation]{rvt_insolation()}}}{The \strong{energy} rather than the duration, in
+kWh/m2, with beam and diffuse together. An hour of December sun is not
+an hour of June sun, so this is what \code{\link[=rvt_daylight]{rvt_daylight()}}'s hour counts are
+really a proxy for.}
+}
+
+They are complements rather than alternatives. Real ground receives both, so
+a north-facing slope that \code{\link[=rvt_daylight]{rvt_daylight()}} shows getting no sun at all is
+still lit diffusely, and a cell's total light is neither number by itself.
+All three share the same horizon search, so \code{reach}, \code{num_directions} and
+the multi-resolution levels of \link{rvt_reach} mean the same thing in each.
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_shadow(dem, sun_elevation = 15, radius_max = 30)
+rvt_shadow(dem, sun_elevation = 15, reach = 30)
 }
 \seealso{
-\code{\link[=rvt_hillshade]{rvt_hillshade()}}, which shades by surface orientation without
-casting shadows.
+\code{\link[=rvt_daylight]{rvt_daylight()}}, which integrates this over many sun positions
+instead of freezing one, and \code{\link[=rvt_hillshade]{rvt_hillshade()}}, which shades by surface
+orientation without casting shadows at all.
 }

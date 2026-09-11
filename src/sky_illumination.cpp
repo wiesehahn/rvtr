@@ -1,6 +1,8 @@
 #include <Rcpp.h>
 #include <cmath>
 #include <vector>
+#include "levels.h"
+#include "skyfactor.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -15,10 +17,11 @@ using namespace Rcpp;
 // sky models are supported: "uniform" (equally bright everywhere) and
 // "overcast" (brighter overhead, the standard cloudy-day distribution).
 //
-// The search is single-resolution. RVT reaches its 100 px default through a
-// DEM pyramid, needed because the equivalent numpy loop is ~10x slower per
-// offset than this kernel; here the straight search is affordable and avoids
-// approximating the horizon at distance.
+// The horizon search itself comes from RvtLevels (levels.h), so a long reach
+// is served from progressively coarser copies of the DEM rather than scanned
+// at full resolution throughout. RVT reaches its 100 m default through a DEM
+// pyramid too, though it needs one because the equivalent numpy loop is ~10x
+// slower per offset than this kernel.
 //
 // [[Rcpp::export]]
 NumericMatrix sky_illumination_kernel(NumericMatrix padded,
@@ -27,43 +30,37 @@ NumericMatrix sky_illumination_kernel(NumericMatrix padded,
                                       int ncol_out,
                                       double xres,
                                       double yres,
-                                      IntegerVector dx,
-                                      IntegerVector dy,
-                                      NumericVector dist,
-                                      IntegerVector dir_start,
-                                      IntegerVector dir_end,
+                                      int tile_x0,
+                                      int tile_y0,
+                                      List aux_mats,
+                                      IntegerVector aux_fac,
+                                      IntegerVector aux_cx0,
+                                      IntegerVector aux_cy0,
+                                      List off_dx,
+                                      List off_dy,
+                                      List off_dist,
+                                      List off_start,
+                                      List off_end,
                                       NumericVector dir_azimuth,
                                       bool overcast,
                                       int threads) {
 
-  const int ndir = dir_start.size();
-  const int pnrow = padded.nrow();
-  const double *P = &padded[0];
-
-  const int *DX = &dx[0];
-  const int *DY = &dy[0];
-  const int *DS = &dir_start[0];
-  const int *DE = &dir_end[0];
-
-  std::vector<double> inv_dist(dist.size());
-  for (R_xlen_t k = 0; k < dist.size(); ++k) inv_dist[k] = 1.0 / dist[k];
-  const double *ID = inv_dist.data();
+  RvtLevels L;
+  L.init(padded, pad, tile_x0, tile_y0, aux_mats, aux_fac, aux_cx0, aux_cy0,
+         off_dx, off_dy, off_dist, off_start, off_end);
+  const int ndir = L.ndir;
+  const int pnrow = L.pnrow;
+  const double *P = L.P;
 
   std::vector<double> az(ndir);
   for (int d = 0; d < ndir; ++d) az[d] = dir_azimuth[d] * M_PI / 180.0;
-
-  // half the angular width of one direction's slice of sky
-  const double da = M_PI / (double)ndir;
-  const double sin_da = std::sin(da);
 
   // Flat ground gives exactly this, so dividing by it puts flat ground at 1 -
   // the same convention as sky-view factor and local dominance here. RVT
   // instead divides the overcast model by the brightest pixel in the raster,
   // which cannot survive tiling: the scale would depend on which tile a cell
   // landed in. See the package docs.
-  const double flat_norm = overcast
-    ? (0.33 * M_PI + 0.67 * (2.0 * M_PI / 3.0))
-    : M_PI;
+  const double flat_norm = rvt_sky_flat_norm(overcast);
 
   NumericMatrix out(nrow_out, ncol_out);
   double *OUT = &out[0];
@@ -73,6 +70,7 @@ NumericMatrix sky_illumination_kernel(NumericMatrix padded,
 #endif
   for (int j = 0; j < ncol_out; ++j) {
     const int pj = j + pad;
+    std::vector<double> hor(ndir);      // per thread, reused down the column
     for (int i = 0; i < nrow_out; ++i) {
       const int pi = i + pad;
       const double centre = P[pi + (R_xlen_t)pj * pnrow];
@@ -82,6 +80,8 @@ NumericMatrix sky_illumination_kernel(NumericMatrix padded,
         OUT[out_idx] = NA_REAL;
         continue;
       }
+
+      L.horizon(i, j, centre, hor.data());
 
       // slope and aspect, same derivative and NoData fallback as the
       // slope/hillshade kernel
@@ -100,52 +100,8 @@ NumericMatrix sky_illumination_kernel(NumericMatrix padded,
       const double slp = std::atan(std::sqrt(dzdx * dzdx + dzdy * dzdy));
       const double asp = std::atan2(dzdx, dzdy);
 
-      double sum_a = 0.0, sum_b = 0.0, sum_c = 0.0, sum_d = 0.0;
-
-      for (int d = 0; d < ndir; ++d) {
-        // horizon angle, never below the horizontal
-        double max_slope = 0.0;
-        const int k1 = DE[d];
-        for (int k = DS[d]; k < k1; ++k) {
-          const double v = P[(pi + DY[k]) + (R_xlen_t)(pj + DX[k]) * pnrow];
-          if (ISNAN(v)) continue;
-          const double s = (v - centre) * ID[k];
-          if (s > max_slope) max_slope = s;
-        }
-        const double h = std::atan(max_slope);
-        const double cos_h = std::cos(h);
-
-        // how much this slice of sky is tipped towards or away from the
-        // surface; negative contributions are light the surface cannot see
-        const double d_aspect = -2.0 * sin_da * std::cos(az[d] - asp);
-
-        sum_a += cos_h * cos_h;
-        const double b = d_aspect * (M_PI / 4.0 - h / 2.0 - std::sin(2.0 * h) / 4.0);
-        if (b > 0.0) sum_b += b;
-
-        if (overcast) {
-          const double cos3 = cos_h * cos_h * cos_h;
-          if (cos3 > 0.0) sum_c += cos3;
-          const double dd = d_aspect * (2.0 / 3.0 - cos_h + cos3 / 3.0);
-          if (dd > 0.0) sum_d += dd;
-        }
-      }
-
-      const double cos_slp = std::cos(slp), sin_slp = std::sin(slp);
-      const double uniform = da * cos_slp * sum_a
-                           + sin_slp * (sum_b < M_PI ? sum_b : M_PI);
-
-      double val;
-      if (overcast) {
-        // the blend mixes the raw uniform term, not the one already divided
-        // by pi - matching the order the reference applies these in
-        const double oc = (2.0 * da / 3.0) * cos_slp * sum_c + sin_slp * sum_d;
-        val = 0.33 * uniform + 0.67 * oc;
-      } else {
-        val = uniform;
-      }
-
-      OUT[out_idx] = val / flat_norm;
+      OUT[out_idx] = rvt_sky_factor(hor.data(), ndir, az.data(), slp, asp,
+                                     overcast, flat_norm);
     }
   }
 

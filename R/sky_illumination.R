@@ -31,15 +31,13 @@
        ends = as.integer(ends))
 }
 
-.sky_illumination_tile <- function(tile, xres, yres, num_directions, radius_max,
-                                    overcast, threads) {
-  off <- .direction_offsets(num_directions, radius_max, 1, xres, yres)
-  pad <- as.integer(radius_max + 1L)
-  out <- sky_illumination_kernel(.pad_reflect(tile, pad), pad,
-                                  nrow(tile), ncol(tile), xres, yres,
-                                  off$dx, off$dy, off$dist, off$starts, off$ends,
-                                  .direction_azimuths(num_directions),
-                                  overcast, threads)
+.sky_illumination_tile <- function(tile, ctx, xres, yres, offs, pad,
+                                    num_directions, overcast, threads) {
+  out <- do.call(sky_illumination_kernel,
+                  c(list(.pad_reflect(tile, pad), pad,
+                          nrow(tile), ncol(tile), xres, yres),
+                    .level_args(ctx, offs),
+                    list(.direction_azimuths(num_directions), overcast, threads)))
   list(sim = out)
 }
 
@@ -61,7 +59,7 @@
 #'
 #' @section How it works:
 #' The horizon is found exactly as in [rvt_svf()] - a maximum slope along each
-#' of `num_directions` rays out to `radius_max`. Each direction then
+#' of `num_directions` rays out to `reach`. Each direction then
 #' contributes light according to how much sky it leaves open above the
 #' horizon *and* how that sky sits relative to the surface: the cell's slope
 #' and aspect weight every direction, so sky behind the surface contributes
@@ -70,16 +68,19 @@
 #' brighter overhead, which is the standard cloudy-sky distribution and the
 #' default.
 #'
-#' The search is single-resolution and runs at native resolution, tile by
-#' tile. Results are scaled by the value flat ground produces, so flat reads 1
+#' Results are scaled by the value flat ground produces, so flat reads 1
 #' regardless of `sky_model` or `num_directions`.
 #'
+#' @inheritSection rvt_daylight Direct sun versus diffuse sky
+#'
 #' @section Tuning:
-#' * `radius_max` dominates the cost, which grows roughly in proportion to it:
-#'   the default 100 px means about 3500 terrain samples per cell, some 20
-#'   times what [rvt_svf()] does. Expect around a minute for a 4000 x 4000
-#'   raster, and cut the radius if that is too slow - 30 px still captures
-#'   the terrain that matters most for local shading.
+#' * `reach` dominates the cost: the default 100 m means around 3500 terrain
+#'   samples per cell, some 20 times what [rvt_svf()] does at its own default.
+#'   Expect around a minute for a 4000 x 4000 raster. Shortening it to 30 m
+#'   still captures the terrain that matters most for local shading; going
+#'   *longer* is much cheaper than it used to be, since past one
+#'   full-resolution scan - `pyramid_px` cells, 100 by default - the search
+#'   coarsens as it goes (see [rvt_reach]).
 #' * `num_directions` costs time in direct proportion. 32 is the default;
 #'   16 halves the work at some loss of smoothness.
 #' * `sky_model = "uniform"` is slightly cheaper and gives a flatter,
@@ -105,18 +106,24 @@
 #' @param sky_model `"overcast"` (default) or `"uniform"` - how sky
 #'   brightness varies with height above the horizon
 #' @param num_directions number of directions searched (default 32)
-#' @param radius_max how far to look, in *pixels* (default 100)
+#' @param reach how far to look, in **map units** (metres, normally;
+#'   default 100). Scanned at full resolution for the first `pyramid_px`
+#'   cells (100 by default, so 100 m on a 1 m DEM); past that the search
+#'   reads from progressively coarser copies of the DEM, so a long reach
+#'   stays affordable - see [rvt_reach]
 #' @return `out_path`, invisibly
-#' @seealso [rvt_svf()] for a much cheaper measure of the same horizon that
-#'   ignores which way the ground faces.
+#' @seealso [rvt_daylight()] for direct sun over time rather than diffuse light
+#'   at no particular time, and [rvt_svf()] for a much cheaper measure of the
+#'   same horizon that ignores which way the ground faces.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' # small radius to keep the example quick
-#' rvt_sky_illumination(dem, radius_max = 10, num_directions = 8)
+#' rvt_sky_illumination(dem, reach = 10, num_directions = 8)
 #' @export
 rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
                                   sky_model = c("overcast", "uniform"),
-                                  num_directions = 32, radius_max = 100,
+                                  num_directions = 32, reach = 100,
+                                  pyramid_px = 100, pyramid_factor = 4,
                                   tile_size = NULL, threads = rvt_threads(),
                                   overwrite = FALSE, progress = FALSE) {
   sky_model <- match.arg(sky_model)
@@ -124,25 +131,31 @@ rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
-  overlap <- as.integer(radius_max + 1L)
-  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
+  py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        function(rmax, rmin, res)
+                          .direction_offsets(num_directions, rmax, rmin, res, res))
+  if (is.null(tile_size))
+    tile_size <- .auto_tile_size(info$nx, info$ny, py$overlap)
+  pad <- py$overlap
 
-  .process_tiled(dem, list(sim = out_path), overlap, tile_size,
-                  function(tile, xres, yres)
-                    .sky_illumination_tile(tile, xres, yres, num_directions,
-                                            radius_max,
+  .process_tiled(dem, list(sim = out_path), py$overlap, tile_size,
+                  function(tile, xres, yres, ctx = .no_aux)
+                    .sky_illumination_tile(tile, ctx, xres, yres, py$offs, pad,
+                                            num_directions,
                                             sky_model == "overcast", threads),
-                  progress = progress, threads = threads)
+                  progress = progress, threads = threads, aux = py$aux)
   invisible(out_path)
 }
 
-.shadow_tile <- function(tile, xres, yres, sun_azimuth, sun_elevation,
-                          radius_max, threads) {
-  off <- .ray_offsets(sun_azimuth, radius_max, 1, xres, yres)
-  pad <- as.integer(radius_max + 1L)
-  h <- horizon_svf_opns(.pad_reflect(tile, pad), pad, nrow(tile), ncol(tile),
-                         off$dx, off$dy, off$dist, off$starts, off$ends,
-                         FALSE, TRUE, FALSE, numeric(0), threads)
+## A cast shadow is a one-direction horizon search, so it reuses the horizon
+## kernel wholesale - including its multi-resolution levels, which matters here
+## because a shadow-casting ridge is often a long way off.
+.shadow_tile <- function(tile, ctx, xres, yres, offs, pad, sun_elevation,
+                          threads) {
+  h <- do.call(horizon_pyramid,
+                c(list(.pad_reflect(tile, pad), pad, nrow(tile), ncol(tile)),
+                  .level_args(ctx, offs),
+                  list(FALSE, TRUE, FALSE, numeric(0), threads)))
   # the openness output of a one-direction search is 90 - horizon angle
   horizon <- 90 - h$opns
   list(shadow = (horizon < sun_elevation) * 1)
@@ -163,7 +176,7 @@ rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
 #'
 #' @section How it works:
 #' A single ray is traced from each cell towards `sun_azimuth`, out to
-#' `radius_max` pixels, keeping the steepest angle up to the terrain along it -
+#' `reach`, keeping the steepest angle up to the terrain along it -
 #' the horizon in the sun's direction. If that horizon stands higher than
 #' `sun_elevation`, the sun is blocked and the cell is in shadow.
 #'
@@ -171,8 +184,10 @@ rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' metrics: roughly one thirty-second of [rvt_sky_illumination()] at the same
 #' radius. The output is 0 or 1, with NoData preserved.
 #'
+#' @inheritSection rvt_daylight Direct sun versus diffuse sky
+#'
 #' @section Tuning:
-#' * `radius_max` sets how far a shadow can reach. A shadow cast by terrain
+#' * `reach` sets how far a shadow can reach. A shadow cast by terrain
 #'   further away than this is missed, so it needs to cover the tallest
 #'   feature divided by the tangent of the sun elevation - a 20 m rise at 10
 #'   degrees casts a shadow about 113 m long. Low sun therefore needs a large
@@ -186,17 +201,23 @@ rvt_sky_illumination <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' @param sun_azimuth compass azimuth of the sun, in degrees (default 315)
 #' @param sun_elevation height of the sun above the horizon, in degrees
 #'   (default 35)
-#' @param radius_max how far along the ray to look for blocking terrain, in
-#'   *pixels* (default 100)
+#' @param reach how far along the ray to look for blocking terrain, in
+#'   **map units** (metres, normally; default 100). Scanned at full
+#'   resolution for the first `pyramid_px` cells (100 by default, so 100 m on
+#'   a 1 m DEM); past that the search reads from progressively coarser copies
+#'   of the DEM, so a shadow cast from kilometres away stays affordable - see
+#'   [rvt_reach]
 #' @return `out_path`, invisibly - 1 lit, 0 shadowed
-#' @seealso [rvt_hillshade()], which shades by surface orientation without
-#'   casting shadows.
+#' @seealso [rvt_daylight()], which integrates this over many sun positions
+#'   instead of freezing one, and [rvt_hillshade()], which shades by surface
+#'   orientation without casting shadows at all.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_shadow(dem, sun_elevation = 15, radius_max = 30)
+#' rvt_shadow(dem, sun_elevation = 15, reach = 30)
 #' @export
 rvt_shadow <- function(dem, out_path = tempfile(fileext = ".tif"),
-                        sun_azimuth = 315, sun_elevation = 35, radius_max = 100,
+                        sun_azimuth = 315, sun_elevation = 35, reach = 100,
+                        pyramid_px = 100, pyramid_factor = 4,
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   if (length(sun_azimuth) != 1L)
@@ -205,13 +226,17 @@ rvt_shadow <- function(dem, out_path = tempfile(fileext = ".tif"),
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
-  overlap <- as.integer(radius_max + 1L)
-  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
+  py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        function(rmax, rmin, res)
+                          .ray_offsets(sun_azimuth, rmax, rmin, res, res))
+  if (is.null(tile_size))
+    tile_size <- .auto_tile_size(info$nx, info$ny, py$overlap)
+  pad <- py$overlap
 
-  .process_tiled(dem, list(shadow = out_path), overlap, tile_size,
-                  function(tile, xres, yres)
-                    .shadow_tile(tile, xres, yres, sun_azimuth, sun_elevation,
-                                  radius_max, threads),
-                  progress = progress, threads = threads)
+  .process_tiled(dem, list(shadow = out_path), py$overlap, tile_size,
+                  function(tile, xres, yres, ctx = .no_aux)
+                    .shadow_tile(tile, ctx, xres, yres, py$offs, pad,
+                                  sun_elevation, threads),
+                  progress = progress, threads = threads, aux = py$aux)
   invisible(out_path)
 }

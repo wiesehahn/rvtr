@@ -9,7 +9,9 @@ rvt_sky_illumination(
   out_path = tempfile(fileext = ".tif"),
   sky_model = c("overcast", "uniform"),
   num_directions = 32,
-  radius_max = 100,
+  reach = 100,
+  pyramid_px = 100,
+  pyramid_factor = 4,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -28,7 +30,15 @@ brightness varies with height above the horizon}
 
 \item{num_directions}{number of directions searched (default 32)}
 
-\item{radius_max}{how far to look, in \emph{pixels} (default 100)}
+\item{reach}{how far to look, in \strong{map units} (metres, normally;
+default 100). Scanned at full resolution for the first \code{pyramid_px}
+cells (100 by default, so 100 m on a 1 m DEM); past that the search
+reads from progressively coarser copies of the DEM, so a long reach
+stays affordable - see \link{rvt_reach}}
+
+\item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
+pixels scanned per level (default 100, the accuracy knob) and how much
+coarser each level is than the last (default 4). Only used with \code{reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -61,7 +71,7 @@ This is the most expensive metric here by a wide margin - see Tuning.
 \section{How it works}{
 
 The horizon is found exactly as in \code{\link[=rvt_svf]{rvt_svf()}} - a maximum slope along each
-of \code{num_directions} rays out to \code{radius_max}. Each direction then
+of \code{num_directions} rays out to \code{reach}. Each direction then
 contributes light according to how much sky it leaves open above the
 horizon \emph{and} how that sky sits relative to the surface: the cell's slope
 and aspect weight every direction, so sky behind the surface contributes
@@ -72,19 +82,20 @@ brighter overhead, which is the standard cloudy-sky distribution and the
 default.
 }
 
-The search is single-resolution and runs at native resolution, tile by
-tile. Results are scaled by the value flat ground produces, so flat reads 1
+Results are scaled by the value flat ground produces, so flat reads 1
 regardless of \code{sky_model} or \code{num_directions}.
 }
 
 \section{Tuning}{
 
 \itemize{
-\item \code{radius_max} dominates the cost, which grows roughly in proportion to it:
-the default 100 px means about 3500 terrain samples per cell, some 20
-times what \code{\link[=rvt_svf]{rvt_svf()}} does. Expect around a minute for a 4000 x 4000
-raster, and cut the radius if that is too slow - 30 px still captures
-the terrain that matters most for local shading.
+\item \code{reach} dominates the cost: the default 100 m means around 3500 terrain
+samples per cell, some 20 times what \code{\link[=rvt_svf]{rvt_svf()}} does at its own default.
+Expect around a minute for a 4000 x 4000 raster. Shortening it to 30 m
+still captures the terrain that matters most for local shading; going
+\emph{longer} is much cheaper than it used to be, since past one
+full-resolution scan - \code{pyramid_px} cells, 100 by default - the search
+coarsens as it goes (see \link{rvt_reach}).
 \item \code{num_directions} costs time in direct proportion. 32 is the default;
 16 halves the work at some loss of smoothness.
 \item \code{sky_model = "uniform"} is slightly cheaper and gives a flatter,
@@ -105,10 +116,40 @@ gets you most of the way for a twentieth of the work, and \code{\link[=rvt_asvf]
 adds back a sense of direction.
 }
 
+\section{Direct sun versus diffuse sky}{
+
+Three functions here measure light reaching the ground, and they answer
+different questions:
+
+\describe{
+\item{\code{\link[=rvt_daylight]{rvt_daylight()}}}{\strong{Direct} sunlight, \strong{integrated over time}: how
+many hours the sun itself reaches a cell across a day, a season or a
+year. Needs a date range and a latitude, and answers in hours. A
+clear-sky quantity.}
+\item{\code{\link[=rvt_sky_illumination]{rvt_sky_illumination()}}}{\strong{Diffuse} skylight, at \strong{no particular
+time}: how much light a cell receives from the sky dome as a whole,
+given both its horizon and the way it tilts. No date, no sun position,
+no latitude; the answer is relative, with flat open ground at 1. An
+overcast-sky quantity.}
+\item{\code{\link[=rvt_shadow]{rvt_shadow()}}}{Direct sunlight at \strong{one instant} - a single frame
+of what \code{\link[=rvt_daylight]{rvt_daylight()}} integrates.}
+\item{\code{\link[=rvt_insolation]{rvt_insolation()}}}{The \strong{energy} rather than the duration, in
+kWh/m2, with beam and diffuse together. An hour of December sun is not
+an hour of June sun, so this is what \code{\link[=rvt_daylight]{rvt_daylight()}}'s hour counts are
+really a proxy for.}
+}
+
+They are complements rather than alternatives. Real ground receives both, so
+a north-facing slope that \code{\link[=rvt_daylight]{rvt_daylight()}} shows getting no sun at all is
+still lit diffusely, and a cell's total light is neither number by itself.
+All three share the same horizon search, so \code{reach}, \code{num_directions} and
+the multi-resolution levels of \link{rvt_reach} mean the same thing in each.
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 # small radius to keep the example quick
-rvt_sky_illumination(dem, radius_max = 10, num_directions = 8)
+rvt_sky_illumination(dem, reach = 10, num_directions = 8)
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
@@ -116,6 +157,7 @@ Visualization: A Guide to Good Practice}. Ljubljana: Založba ZRC.
 \doi{10.3986/9789612549848}
 }
 \seealso{
-\code{\link[=rvt_svf]{rvt_svf()}} for a much cheaper measure of the same horizon that
-ignores which way the ground faces.
+\code{\link[=rvt_daylight]{rvt_daylight()}} for direct sun over time rather than diffuse light
+at no particular time, and \code{\link[=rvt_svf]{rvt_svf()}} for a much cheaper measure of the
+same horizon that ignores which way the ground faces.
 }
