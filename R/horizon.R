@@ -71,16 +71,18 @@
 }
 
 ## `negate` for negative openness searches the terrain turned upside down, so
-## every level is negated per tile. The coarse levels must then be built with
-## `min` rather than `max`: the horizon wanted is max(-z), which is -min(z).
+## every level is negated per tile, and the coarse levels have to be built with
+## the mirror-image statistic: the horizon wanted is max(-z), which is -min(z).
 ## Coarsening with max and negating would give -max(z) - the wrong extreme, and
-## a level that hides obstructions instead of preserving them.
+## a level that hides obstructions instead of preserving them. See
+## .mirror_method().
 .horizon_run <- function(dem, out_path, want_svf, want_opns,
                           num_directions, reach, noise_removal,
                           tile_size, threads, overwrite, progress,
                           negate = FALSE, want_asvf = FALSE,
                           dir_weight = numeric(0),
-                          pyramid_px = 100, pyramid_factor = 4) {
+                          pyramid_px = 100, pyramid_factor = 4,
+                          pyramid_method = "max") {
   out_path <- .as_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
@@ -98,7 +100,8 @@
     # coarse levels start where it stops regardless.
     plan[[1]]$rmin <- .radius_min(radius_max, noise_removal)
     paths <- .pyramid_build(dem, plan, threads,
-                             method = if (negate) "min" else "max")
+                             method = if (negate) .mirror_method(pyramid_method)
+                                      else pyramid_method)
     offs <- .pyramid_offsets(plan, num_directions, info$xres, info$yres)
     overlap <- as.integer(radius_max + 1L)
     if (is.null(tile_size))
@@ -222,6 +225,12 @@
 #' @param pyramid_px,pyramid_factor shape of that multi-resolution search:
 #'   pixels scanned per level (default 100, the accuracy knob) and how much
 #'   coarser each level is than the last (default 4). Only used with `reach`.
+#' @param pyramid_method how the coarse levels are built. `"max"` (default) is
+#'   right for bare-earth terrain, where a narrow wall or crag must survive
+#'   coarsening. On a **rough surface - a canopy or vegetation model - use
+#'   `"q3"`**: max there takes the tallest crown in each block and treats it as
+#'   solid, over-stating obstruction, and measures about twice the error of
+#'   `"q3"` against a full-resolution search. See [rvt_reach].
 #' @param tile_size tile edge in pixels; NULL picks a size targeting roughly
 #'   256 MB per working matrix
 #' @param threads C++ threads (see [rvt_threads()])
@@ -238,11 +247,13 @@
 rvt_svf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
                 pyramid_px = 100, pyramid_factor = 4,
+                pyramid_method = "max",
                 tile_size = NULL, threads = rvt_threads(),
                 overwrite = FALSE, progress = FALSE) {
   .horizon_run(dem, out_path, TRUE, FALSE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
-                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor,
+                pyramid_method = pyramid_method)
 }
 
 #' Anisotropic sky-view factor
@@ -322,6 +333,7 @@ rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
                 main_direction = 315, level = 1,
                 pyramid_px = 100, pyramid_factor = 4,
+                pyramid_method = "max",
                 tile_size = NULL, threads = rvt_threads(),
                 overwrite = FALSE, progress = FALSE) {
   if (!level %in% c(1, 2))
@@ -331,7 +343,8 @@ rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
   .horizon_run(dem, out_path, FALSE, FALSE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
                 negate = FALSE, want_asvf = TRUE, dir_weight = w,
-                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor,
+                pyramid_method = pyramid_method)
 }
 
 #' Positive openness
@@ -415,11 +428,13 @@ rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
 rvt_openness <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,
                      pyramid_px = 100, pyramid_factor = 4,
+                     pyramid_method = "max",
                      tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
   .horizon_run(dem, out_path, FALSE, TRUE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
-                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor,
+                pyramid_method = pyramid_method)
 }
 
 #' Negative openness
@@ -478,10 +493,12 @@ rvt_openness <- function(dem, out_path = fs::file_temp(ext = "tif"),
 rvt_openness_negative <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,
                      pyramid_px = 100, pyramid_factor = 4,
+                     pyramid_method = "max",
                      tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
   .horizon_run(dem, out_path, FALSE, TRUE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
                 negate = TRUE,
-                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor,
+                pyramid_method = pyramid_method)
 }

@@ -96,6 +96,10 @@
 #'   overestimates it wherever those holes are really canopy.
 #' * **Normals are noisy at crown edges**, where the 3x3 derivative sees a
 #'   near-vertical facet. Gap floors are flat and unaffected.
+#' * **Set `pyramid_method = "q3"`** if `reach` is long enough to build coarse
+#'   levels. The default `"max"` takes the tallest crown in each coarse block
+#'   and treats it as solid, which over-states shading on a surface that is all
+#'   peaks; see [rvt_reach].
 #'
 #' A gap also has to be wider than intuition suggests: the sun reaches at most
 #' `90 - latitude + 23.4` degrees, so a circular gap needs a radius of about
@@ -174,6 +178,7 @@ rvt_insolation <- function(dem, out_path = fs::file_temp(ext = "tif"),
                             lat = NULL, lon = NULL,
                             num_directions = 36, reach = 100,
                             pyramid_px = 100, pyramid_factor = 4,
+                            pyramid_method = "max",
                             tile_size = NULL, threads = rvt_threads(),
                             overwrite = FALSE, progress = FALSE) {
   component <- match.arg(component)
@@ -220,6 +225,7 @@ rvt_insolation <- function(dem, out_path = fs::file_temp(ext = "tif"),
 
   info <- .dem_info(dem)
   py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        method = pyramid_method,
                         function(rmax, rmin, res)
                           .direction_offsets(num_directions, rmax, rmin, res, res))
   if (is.null(tile_size))

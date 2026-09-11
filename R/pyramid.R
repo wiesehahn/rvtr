@@ -39,9 +39,14 @@
 ## block. Max is also the NoData-safe choice, picking the fill value only when
 ## every cell beneath is NoData.
 ##
-## `method = "min"` is for the inverted-terrain search behind negative
-## openness, where the horizon wanted is max(-z) = -min(z). Taking max(z) and
-## negating would give -max(z), which is the wrong extreme.
+## On a rough surface - a canopy, dense vegetation - max is the wrong choice in
+## the other direction: it takes the tallest crown in each block and treats it
+## as solid, over-stating obstruction. Measured on a synthetic canopy, mean
+## sky-view error against a full-resolution search is 0.0066 for max against
+## 0.0030 for q3, biased opposite ways. Hence `pyramid_method`.
+##
+## The inverted-terrain search behind negative openness needs the mirror-image
+## statistic, since the horizon wanted is max(-z) = -min(z).
 .pyramid_build <- function(dem, plan, threads, method = "max") {
   lapply(plan, function(L) {
     if (L$fac == 1L) return(dem)
@@ -62,6 +67,22 @@
   if (length(plan) < 2L) return(NULL)
   lapply(seq_along(plan)[-1], function(i)
     list(path = paths[[i]], fac = plan[[i]]$fac, overlap = plan[[i]]$rmax + 1L))
+}
+
+## Coarsening for the inverted-terrain search: linear filters commute with
+## negation and are their own mirror, order statistics swap ends. rms, mode
+## and sum do not commute at all, so they are refused rather than quietly
+## giving the wrong extreme.
+.mirror_method <- function(method) {
+  m <- c(max = "min", min = "max", q3 = "q1", q1 = "q3", med = "med",
+         near = "near", bilinear = "bilinear", cubic = "cubic",
+         cubicspline = "cubicspline", lanczos = "lanczos", average = "average")
+  if (!method %in% names(m))
+    stop(sprintf(paste("`pyramid_method = \"%s\"` cannot be used for the",
+                        "inverted-terrain search behind negative openness -",
+                        "it does not commute with negation. Use one of: %s."),
+                  method, paste(names(m), collapse = ", ")), call. = FALSE)
+  unname(m[method])
 }
 
 ## What .process_tiled() hands a tile function when there are no coarse levels
@@ -87,11 +108,11 @@
 ## rasters, the per-level offsets and the tiling overlap. `offsets` builds the
 ## offset set for one level, given (rmax, rmin, res).
 .pyramid_setup <- function(dem, info, reach, pyramid_px, pyramid_factor,
-                            threads, offsets) {
+                            threads, offsets, method = "max") {
   plan <- .pyramid_plan(info$xres, reach, pyramid_px, pyramid_factor)
   list(plan = plan,
        offs = lapply(plan, function(L) offsets(L$rmax, L$rmin, L$res)),
-       aux = .pyramid_aux(.pyramid_build(dem, plan, threads), plan),
+       aux = .pyramid_aux(.pyramid_build(dem, plan, threads, method), plan),
        overlap = as.integer(plan[[1]]$rmax + 1L))
 }
 
@@ -149,7 +170,28 @@
 #'
 #' The coarse levels are built with **maximum** resampling, not averaging.
 #' Averaging erases anything narrower than a coarse cell - exactly the isolated
-#' crags, walls and tree lines that make up a distant skyline.
+#' crags, walls and tree lines that make up a distant skyline. A 3 m wall 20 m
+#' high at 300 m, coarsened 16 times, keeps 3.47 of its 3.53 degrees of horizon
+#' under `"max"`, against 0.65 under cubic and 0.00 under nearest.
+#'
+#' # When max is the wrong choice
+#'
+#' On a **rough** surface that is all peaks - a canopy or vegetation model -
+#' max errs the other way: it takes the tallest crown in each block and treats
+#' it as solid ground, so a lone tree or a mast is widened to the whole coarse
+#' cell and blocks far more sky than it really does. Measured on a synthetic
+#' canopy, mean sky-view error against a full-resolution search is 0.0066 for
+#' `"max"` against **0.0030 for `"q3"`**, and the two are biased opposite ways:
+#' max over-states obstruction, the third quartile slightly under-states it.
+#'
+#' So `pyramid_method = "q3"` on canopy surfaces, and the default `"max"` on
+#' bare earth, where q3 would erase a real wall entirely. A feature has to
+#' occupy about a quarter of a coarse cell to survive q3, which is roughly the
+#' point at which it starts blocking a meaningful share of that cell's sky.
+#'
+#' Negative openness searches inverted terrain, so its levels use the
+#' mirror-image statistic automatically - min for max, q1 for q3 - since the
+#' horizon it wants is `max(-z)`, which is `-min(z)`.
 #'
 #' # What it costs in accuracy
 #'

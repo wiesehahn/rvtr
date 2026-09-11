@@ -270,6 +270,7 @@ rvt_daylight <- function(dem, out_path = fs::file_temp(ext = "tif"),
                           lat = NULL, lon = NULL,
                           num_directions = 36, reach = 100,
                           pyramid_px = 100, pyramid_factor = 4,
+                          pyramid_method = "max",
                           tile_size = NULL, threads = rvt_threads(),
                           overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
@@ -316,6 +317,7 @@ rvt_daylight <- function(dem, out_path = fs::file_temp(ext = "tif"),
   # directions are indexed by compass bearing so the kernel can map a sun
   # azimuth onto one by arithmetic
   py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        method = pyramid_method,
                         function(rmax, rmin, res)
                           .azimuth_offsets(num_directions, rmax, res, res,
                                             rmin = rmin))

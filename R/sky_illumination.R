@@ -124,6 +124,7 @@ rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                   sky_model = c("overcast", "uniform"),
                                   num_directions = 32, reach = 100,
                                   pyramid_px = 100, pyramid_factor = 4,
+                                  pyramid_method = "max",
                                   tile_size = NULL, threads = rvt_threads(),
                                   overwrite = FALSE, progress = FALSE) {
   sky_model <- match.arg(sky_model)
@@ -133,6 +134,7 @@ rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
 
   info <- .dem_info(dem)
   py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        method = pyramid_method,
                         function(rmax, rmin, res)
                           .direction_offsets(num_directions, rmax, rmin, res, res))
   if (is.null(tile_size))
@@ -219,6 +221,7 @@ rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
 rvt_shadow <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         sun_azimuth = 315, sun_elevation = 35, reach = 100,
                         pyramid_px = 100, pyramid_factor = 4,
+                        pyramid_method = "max",
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   if (length(sun_azimuth) != 1L)
@@ -229,6 +232,7 @@ rvt_shadow <- function(dem, out_path = fs::file_temp(ext = "tif"),
 
   info <- .dem_info(dem)
   py <- .pyramid_setup(dem, info, reach, pyramid_px, pyramid_factor, threads,
+                        method = pyramid_method,
                         function(rmax, rmin, res)
                           .ray_offsets(sun_azimuth, rmax, rmin, res, res))
   if (is.null(tile_size))

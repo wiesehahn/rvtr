@@ -52,7 +52,28 @@ measured from that cell's own full-resolution elevation.
 
 The coarse levels are built with \strong{maximum} resampling, not averaging.
 Averaging erases anything narrower than a coarse cell - exactly the isolated
-crags, walls and tree lines that make up a distant skyline.
+crags, walls and tree lines that make up a distant skyline. A 3 m wall 20 m
+high at 300 m, coarsened 16 times, keeps 3.47 of its 3.53 degrees of horizon
+under \code{"max"}, against 0.65 under cubic and 0.00 under nearest.
+}
+
+\section{When max is the wrong choice}{
+On a \strong{rough} surface that is all peaks - a canopy or vegetation model -
+max errs the other way: it takes the tallest crown in each block and treats
+it as solid ground, so a lone tree or a mast is widened to the whole coarse
+cell and blocks far more sky than it really does. Measured on a synthetic
+canopy, mean sky-view error against a full-resolution search is 0.0066 for
+\code{"max"} against \strong{0.0030 for \code{"q3"}}, and the two are biased opposite ways:
+max over-states obstruction, the third quartile slightly under-states it.
+
+So \code{pyramid_method = "q3"} on canopy surfaces, and the default \code{"max"} on
+bare earth, where q3 would erase a real wall entirely. A feature has to
+occupy about a quarter of a coarse cell to survive q3, which is roughly the
+point at which it starts blocking a meaningful share of that cell's sky.
+
+Negative openness searches inverted terrain, so its levels use the
+mirror-image statistic automatically - min for max, q1 for q3 - since the
+horizon it wants is \code{max(-z)}, which is \code{-min(z)}.
 }
 
 \section{What it costs in accuracy}{

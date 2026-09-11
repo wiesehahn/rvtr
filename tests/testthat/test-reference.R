@@ -998,3 +998,50 @@ test_that("insolation responds to aspect, and more sharply in winter", {
   expect_lt(nb, 0.05)
   expect_gt(n12, 0.2)
 })
+
+test_that("pyramid_method chooses how the coarse levels are built", {
+  # max keeps a narrow obstruction, q3 discards it - that is the whole trade,
+  # and which is right depends on whether the surface is bare earth or canopy
+  z <- matrix(0, 64, 64)
+  z[30:31, ] <- 50
+  p <- tempfile(fileext = ".tif")
+  ds <- gdalraster::create(format = "GTiff", dst_filename = p, xsize = 64,
+                           ysize = 64, nbands = 1, dataType = "Float32")
+  ds <- methods::new(gdalraster::GDALRaster, p, read_only = FALSE)
+  ds$setGeoTransform(c(557000, 1, 0, 5700000, 0, -1))
+  ds$setProjection(gdalraster::srs_to_wkt("EPSG:25832"))
+  ds$write(1L, 0, 0, 64, 64, as.vector(t(z)))
+  ds$close()
+  on.exit(unlink(p), add = TRUE)
+  expect_equal(max(read_band(rvt_resample(p, 8, method = "max"))), 50)
+  expect_equal(max(read_band(rvt_resample(p, 8, method = "q3"))), 0)
+
+  # the argument reaches the levels: a rough surface coarsened by q3 must see
+  # less obstruction than the same surface coarsened by max. Needs a CRS,
+  # since these statistics are done with gdalwarp.
+  set.seed(3)
+  rough <- matrix(pmax(0, rnorm(400 * 400, 0, 6)), 400, 400)
+  r <- tempfile(fileext = ".tif")
+  ds <- gdalraster::create(format = "GTiff", dst_filename = r, xsize = 400,
+                           ysize = 400, nbands = 1, dataType = "Float32")
+  ds <- methods::new(gdalraster::GDALRaster, r, read_only = FALSE)
+  ds$setGeoTransform(c(557000, 1, 0, 5700000, 0, -1))
+  ds$setProjection(gdalraster::srs_to_wkt("EPSG:25832"))
+  ds$write(1L, 0, 0, 400, 400, as.vector(t(rough)))
+  ds$close()
+  on.exit(unlink(r), add = TRUE)
+
+  mx <- read_band(rvt_svf(r, reach = 200, pyramid_method = "max"))
+  q3 <- read_band(rvt_svf(r, reach = 200, pyramid_method = "q3"))
+  expect_gt(mean(q3), mean(mx))
+
+  # negative openness inverts the terrain, so its levels take the mirror
+  # statistic; a method with no mirror is refused rather than silently wrong
+  expect_equal(.mirror_method("max"), "min")
+  expect_equal(.mirror_method("q3"), "q1")
+  expect_equal(.mirror_method("med"), "med")
+  expect_equal(.mirror_method("cubic"), "cubic")
+  expect_error(.mirror_method("rms"), "does not commute")
+  expect_error(rvt_openness_negative(dem, reach = 400, pyramid_method = "rms"),
+               "does not commute")
+})

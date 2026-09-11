@@ -19,6 +19,7 @@ rvt_daylight(
   reach = 100,
   pyramid_px = 100,
   pyramid_factor = 4,
+  pyramid_method = "max",
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -64,6 +65,13 @@ affordable - see \link{rvt_reach}
 \item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
 pixels scanned per level (default 100, the accuracy knob) and how much
 coarser each level is than the last (default 4). Only used with \code{reach}.}
+
+\item{pyramid_method}{how the coarse levels are built. \code{"max"} (default) is
+right for bare-earth terrain, where a narrow wall or crag must survive
+coarsening. On a \strong{rough surface - a canopy or vegetation model - use
+\code{"q3"}}: max there takes the tallest crown in each block and treats it as
+solid, over-stating obstruction, and measures about twice the error of
+\code{"q3"} against a full-resolution search. See \link{rvt_reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}

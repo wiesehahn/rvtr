@@ -174,6 +174,12 @@ by 2×10⁻⁵ and openness by 0.0025°, because a feature's effect on the horiz
 has the details, including the two knobs (`pyramid_px`, `pyramid_factor`) and
 why the coarse levels use maximum rather than average resampling.
 
+One caveat if your surface is a canopy or vegetation model rather than bare
+earth: maximum resampling takes the tallest crown in each coarse block and
+treats it as solid, so a lone tree or a mast blocks far more sky than it
+really does. Pass `pyramid_method = "q3"` there — measured on a synthetic
+canopy it halves the error, and the two are biased in opposite directions.
+
 It matters when distant terrain genuinely shades or encloses the site. On flat
 ground the far field contributes almost nothing, so a `reach` short enough to
 stay within the full-resolution scan — and therefore exact — is all you need.
