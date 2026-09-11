@@ -9,6 +9,12 @@
   sa$slope
 }
 
+.aspect_tile <- function(tile, xres, yres, threads) {
+  sa <- slope_hillshade(.pad_edge(tile, 1L), 1L, nrow(tile), ncol(tile),
+                         xres, yres, numeric(0), numeric(0), threads)
+  sa$aspect
+}
+
 ## One hillshade per (azimuth, elevation) pair, all sharing a single pass over
 ## the derivatives.
 .hillshade_tile <- function(tile, xres, yres, sun_azimuth, sun_elevation, threads) {
@@ -195,83 +201,167 @@ rvt_hillshade <- function(dem, out_path = tempfile(fileext = ".tif"),
   invisible(out_path)
 }
 
-#' Multi-directional hillshade
+#' Aspect
 #'
-#' A stack of hillshades of the same terrain lit from evenly spaced directions
-#' all round the compass - one raster band per direction, each 0-1.
+#' The compass direction each cell faces - the way water would run off it.
+#' 0 is north, 90 east, 180 south, 270 west.
 #'
-#' A single [rvt_hillshade()] always loses the features that happen to run
-#' parallel to its light. Rendering the same ground from several directions
-#' means nothing stays hidden in every band, and it lets you either flick
-#' between directions or combine them (an average, a maximum, or three chosen
-#' bands as red/green/blue all work) to get an image with no blind direction.
+#' Aspect on its own is rarely a useful picture: it wraps around at north, so
+#' a smooth north-facing slope shows a hard seam between 359 and 0, and flat
+#' ground points in an essentially arbitrary direction. It earns its place as
+#' an input to other things - solar or ecological modelling, or splitting a
+#' slope map into the sides of a feature.
 #'
 #' @section How it works:
-#' Slope and the direction each cell faces are computed once, then reused for
-#' every sun position - so `n_directions` bands cost barely more than one
-#' hillshade plus the extra writing. Band `i` is lit from azimuth
-#' `(360 / n_directions) * (i - 1)`, so band 1 is always due north and the
-#' rest run clockwise from there, all at the same `sun_elevation`.
-#'
-#' The output is a single multi-band GeoTIFF. Read one band with
-#' `gdalraster`, or point [rvt_plot()] at it with `band = i`.
+#' Taken from the same finite-difference derivatives as [rvt_slope()], as the
+#' azimuth of steepest descent, then wrapped into 0-360. Cells on perfectly
+#' flat ground have no meaningful aspect; the underlying formula carries a
+#' small numerical guard so they come out as a fixed direction rather than
+#' undefined, which is worth knowing before you read anything into large
+#' uniform patches.
 #'
 #' @section Tuning:
-#' * `n_directions` sets how many bands you get. 16 is RVT's default and is
-#'   generous; 4 or 8 is usually plenty to be sure nothing is hidden, and
-#'   keeps the file smaller.
-#' * `sun_elevation` behaves as in [rvt_hillshade()] - lower for subtle
-#'   relief, higher for a flatter, more even image.
+#' Nothing to tune. If you want a *readable* directional image rather than raw
+#' azimuths, [rvt_hillshade()] or [rvt_asvf()] are what you actually want -
+#' both fold aspect into a shaded result without the wrap-around discontinuity.
+#'
+#' Note this will not match `gdalraster::dem_proc(mode = "aspect")` exactly.
+#' That uses Horn's eight-neighbour estimate; this uses the four-neighbour
+#' central difference, so that slope and aspect here stay consistent with each
+#' other and with [rvt_vat()]. On the bundled tile the two agree to about 1.4
+#' degrees on slopes above 20 degrees but diverge to 33 degrees on ground
+#' below 1 degree - which is not a disagreement about the terrain so much as
+#' aspect being ill-defined when there is barely a gradient to point along.
+#'
+#' @inheritParams rvt_svf
+#' @param units `"degree"` (default) or `"radian"`
+#' @return `out_path`, invisibly
+#' @seealso [rvt_slope()], which shares the same derivative pass.
+#' @examples
+#' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
+#' rvt_aspect(dem)
+#' @export
+rvt_aspect <- function(dem, out_path = tempfile(fileext = ".tif"),
+                        units = c("degree", "radian"),
+                        tile_size = NULL, threads = rvt_threads(),
+                        overwrite = FALSE, progress = FALSE) {
+  units <- match.arg(units)
+  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  dem <- rvt_mosaic(dem)
+
+  info <- .dem_info(dem)
+  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 1L)
+
+  .process_tiled(dem, list(aspect = out_path), 1L, tile_size,
+                  function(tile, xres, yres) {
+                    a <- .aspect_tile(tile, xres, yres, threads)
+                    list(aspect = if (units == "degree") a * 180 / pi else a)
+                  },
+                  progress = progress, threads = threads)
+  invisible(out_path)
+}
+
+#' Multi-directional hillshade
+#'
+#' One shaded-relief image lit from several directions at once, on a 0-1
+#' scale. A single [rvt_hillshade()] always loses whatever happens to run
+#' parallel to its light, and buries one side of every feature in deep shadow.
+#' Lighting from several sides at the same time keeps both: no direction is
+#' blind, and the dark side stays readable.
+#'
+#' The trade is contrast: averaging several lights fills the shadows in, so
+#' the image is more even but flatter than a single hillshade, and typically
+#' occupies a narrower range than 0-1. A percentile stretch when plotting
+#' (`rvt_plot(p, minmax_pct_cut = c(2, 98))`) gets that contrast back. Use the
+#' single-direction [rvt_hillshade()] when you need a *known* light direction
+#' - for a figure whose caption states it, or as the base layer of
+#' [rvt_vat()].
+#'
+#' @section How it works:
+#' A wrapper around GDAL's own `gdaldem hillshade -multidirectional`
+#' (via [gdalraster::dem_proc()]), which implements the oblique-weighted
+#' method of Mark (1992): the surface is lit from four sources, at azimuths
+#' 225, 270, 315 and 360 degrees, all at `sun_elevation` above the horizon,
+#' and the four results are averaged with weights that depend on the direction
+#' each cell faces - a source lighting a slope square-on counts for more than
+#' one grazing it. The single azimuth of [rvt_hillshade()] therefore has no
+#' equivalent here; there is nothing to set.
+#'
+#' GDAL computes this in one pass over 8-neighbour (Horn) derivatives, so it
+#' is fast - roughly as quick as a single hillshade - and the result is
+#' rescaled here from GDAL's 1-255 bytes to a single Float32 band in 0-1, to
+#' match every other product in the package. Areas of NoData in the DEM stay
+#' NoData.
+#'
+#' @section Tuning:
+#' Only `sun_elevation` and `z_factor` matter.
+#'
+#' * `sun_elevation` behaves as in [rvt_hillshade()]: lower picks out subtle
+#'   relief more strongly, higher gives a flatter, more even image. 45 is
+#'   GDAL's default and a good starting point - the weighting was designed
+#'   around it - but 30-35 is worth trying when the result looks washed out.
+#'   Below about 20 the image starts to look harsh even with four light
+#'   sources.
+#' * `z_factor` exaggerates the vertical scale. Raise it (2-5) for very flat
+#'   ground; it is also the way to correct a DEM whose elevations are in
+#'   different units from its coordinates.
 #'
 #' @section Recommended settings:
-#' Kokalj and Hesse (2017) use **16 directions**, with the sun elevation
-#' chosen for the terrain exactly as for a single hillshade: around 35
-#' degrees generally, below 10 on very flat ground, around 45 in steep or
-#' complex topography.
+#' Kokalj and Hesse (2017) recommend multi-directional hillshading over the
+#' single-direction kind for general terrain interpretation, with the sun
+#' elevation chosen for the terrain much as for a single hillshade: low on
+#' flat ground, around 45 degrees in steep or complex topography.
 #'
-#' They pair multi-directional hillshading with a principal components
-#' analysis across the directions, which is a good way to collapse the stack
-#' into one or three readable images: the bands are highly correlated, so the
-#' first few components carry nearly all the relief information without any
-#' single direction's blind spot. That step is outside this package - take the
-#' bands into your own PCA - but it is what the stack is really for.
+#' Their own variant renders 16 separate directions and collapses them with a
+#' principal components analysis. This does the same job in one band and a
+#' fraction of the time; if you specifically need the PCA treatment, call
+#' [rvt_hillshade()] once per azimuth and take those into your own PCA.
 #'
 #' @references
+#' Mark, R.K. (1992) *Multidirectional, oblique-weighted, shaded-relief image
+#' of the Island of Dominica*. U.S. Geological Survey Open-File Report 92-422.
+#'
 #' Kokalj, Ž. and Hesse, R. (2017) *Airborne Laser Scanning Raster Data
 #' Visualization: A Guide to Good Practice*. Ljubljana: Založba ZRC.
 #' \doi{10.3986/9789612549848}
 #'
 #' @inheritParams rvt_svf
-#' @param n_directions number of directions (and hence bands), spread evenly
-#'   around the compass starting at north (default 16)
-#' @param sun_elevation height of the sun above the horizon, in degrees,
-#'   shared by every direction (default 35)
+#' @param sun_elevation height of the light sources above the horizon, in
+#'   degrees, shared by all four (default 45)
+#' @param z_factor vertical exaggeration applied to the elevations
+#'   (default 1, no exaggeration)
 #' @return `out_path`, invisibly
-#' @seealso [rvt_hillshade()] for a single direction.
+#' @seealso [rvt_hillshade()] for a single, named light direction.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_multi_hillshade(dem, n_directions = 4)
+#' rvt_multi_hillshade(dem)
 #' @export
 rvt_multi_hillshade <- function(dem, out_path = tempfile(fileext = ".tif"),
-                                 n_directions = 16, sun_elevation = 35,
+                                 sun_elevation = 45, z_factor = 1,
                                  tile_size = NULL, threads = rvt_threads(),
                                  overwrite = FALSE, progress = FALSE) {
-  n_directions <- as.integer(n_directions)
-  if (is.na(n_directions) || n_directions < 1)
-    stop("`n_directions` must be at least 1", call. = FALSE)
   if (!overwrite && file.exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
-  azimuths <- (360 / n_directions) * (seq_len(n_directions) - 1)
+  # gdaldem tiles internally and writes Byte, with 0 reserved for NoData - no
+  # valid cell ever comes out 0 - so the rescale below cannot collide with a
+  # legitimately black value. -compute_edges keeps the outer ring of cells
+  # instead of leaving a NoData border.
+  scratch <- tempfile(fileext = ".tif")
+  on.exit(unlink(scratch), add = TRUE)
+  gdalraster::dem_proc("hillshade", dem, scratch,
+    mode_options = c("-multidirectional", "-compute_edges",
+                      "-alt", format(sun_elevation, scientific = FALSE),
+                      "-z", format(z_factor, scientific = FALSE)),
+    quiet = TRUE)
 
-  info <- .dem_info(dem)
-  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 1L)
+  # Second pass only to put the result on the package's common footing:
+  # Float32 in 0-1, NoData as -9999, Cloud-Optimized with overviews.
+  info <- .dem_info(scratch)
+  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 0L)
 
-  .process_tiled(dem, list(mhs = out_path), 1L, tile_size,
-                  function(tile, xres, yres)
-                    list(mhs = .hillshade_tile(tile, xres, yres, azimuths,
-                                                sun_elevation, threads)),
-                  progress = progress, threads = threads,
-                  nbands = c(mhs = n_directions))
+  .process_tiled(scratch, list(mhs = out_path), 0L, tile_size,
+                  function(tile, xres, yres) list(mhs = tile / 255),
+                  progress = progress, threads = threads)
   invisible(out_path)
 }

@@ -144,7 +144,9 @@ List slope_hillshade(NumericMatrix padded,
     stop("sun_azimuths and sun_elevations must be the same length");
 
   NumericMatrix slope(nrow_out, ncol_out);
+  NumericMatrix aspect(nrow_out, ncol_out);
   double *SLP = &slope[0];
+  double *ASP = &aspect[0];
 
   List hs(n_sun);
   std::vector<double*> HS(n_sun);
@@ -174,6 +176,7 @@ List slope_hillshade(NumericMatrix padded,
       const double centre = P[pi + (R_xlen_t)pj * pnrow];
       if (ISNAN(centre)) {
         SLP[out_idx] = NA_REAL;
+        ASP[out_idx] = NA_REAL;
         for (int e = 0; e < n_sun; ++e) HS[e][out_idx] = NA_REAL;
         continue;
       }
@@ -202,6 +205,9 @@ List slope_hillshade(NumericMatrix padded,
       const double asp = std::atan2(dzdx, dzdy);
 
       SLP[out_idx] = slp;
+      // geographic azimuth of steepest descent: 0 = north, increasing
+      // clockwise, wrapped into [0, 2pi)
+      ASP[out_idx] = asp < 0.0 ? asp + 2.0 * M_PI : asp;
       const double cos_slp = std::cos(slp), sin_slp = std::sin(slp);
       for (int e = 0; e < n_sun; ++e) {
         double v = cos_z[e] * cos_slp
@@ -211,5 +217,6 @@ List slope_hillshade(NumericMatrix padded,
     }
   }
 
-  return List::create(_["slope"] = slope, _["hillshade"] = hs);
+  return List::create(_["slope"] = slope, _["aspect"] = aspect,
+                      _["hillshade"] = hs);
 }

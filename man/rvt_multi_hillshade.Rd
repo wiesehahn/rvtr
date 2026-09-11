@@ -7,8 +7,8 @@
 rvt_multi_hillshade(
   dem,
   out_path = tempfile(fileext = ".tif"),
-  n_directions = 16,
-  sun_elevation = 35,
+  sun_elevation = 45,
+  z_factor = 1,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -22,11 +22,11 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{n_directions}{number of directions (and hence bands), spread evenly
-around the compass starting at north (default 16)}
+\item{sun_elevation}{height of the light sources above the horizon, in
+degrees, shared by all four (default 45)}
 
-\item{sun_elevation}{height of the sun above the horizon, in degrees,
-shared by every direction (default 35)}
+\item{z_factor}{vertical exaggeration applied to the elevations
+(default 1, no exaggeration)}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -41,63 +41,82 @@ shared by every direction (default 35)}
 \code{out_path}, invisibly
 }
 \description{
-A stack of hillshades of the same terrain lit from evenly spaced directions
-all round the compass - one raster band per direction, each 0-1.
+One shaded-relief image lit from several directions at once, on a 0-1
+scale. A single \code{\link[=rvt_hillshade]{rvt_hillshade()}} always loses whatever happens to run
+parallel to its light, and buries one side of every feature in deep shadow.
+Lighting from several sides at the same time keeps both: no direction is
+blind, and the dark side stays readable.
 }
 \details{
-A single \code{\link[=rvt_hillshade]{rvt_hillshade()}} always loses the features that happen to run
-parallel to its light. Rendering the same ground from several directions
-means nothing stays hidden in every band, and it lets you either flick
-between directions or combine them (an average, a maximum, or three chosen
-bands as red/green/blue all work) to get an image with no blind direction.
+The trade is contrast: averaging several lights fills the shadows in, so
+the image is more even but flatter than a single hillshade, and typically
+occupies a narrower range than 0-1. A percentile stretch when plotting
+(\code{rvt_plot(p, minmax_pct_cut = c(2, 98))}) gets that contrast back. Use the
+single-direction \code{\link[=rvt_hillshade]{rvt_hillshade()}} when you need a \emph{known} light direction
+\itemize{
+\item for a figure whose caption states it, or as the base layer of
+\code{\link[=rvt_vat]{rvt_vat()}}.
+}
 }
 \section{How it works}{
 
-Slope and the direction each cell faces are computed once, then reused for
-every sun position - so \code{n_directions} bands cost barely more than one
-hillshade plus the extra writing. Band \code{i} is lit from azimuth
-\code{(360 / n_directions) * (i - 1)}, so band 1 is always due north and the
-rest run clockwise from there, all at the same \code{sun_elevation}.
+A wrapper around GDAL's own \verb{gdaldem hillshade -multidirectional}
+(via \code{\link[gdalraster:dem_proc]{gdalraster::dem_proc()}}), which implements the oblique-weighted
+method of Mark (1992): the surface is lit from four sources, at azimuths
+225, 270, 315 and 360 degrees, all at \code{sun_elevation} above the horizon,
+and the four results are averaged with weights that depend on the direction
+each cell faces - a source lighting a slope square-on counts for more than
+one grazing it. The single azimuth of \code{\link[=rvt_hillshade]{rvt_hillshade()}} therefore has no
+equivalent here; there is nothing to set.
 
-The output is a single multi-band GeoTIFF. Read one band with
-\code{gdalraster}, or point \code{\link[=rvt_plot]{rvt_plot()}} at it with \code{band = i}.
+GDAL computes this in one pass over 8-neighbour (Horn) derivatives, so it
+is fast - roughly as quick as a single hillshade - and the result is
+rescaled here from GDAL's 1-255 bytes to a single Float32 band in 0-1, to
+match every other product in the package. Areas of NoData in the DEM stay
+NoData.
 }
 
 \section{Tuning}{
 
+Only \code{sun_elevation} and \code{z_factor} matter.
 \itemize{
-\item \code{n_directions} sets how many bands you get. 16 is RVT's default and is
-generous; 4 or 8 is usually plenty to be sure nothing is hidden, and
-keeps the file smaller.
-\item \code{sun_elevation} behaves as in \code{\link[=rvt_hillshade]{rvt_hillshade()}} - lower for subtle
-relief, higher for a flatter, more even image.
+\item \code{sun_elevation} behaves as in \code{\link[=rvt_hillshade]{rvt_hillshade()}}: lower picks out subtle
+relief more strongly, higher gives a flatter, more even image. 45 is
+GDAL's default and a good starting point - the weighting was designed
+around it - but 30-35 is worth trying when the result looks washed out.
+Below about 20 the image starts to look harsh even with four light
+sources.
+\item \code{z_factor} exaggerates the vertical scale. Raise it (2-5) for very flat
+ground; it is also the way to correct a DEM whose elevations are in
+different units from its coordinates.
 }
 }
 
 \section{Recommended settings}{
 
-Kokalj and Hesse (2017) use \strong{16 directions}, with the sun elevation
-chosen for the terrain exactly as for a single hillshade: around 35
-degrees generally, below 10 on very flat ground, around 45 in steep or
-complex topography.
+Kokalj and Hesse (2017) recommend multi-directional hillshading over the
+single-direction kind for general terrain interpretation, with the sun
+elevation chosen for the terrain much as for a single hillshade: low on
+flat ground, around 45 degrees in steep or complex topography.
 
-They pair multi-directional hillshading with a principal components
-analysis across the directions, which is a good way to collapse the stack
-into one or three readable images: the bands are highly correlated, so the
-first few components carry nearly all the relief information without any
-single direction's blind spot. That step is outside this package - take the
-bands into your own PCA - but it is what the stack is really for.
+Their own variant renders 16 separate directions and collapses them with a
+principal components analysis. This does the same job in one band and a
+fraction of the time; if you specifically need the PCA treatment, call
+\code{\link[=rvt_hillshade]{rvt_hillshade()}} once per azimuth and take those into your own PCA.
 }
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_multi_hillshade(dem, n_directions = 4)
+rvt_multi_hillshade(dem)
 }
 \references{
+Mark, R.K. (1992) \emph{Multidirectional, oblique-weighted, shaded-relief image
+of the Island of Dominica}. U.S. Geological Survey Open-File Report 92-422.
+
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
 Visualization: A Guide to Good Practice}. Ljubljana: Založba ZRC.
 \doi{10.3986/9789612549848}
 }
 \seealso{
-\code{\link[=rvt_hillshade]{rvt_hillshade()}} for a single direction.
+\code{\link[=rvt_hillshade]{rvt_hillshade()}} for a single, named light direction.
 }
