@@ -89,8 +89,8 @@ with tiles overlapping by the largest radius.
 
 \itemize{
 \item \code{feature_min} is the smallest thing kept. Leaving it at 0 (it is clamped
-up to one pixel) keeps the sharpest detail; raise it to a few times the
-pixel size on noisy lidar or vegetation-affected DEMs to suppress
+up to one cell) keeps the sharpest detail; raise it to a few times the
+cell size on noisy lidar or vegetation-affected DEMs to suppress
 speckle.
 \item \code{feature_max} sets how much landscape form is removed - features much
 larger than it fade out. Lower it to flatten strong topography harder
@@ -100,9 +100,9 @@ and concentrate on small features; raise it to keep broader ones.
 sensitivity to intermediate feature sizes, slightly slower. The default
 2 uses fewer, more widely spaced scales, which gives more contrast.
 Higher values are punchier still but can step over intermediate sizes.
-\item Note \code{feature_min}/\code{feature_max} are in \strong{map units, not pixels} (the
-opposite of \code{\link[=rvt_local_dominance]{rvt_local_dominance()}}), so the same settings mean the same
-ground distances regardless of resolution.
+\item \code{feature_min}/\code{feature_max} are in \strong{map units}, as every distance in
+this package is, so the same settings mean the same ground distances
+regardless of resolution.
 }
 }
 

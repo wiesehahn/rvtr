@@ -23,11 +23,10 @@ spreads out what would otherwise be an almost invisible band of
 values.}
 \item{\code{opns}}{the same again for the positive openness layer, in
 degrees.}
-\item{\code{radius_max}}{how far the horizon search behind the openness and
-sky-view factor layers looks, in pixels. As in \code{\link[=rvt_svf]{rvt_svf()}}, scale it
-with your pixel size.}
+\item{\code{reach}}{how far the horizon search behind the openness and
+sky-view factor layers looks, in map units (metres, normally).}
 \item{\code{noise_removal}}{0-3, ignoring progressively more of the innermost
-pixels of each search ray.}
+part of each search ray.}
 }
 
 An object of class \code{list} of length 6.
@@ -47,7 +46,7 @@ flat ground.
 }
 \details{
 Both are plain lists, so the way to adjust one is a modified copy:
-\code{modifyList(rvt_preset_general, list(radius_max = 20))}.
+\code{modifyList(rvt_preset_general, list(reach = 20))}.
 }
 \seealso{
 \code{\link[=rvt_vat]{rvt_vat()}}

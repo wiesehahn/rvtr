@@ -55,13 +55,12 @@
 #' result divides by.
 #'
 #' @section Tuning:
-#' * The three scales are `c(min_radius, max_radius, step)` in **pixels**, and
-#'   the defaults assume roughly 1 m ground resolution. On finer data scale
-#'   them up, or you will simply be looking at three views of the same small
-#'   neighbourhood. The broad default reaches 2023 pixels, so on a small
+#' * The three scales are `c(min_radius, max_radius, step)` in **map units**
+#'   (metres, normally), so they mean the same ground distances whatever the
+#'   resolution. The broad default reaches 2023 m, so on a small
 #'   raster that channel mostly reflects the mirrored edges - crop-to-fit
-#'   rather than trusting red on a tile smaller than a couple of thousand
-#'   pixels across.
+#'   rather than trusting red on a tile smaller than a couple of kilometres
+#'   across.
 #' * `step` is purely a speed/precision trade: a coarser step visits fewer
 #'   radii and runs proportionally faster, at the risk of stepping over the
 #'   scale at which something stands out.
@@ -71,7 +70,7 @@
 #'
 #' @inheritParams rvt_svf
 #' @param local,meso,broad the three scale bands, each
-#'   `c(min_radius, max_radius, step)` in pixels
+#'   `c(min_radius, max_radius, step)` in **map units** (metres, normally)
 #' @param lightness contrast of the colour mapping (default 1.2)
 #' @return `out_path`, invisibly - a 3-band (RGB) raster
 #' @seealso [rvt_msrm()], which also works across scales but returns a single
@@ -92,14 +91,19 @@ rvt_mstp <- function(dem, out_path = tempfile(fileext = ".tif"),
     s <- scales[[nm]]
     if (length(s) != 3L || anyNA(s))
       stop("`", nm, "` must be c(min_radius, max_radius, step)", call. = FALSE)
-    if (s[1] < 1 || s[2] < s[1] || s[3] < 1)
-      stop("`", nm, "`: need 1 <= min_radius <= max_radius and step >= 1",
-           call. = FALSE)
+    if (s[2] < s[1])
+      stop("`", nm, "`: min_radius must not exceed max_radius", call. = FALSE)
   }
   if (!overwrite && file.exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
+  scales <- lapply(stats::setNames(names(scales), names(scales)), function(nm) {
+    s <- scales[[nm]]
+    c(max(1L, .cells(s[1], info$xres, paste0(nm, "[min_radius]"), "inner")),
+      .cells(s[2], info$xres, paste0(nm, "[max_radius]"), "outer"),
+      .cells(s[3], info$xres, paste0(nm, "[step]"), "step"))
+  })
   overlap <- as.integer(max(vapply(scales, function(s) s[2], numeric(1))))
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 

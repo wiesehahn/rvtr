@@ -2,9 +2,20 @@
 % Please edit documentation in R/msrm.R
 \name{rvt_slrm}
 \alias{rvt_slrm}
+\alias{rvt_tpi}
 \title{Simple local relief model (SLRM)}
 \usage{
 rvt_slrm(
+  dem,
+  out_path = tempfile(fileext = ".tif"),
+  radius = 20,
+  tile_size = NULL,
+  threads = rvt_threads(),
+  overwrite = FALSE,
+  progress = FALSE
+)
+
+rvt_tpi(
   dem,
   out_path = tempfile(fileext = ".tif"),
   radius = 20,
@@ -21,7 +32,8 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{radius}{radius of the smoothing window, in \emph{pixels} (default 20)}
+\item{radius}{radius of the smoothing window, in \strong{map units} (metres,
+normally; default 20)}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -52,7 +64,7 @@ scale that you set directly.
 }
 \section{How it works}{
 
-The DEM is averaged over a square window of \code{radius} pixels, and that
+The DEM is averaged over a square window of \code{radius}, and that
 smoothed surface is subtracted from the original. What remains is
 everything smaller than roughly the window - anything broader has been
 absorbed into the average and cancels out.
@@ -66,7 +78,7 @@ tiles overlapping by \code{radius}.
 \section{Tuning}{
 
 \itemize{
-\item \code{radius} is the one control, and it is in \strong{pixels}: the default 20 is
+\item \code{radius} is the one control, and it is in \strong{map units}: the default 20 is
 20 m on a 1 m DEM but only 5 m on a 0.25 m DEM, so scale it with your
 resolution. It should be comfortably larger than the features you want
 to keep - features approaching the window size get partly absorbed into
@@ -85,7 +97,8 @@ several scales and largely avoids it.
 
 Kokalj and Hesse (2017) suggest a filter radius of about \strong{10 m} generally,
 5 m on very flat ground and 25 m in steep or complex terrain - metres
-again, against a \code{radius} in pixels, so multiply by four on a 0.25 m DEM.
+again, and \code{radius} is in map units, so the same number means the same
+distance whatever the resolution.
 For display they use a linear stretch of -1 to +1 m, tightening to -0.5 to
 +0.5 m on very flat ground and opening to -2 to +2 m on steep ground; the
 right choice really depends on how tall the features you are after are.
@@ -95,6 +108,21 @@ low relief on flat to moderate ground - former field boundaries, levelled
 burial mounds. Compared with the closely related local relief model, this
 simple form is faster and simpler, at the cost of somewhat less faithful
 relative heights for the anomalies it reveals.
+}
+
+\section{Also known as topographic position index}{
+
+With a square window, "cell minus the mean around it" is exactly Weiss's
+\strong{Topographic Position Index}, so \code{rvt_tpi()} is provided as an alias and
+the two compute the same thing. The names come from different literatures -
+TPI from landform classification, SLRM from archaeological prospection -
+and people search for one or the other.
+
+\code{gdalraster::dem_proc(mode = "TPI")} also computes TPI but is fixed to a
+3x3 window; this takes any \code{radius}, at the same cost thanks to the
+summed-area table (\code{radius = 1} reproduces the 3x3 case). For the
+standardised version, dividing by the local standard deviation, see
+\code{\link[=rvt_dev]{rvt_dev()}}.
 }
 
 \examples{
@@ -110,5 +138,6 @@ Visualization: A Guide to Good Practice}. Ljubljana: Založba ZRC.
 \doi{10.3986/9789612549848}
 }
 \seealso{
-\code{\link[=rvt_msrm]{rvt_msrm()}} for the multi-scale version.
+\code{\link[=rvt_msrm]{rvt_msrm()}} for the multi-scale version, \code{\link[=rvt_dev]{rvt_dev()}} for the
+standardised one.
 }

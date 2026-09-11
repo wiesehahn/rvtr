@@ -25,10 +25,12 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{min_rad, max_rad}{inner/outer radius of the sampled ring, in \emph{pixels}
+\item{min_rad, max_rad}{inner/outer radius of the sampled ring, in \strong{map
+units} (metres, normally)
 (defaults 10 and 20)}
 
-\item{rad_inc}{distance step between samples, in pixels (default 1)}
+\item{rad_inc}{distance between samples along each ray, in map units;
+anything finer than one cell means every cell (default 1)}
 
 \item{angular_res}{angle between sampled directions, in degrees
 (default 15, giving 24 directions)}
@@ -71,7 +73,7 @@ mounds.
 Around each cell, terrain is sampled on a ring rather than along rays to
 the horizon:
 \itemize{
-\item Sample points sit between \code{min_rad} and \code{max_rad} pixels out, stepping
+\item Sample points sit between \code{min_rad} and \code{max_rad} out, stepping
 by \code{rad_inc}, and every \code{angular_res} degrees around the full circle -
 by default 11 distances times 24 directions, so 264 samples per cell.
 Each is rounded to the nearest pixel.
@@ -85,19 +87,17 @@ drowned out by the handful of pixels close in.
 is what puts flat terrain at exactly 1.
 }
 
-Unlike the horizon-based metrics, \strong{distances here are in pixels and are
-not converted to ground units}, so the numbers depend on your pixel size.
-Computation is at native resolution, tile by tile, with tiles overlapping
-by \code{max_rad}.
+Distances here are in map units, as everywhere else, so the same settings
+mean the same ground distances on any DEM. Computation is at native
+resolution, tile by tile, with tiles overlapping by \code{max_rad}.
 }
 
 \section{Tuning}{
 
 \itemize{
 \item \code{min_rad} and \code{max_rad} set the band of feature sizes the result responds
-to, and they are in \strong{pixels}: the defaults cover 10-20 m on a 1 m DEM
-but only 2.5-5 m on a 0.25 m DEM, so scale them with your resolution.
-Widen the band for larger landforms.
+to, and they are in \strong{map units} (metres, normally): the defaults cover
+10-20 m on any DEM. Widen the band for larger landforms.
 \item Starting at \code{min_rad} rather than at the cell itself is deliberate - it
 keeps immediate micro-relief and DEM noise from dominating. Lower it to
 pick up smaller features, raise it to ignore more local roughness.
@@ -117,9 +117,9 @@ roughly human eye level.
 
 Kokalj and Hesse (2017) recommend a \strong{10-20 m} search band with a 1.7 m
 observer on flat to moderate terrain, narrowing to about 10 m on steep or
-complex ground. Those are metres and \code{min_rad}/\code{max_rad} are pixels, so the
-defaults here match their advice only on a 1 m DEM; quadruple them for
-0.25 m data. For display they suggest a linear stretch of roughly 0.5-1.8,
+complex ground. Those are metres, which is what these parameters take, so
+the defaults already match their advice on any DEM. For display they
+suggest a linear stretch of roughly 0.5-1.8,
 opening out to 0.5-3.0 on very flat ground.
 
 It is singled out as one of the better choices for \strong{very subtle positive

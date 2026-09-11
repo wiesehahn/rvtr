@@ -71,8 +71,8 @@
 #'
 #' @section Tuning:
 #' * `feature_min` is the smallest thing kept. Leaving it at 0 (it is clamped
-#'   up to one pixel) keeps the sharpest detail; raise it to a few times the
-#'   pixel size on noisy lidar or vegetation-affected DEMs to suppress
+#'   up to one cell) keeps the sharpest detail; raise it to a few times the
+#'   cell size on noisy lidar or vegetation-affected DEMs to suppress
 #'   speckle.
 #' * `feature_max` sets how much landscape form is removed - features much
 #'   larger than it fade out. Lower it to flatten strong topography harder
@@ -82,9 +82,9 @@
 #'   sensitivity to intermediate feature sizes, slightly slower. The default
 #'   2 uses fewer, more widely spaced scales, which gives more contrast.
 #'   Higher values are punchier still but can step over intermediate sizes.
-#' * Note `feature_min`/`feature_max` are in **map units, not pixels** (the
-#'   opposite of [rvt_local_dominance()]), so the same settings mean the same
-#'   ground distances regardless of resolution.
+#' * `feature_min`/`feature_max` are in **map units**, as every distance in
+#'   this package is, so the same settings mean the same ground distances
+#'   regardless of resolution.
 #'
 #' @inheritParams rvt_svf
 #' @param feature_min,feature_max smallest/largest feature size to keep, in
@@ -136,7 +136,7 @@ rvt_msrm <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' scale that you set directly.
 #'
 #' @section How it works:
-#' The DEM is averaged over a square window of `radius` pixels, and that
+#' The DEM is averaged over a square window of `radius`, and that
 #' smoothed surface is subtracted from the original. What remains is
 #' everything smaller than roughly the window - anything broader has been
 #' absorbed into the average and cancels out.
@@ -147,7 +147,7 @@ rvt_msrm <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' tiles overlapping by `radius`.
 #'
 #' @section Tuning:
-#' * `radius` is the one control, and it is in **pixels**: the default 20 is
+#' * `radius` is the one control, and it is in **map units**: the default 20 is
 #'   20 m on a 1 m DEM but only 5 m on a 0.25 m DEM, so scale it with your
 #'   resolution. It should be comfortably larger than the features you want
 #'   to keep - features approaching the window size get partly absorbed into
@@ -163,7 +163,8 @@ rvt_msrm <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' @section Recommended settings:
 #' Kokalj and Hesse (2017) suggest a filter radius of about **10 m** generally,
 #' 5 m on very flat ground and 25 m in steep or complex terrain - metres
-#' again, against a `radius` in pixels, so multiply by four on a 0.25 m DEM.
+#' again, and `radius` is in map units, so the same number means the same
+#' distance whatever the resolution.
 #' For display they use a linear stretch of -1 to +1 m, tightening to -0.5 to
 #' +0.5 m on very flat ground and opening to -2 to +2 m on steep ground; the
 #' right choice really depends on how tall the features you are after are.
@@ -182,10 +183,25 @@ rvt_msrm <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' Visualization: A Guide to Good Practice*. Ljubljana: Založba ZRC.
 #' \doi{10.3986/9789612549848}
 #'
+#' @section Also known as topographic position index:
+#' With a square window, "cell minus the mean around it" is exactly Weiss's
+#' **Topographic Position Index**, so `rvt_tpi()` is provided as an alias and
+#' the two compute the same thing. The names come from different literatures -
+#' TPI from landform classification, SLRM from archaeological prospection -
+#' and people search for one or the other.
+#'
+#' `gdalraster::dem_proc(mode = "TPI")` also computes TPI but is fixed to a
+#' 3x3 window; this takes any `radius`, at the same cost thanks to the
+#' summed-area table (`radius = 1` reproduces the 3x3 case). For the
+#' standardised version, dividing by the local standard deviation, see
+#' [rvt_dev()].
+#'
 #' @inheritParams rvt_svf
-#' @param radius radius of the smoothing window, in *pixels* (default 20)
+#' @param radius radius of the smoothing window, in **map units** (metres,
+#'   normally; default 20)
 #' @return `out_path`, invisibly
-#' @seealso [rvt_msrm()] for the multi-scale version.
+#' @seealso [rvt_msrm()] for the multi-scale version, [rvt_dev()] for the
+#'   standardised one.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_slrm(dem)
@@ -193,17 +209,97 @@ rvt_msrm <- function(dem, out_path = tempfile(fileext = ".tif"),
 rvt_slrm <- function(dem, out_path = tempfile(fileext = ".tif"),
                       radius = 20, tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
-  radius <- as.integer(radius)
-  if (is.na(radius) || radius < 1)
-    stop("`radius` must be a positive number of pixels", call. = FALSE)
   if (!overwrite && file.exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
+  radius <- .cells(radius, info$xres, "radius", "outer")
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, radius)
 
   .process_tiled(dem, list(slrm = out_path), radius, tile_size,
                   function(tile, xres, yres) .slrm_tile(tile, radius, threads),
+                  progress = progress, threads = threads)
+  invisible(out_path)
+}
+
+#' @rdname rvt_slrm
+#' @export
+rvt_tpi <- rvt_slrm
+
+## Deviation from mean elevation at a single scale - the standardised
+## counterpart of SLRM/TPI. Reuses the MSTP kernel with a degenerate radius
+## range, so "maximum over the range" is just the one radius.
+.dev_tile <- function(tile, radius, threads) {
+  pad <- as.integer(radius)
+  out <- max_deviation_kernel(.pad_symmetric(tile, pad), pad,
+                               nrow(tile), ncol(tile),
+                               as.integer(radius), as.integer(radius), 1L, threads)
+  list(dev = out)
+}
+
+#' Deviation from mean elevation (DEV)
+#'
+#' How far a cell sits above or below its surroundings, measured in local
+#' standard deviations rather than metres. Positive on local highs, negative
+#' in local lows, and roughly 0 wherever the ground follows its own trend.
+#'
+#' This is [rvt_slrm()] divided by the local roughness, and that division is
+#' the whole point: it makes the number comparable between smooth and rugged
+#' ground. A 20 cm bank in a flat ploughed field and a 2 m terrace on a broken
+#' hillside can both come out around 2, because each is measured against how
+#' much its own neighbourhood varies. Values are dimensionless, and behave
+#' much like a z-score - most ground falls within about -2 to 2.
+#'
+#' The trade is that it says nothing about actual height: a strong DEV on very
+#' flat ground may be a few centimetres of noise. Use [rvt_slrm()] when you
+#' want metres and DEV when you want prominence.
+#'
+#' @section How it works:
+#' For a square window of `radius`, `(cell - mean) / sd`, with mean and
+#' standard deviation both taken over the window from summed-area tables - so
+#' the cost is independent of the radius. The variance is computed about the
+#' window mean rather than by differencing sums of squares, which matters on
+#' flat ground at high elevation (see [rvt_mstp()], which maximises this same
+#' quantity over a range of scales).
+#'
+#' Terrain is mirrored at the raster edge rather than smeared outwards, so a
+#' window hanging over the edge still sees varied ground and the standard
+#' deviation doesn't collapse. [rvt_slrm()] replicates the edge instead, since
+#' it has no divisor to protect - so within `radius` of the border the two can
+#' disagree slightly, including in sign. Further in than that they agree
+#' exactly.
+#'
+#' @section Tuning:
+#' * `radius` is in **map units** and sets the neighbourhood a cell is judged
+#'   against - the size of feature it responds to. Too small and everything
+#'   looks locally average; too large and small features are drowned by the
+#'   surrounding landform.
+#' * If you don't know the right scale, [rvt_mstp()] tries a whole range and
+#'   keeps whichever is most pronounced.
+#'
+#' @inheritParams rvt_svf
+#' @param radius radius of the window a cell is compared against, in **map
+#'   units** (metres, normally)
+#'   (default 20)
+#' @return `out_path`, invisibly
+#' @seealso [rvt_slrm()] for the same thing in elevation units, [rvt_mstp()]
+#'   for the multi-scale version.
+#' @examples
+#' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
+#' rvt_dev(dem)
+#' @export
+rvt_dev <- function(dem, out_path = tempfile(fileext = ".tif"),
+                     radius = 20, tile_size = NULL, threads = rvt_threads(),
+                     overwrite = FALSE, progress = FALSE) {
+  if (!overwrite && file.exists(out_path)) return(invisible(out_path))
+  dem <- rvt_mosaic(dem)
+
+  info <- .dem_info(dem)
+  radius <- .cells(radius, info$xres, "radius", "outer")
+  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, radius)
+
+  .process_tiled(dem, list(dev = out_path), radius, tile_size,
+                  function(tile, xres, yres) .dev_tile(tile, radius, threads),
                   progress = progress, threads = threads)
   invisible(out_path)
 }

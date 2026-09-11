@@ -36,7 +36,7 @@
 #' flat ground.
 #'
 #' Both are plain lists, so the way to adjust one is a modified copy:
-#' `modifyList(rvt_preset_general, list(radius_max = 20))`.
+#' `modifyList(rvt_preset_general, list(reach = 20))`.
 #'
 #' @format A list with:
 #' \describe{
@@ -54,11 +54,10 @@
 #'     values.}
 #'   \item{`opns`}{the same again for the positive openness layer, in
 #'     degrees.}
-#'   \item{`radius_max`}{how far the horizon search behind the openness and
-#'     sky-view factor layers looks, in pixels. As in [rvt_svf()], scale it
-#'     with your pixel size.}
+#'   \item{`reach`}{how far the horizon search behind the openness and
+#'     sky-view factor layers looks, in map units (metres, normally).}
 #'   \item{`noise_removal`}{0-3, ignoring progressively more of the innermost
-#'     pixels of each search ray.}
+#'     part of each search ray.}
 #' }
 #' @seealso [rvt_vat()]
 #' @name rvt_presets
@@ -67,12 +66,12 @@ NULL
 #' @rdname rvt_presets
 #' @export
 rvt_preset_general <- list(sun_elevation = 35, slope = c(0, 50), svf = c(0.7, 1),
-                            opns = c(68, 93), radius_max = 10, noise_removal = 0)
+                            opns = c(68, 93), reach = 10, noise_removal = 0)
 
 #' @rdname rvt_presets
 #' @export
 rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
-                         opns = c(85, 93), radius_max = 20, noise_removal = 3)
+                         opns = c(85, 93), reach = 20, noise_removal = 3)
 
 ## One VAT stack from already-computed ingredients.
 ##
@@ -170,14 +169,14 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
 #'   darkens - deepening enclosed ground.
 #'
 #' The two resulting images are then averaged. The horizon searches use each
-#' preset's own `radius_max` and `noise_removal`, so the flat-terrain pass
+#' preset's own `reach` and `noise_removal`, so the flat-terrain pass
 #' looks further out and filters more aggressively than the general one.
 #' Computation is at native resolution, tile by tile.
 #'
 #' @section Tuning:
 #' * The two presets are ordinary lists, so the easiest adjustment is a
 #'   modified copy - for example
-#'   `modifyList(rvt_preset_general, list(radius_max = 20))` to make the
+#'   `modifyList(rvt_preset_general, list(reach = 20))` to make the
 #'   general pass respond to larger features. See [rvt_presets] for the
 #'   fields and what they mean.
 #' * To render a single terrain type rather than the average of two, pass the
@@ -211,6 +210,11 @@ rvt_vat <- function(dem, out_path = tempfile(fileext = ".tif"),
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
+  # presets carry `reach` in map units; the kernel wants whole cells
+  presets <- lapply(presets, function(p) {
+    p$radius_max <- .cells(p$reach, info$xres, "reach", "outer")
+    p
+  })
   overlap <- as.integer(max(vapply(presets, function(p) p$radius_max, numeric(1))) + 1L)
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 

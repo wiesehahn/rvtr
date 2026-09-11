@@ -8,10 +8,12 @@ rvt_asvf(
   dem,
   out_path = tempfile(fileext = ".tif"),
   num_directions = 16,
-  radius_max = 10,
+  reach = 10,
   noise_removal = 0,
   main_direction = 315,
   level = 1,
+  pyramid_px = 100,
+  pyramid_factor = 4,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -27,15 +29,24 @@ produce seams}
 
 \item{num_directions}{number of compass directions scanned (default 16)}
 
-\item{radius_max}{how far to look, in \emph{pixels} (default 10)}
+\item{reach}{look this far in \strong{map units} (metres, normally) using a
+multi-resolution search, instead of \code{radius_max} pixels at full
+resolution. Cost then grows with the logarithm of the distance rather
+than in proportion to it, which is what makes a reach of hundreds of
+metres affordable on fine data. \code{radius_max} and \code{noise_removal} are
+ignored when this is set. See \link{rvt_reach}.}
 
 \item{noise_removal}{0-3; raises the minimum search radius to ignore
-near-cell noise (0, 10, 20 or 40 percent of \code{radius_max})}
+near-cell noise (0, 10, 20 or 40 percent of \code{reach})}
 
 \item{main_direction}{compass azimuth, in degrees, of the brightest part
 of the sky (default 315, i.e. north-west)}
 
 \item{level}{strength of the anisotropy: 1 gentle (default), 2 strong}
+
+\item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
+pixels scanned per level (default 100, the accuracy knob) and how much
+coarser each level is than the last (default 4). Only used with \code{reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -87,7 +98,7 @@ Rotate it to bring out features running in a particular direction: relief
 perpendicular to the light shows up most.
 \item \code{level} 1 keeps the result close to plain sky-view factor with a hint of
 direction; 2 pushes the directional effect much harder.
-\item \code{radius_max}, \code{num_directions} and \code{noise_removal} behave exactly as in
+\item \code{reach}, \code{num_directions} and \code{noise_removal} behave exactly as in
 \code{\link[=rvt_svf]{rvt_svf()}}. Raising \code{num_directions} matters a little more here than for
 plain sky-view factor, since the weights vary between directions and a
 coarse set samples that variation coarsely.

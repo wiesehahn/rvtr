@@ -46,19 +46,76 @@
   list(svf = out$svf, opns = out$opns, asvf = out$asvf)
 }
 
+## Multi-resolution variant of .horizon_tile(): level 0 is the tile, the rest
+## are windows onto coarser copies of the DEM supplied by .process_tiled().
+.horizon_pyramid_tile <- function(tile, ctx, xres, yres, offs, plan,
+                                   want_svf, want_opns, want_asvf, dir_weight,
+                                   threads, negate = FALSE) {
+  if (negate) {
+    tile <- -tile
+    ctx$aux <- lapply(ctx$aux, function(a) { a$m <- -a$m; a })
+  }
+  pad <- as.integer(plan[[1]]$rmax + 1L)
+  padded <- .pad_reflect(tile, pad)
+  out <- horizon_pyramid(padded, pad, nrow(tile), ncol(tile),
+                          as.integer(ctx$x0), as.integer(ctx$y0),
+                          lapply(ctx$aux, `[[`, "m"),
+                          vapply(ctx$aux, `[[`, integer(1), "fac"),
+                          vapply(ctx$aux, `[[`, integer(1), "cx0"),
+                          vapply(ctx$aux, `[[`, integer(1), "cy0"),
+                          lapply(offs, `[[`, "dx"), lapply(offs, `[[`, "dy"),
+                          lapply(offs, `[[`, "dist"), lapply(offs, `[[`, "starts"),
+                          lapply(offs, `[[`, "ends"),
+                          want_svf, want_opns, want_asvf, dir_weight, threads)
+  list(svf = out$svf, opns = out$opns, asvf = out$asvf)
+}
+
+## `negate` for negative openness searches the terrain turned upside down, so
+## every level is negated per tile. The coarse levels must then be built with
+## `min` rather than `max`: the horizon wanted is max(-z), which is -min(z).
+## Coarsening with max and negating would give -max(z) - the wrong extreme, and
+## a level that hides obstructions instead of preserving them.
 .horizon_run <- function(dem, out_path, want_svf, want_opns,
-                          num_directions, radius_max, noise_removal,
+                          num_directions, reach, noise_removal,
                           tile_size, threads, overwrite, progress,
                           negate = FALSE, want_asvf = FALSE,
-                          dir_weight = numeric(0)) {
+                          dir_weight = numeric(0),
+                          pyramid_px = 100, pyramid_factor = 4) {
   if (!overwrite && file.exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
+  nm <- if (want_asvf) "asvf" else if (want_svf) "svf" else "opns"
+
+  plan <- .pyramid_plan(info$xres, reach, pyramid_px, pyramid_factor)
+  radius_max <- plan[[1]]$rmax
+
+  # A reach that level 0 already covers needs no coarse levels at all - it is
+  # exactly the ordinary search, so use it and keep one code path tested.
+  if (length(plan) > 1L) {
+    # noise_removal raises the inner edge of the full-resolution level; the
+    # coarse levels start where it stops regardless.
+    plan[[1]]$rmin <- .radius_min(radius_max, noise_removal)
+    paths <- .pyramid_build(dem, plan, threads,
+                             method = if (negate) "min" else "max")
+    offs <- .pyramid_offsets(plan, num_directions, info$xres, info$yres)
+    overlap <- as.integer(radius_max + 1L)
+    if (is.null(tile_size))
+      tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
+
+    .process_tiled(dem, stats::setNames(list(out_path), nm), overlap, tile_size,
+                    function(tile, xres, yres, ctx)
+                      .horizon_pyramid_tile(tile, ctx, xres, yres, offs, plan,
+                                             want_svf, want_opns, want_asvf,
+                                             dir_weight, threads, negate),
+                    progress = progress, threads = threads,
+                    aux = .pyramid_aux(paths, plan))
+    return(invisible(out_path))
+  }
+
   overlap <- as.integer(radius_max + 1L)
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 
-  nm <- if (want_asvf) "asvf" else if (want_svf) "svf" else "opns"
   .process_tiled(dem, stats::setNames(list(out_path), nm), overlap, tile_size,
                   function(tile, xres, yres)
                     .horizon_tile(tile, xres, yres, num_directions, radius_max,
@@ -85,7 +142,7 @@
 #' From each cell the terrain is scanned outwards along `num_directions`
 #' evenly spaced compass directions (16 by default, i.e. every 22.5 degrees):
 #'
-#' * Along each direction, samples are taken out to `radius_max` pixels,
+#' * Along each direction, samples are taken out to `reach`,
 #'   finely enough (three samples per pixel) that no pixel the ray crosses is
 #'   skipped; duplicates are then dropped.
 #' * For each sample, the angle from the cell up to that sample is computed
@@ -103,15 +160,15 @@
 #' the raster was split up.
 #'
 #' @section Tuning:
-#' * `radius_max` is the main control: it sets the size of the features the
-#'   result responds to. The default 10 pixels is 10 m on a 1 m DEM but only
-#'   2.5 m on a 0.25 m DEM, so **scale it with your resolution**. Small radii
-#'   emphasise fine local texture; large radii bring in shading from more
+#' * `reach` is the main control: it sets the size of the features the
+#'   result responds to. It is in **map units** (metres, normally), so the
+#'   same number means the same ground distance on any DEM. Short reaches
+#'   emphasise fine local texture; long ones bring in shading from more
 #'   distant landforms and take proportionally longer.
 #' * `num_directions` trades smoothness for time (cost is roughly linear).
 #'   16 is the usual choice; 32 reduces the faint directional banding that
 #'   can appear in smooth terrain.
-#' * `noise_removal` skips the innermost pixels of each ray. Raise it on
+#' * `noise_removal` skips the innermost part of each ray. Raise it on
 #'   noisy DEMs - vegetation or point-cloud speckle right next to a cell can
 #'   otherwise set that cell's horizon on its own. Kokalj and Hesse note this
 #'   markedly improves visibility of archaeological features where the data
@@ -120,10 +177,10 @@
 #'
 #' @section Recommended settings:
 #' Kokalj and Hesse (2017) suggest, for archaeological work on any terrain, a
-#' **10 m** search radius with **16 directions**. Note that is metres while
-#' `radius_max` is pixels: 10 on a 1 m DEM, but 40 on a 0.25 m one. Much
-#' larger radii belong to other disciplines - they cite 10 km for
-#' meteorological work - and only generalise archaeological detail away.
+#' **10 m** search radius with **16 directions** - which is the default here,
+#' `reach = 10`, whatever the resolution of the DEM. Much larger radii belong
+#' to other disciplines - they cite 10 km for meteorological work - and only
+#' generalise archaeological detail away.
 #'
 #' For display they suggest a linear stretch of 0.65-1.0 on varied terrain and
 #' 0.9-1.0 on very flat ground, where the useful values are otherwise squeezed
@@ -148,9 +205,22 @@
 #'   produce seams
 #' @param out_path output GeoTIFF path (default: a temp file)
 #' @param num_directions number of compass directions scanned (default 16)
-#' @param radius_max how far to look, in *pixels* (default 10)
+#' @param reach how far to look, in **map units** (metres, normally;
+#'   default 10). Scanned at full resolution for the first `pyramid_px`
+#'   cells (100 by default, so 100 m on a 1 m DEM); past that the search
+#'   reads from progressively coarser copies of the DEM, which is what keeps
+#'   a long reach affordable - see [rvt_reach]
 #' @param noise_removal 0-3; raises the minimum search radius to ignore
-#'   near-cell noise (0, 10, 20 or 40 percent of `radius_max`)
+#'   near-cell noise (0, 10, 20 or 40 percent of `reach`)
+#' @param reach look this far in **map units** (metres, normally) using a
+#'   multi-resolution search, instead of `radius_max` pixels at full
+#'   resolution. Cost then grows with the logarithm of the distance rather
+#'   than in proportion to it, which is what makes a reach of hundreds of
+#'   metres affordable on fine data. `radius_max` and `noise_removal` are
+#'   ignored when this is set. See [rvt_reach].
+#' @param pyramid_px,pyramid_factor shape of that multi-resolution search:
+#'   pixels scanned per level (default 100, the accuracy knob) and how much
+#'   coarser each level is than the last (default 4). Only used with `reach`.
 #' @param tile_size tile edge in pixels; NULL picks a size targeting roughly
 #'   256 MB per working matrix
 #' @param threads C++ threads (see [rvt_threads()])
@@ -165,11 +235,13 @@
 #' rvt_svf(dem)
 #' @export
 rvt_svf <- function(dem, out_path = tempfile(fileext = ".tif"),
-                num_directions = 16, radius_max = 10, noise_removal = 0,
+                num_directions = 16, reach = 10, noise_removal = 0,
+                pyramid_px = 100, pyramid_factor = 4,
                 tile_size = NULL, threads = rvt_threads(),
                 overwrite = FALSE, progress = FALSE) {
-  .horizon_run(dem, out_path, TRUE, FALSE, num_directions, radius_max,
-                noise_removal, tile_size, threads, overwrite, progress)
+  .horizon_run(dem, out_path, TRUE, FALSE, num_directions, reach,
+                noise_removal, tile_size, threads, overwrite, progress,
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
 }
 
 #' Anisotropic sky-view factor
@@ -207,7 +279,7 @@ rvt_svf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #'   perpendicular to the light shows up most.
 #' * `level` 1 keeps the result close to plain sky-view factor with a hint of
 #'   direction; 2 pushes the directional effect much harder.
-#' * `radius_max`, `num_directions` and `noise_removal` behave exactly as in
+#' * `reach`, `num_directions` and `noise_removal` behave exactly as in
 #'   [rvt_svf()]. Raising `num_directions` matters a little more here than for
 #'   plain sky-view factor, since the weights vary between directions and a
 #'   coarse set samples that variation coarsely.
@@ -246,17 +318,19 @@ rvt_svf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' rvt_asvf(dem)
 #' @export
 rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
-                num_directions = 16, radius_max = 10, noise_removal = 0,
+                num_directions = 16, reach = 10, noise_removal = 0,
                 main_direction = 315, level = 1,
+                pyramid_px = 100, pyramid_factor = 4,
                 tile_size = NULL, threads = rvt_threads(),
                 overwrite = FALSE, progress = FALSE) {
   if (!level %in% c(1, 2))
     stop("`level` must be 1 (gentle anisotropy) or 2 (strong)", call. = FALSE)
   a <- .asvf_level(level)
   w <- .asvf_weights(num_directions, main_direction, a$poly_level, a$min_weight)
-  .horizon_run(dem, out_path, FALSE, FALSE, num_directions, radius_max,
+  .horizon_run(dem, out_path, FALSE, FALSE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
-                negate = FALSE, want_asvf = TRUE, dir_weight = w)
+                negate = FALSE, want_asvf = TRUE, dir_weight = w,
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
 }
 
 #' Positive openness
@@ -288,10 +362,10 @@ rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' units for the angles to mean anything.
 #'
 #' @section Tuning:
-#' The parameters behave exactly as in [rvt_svf()] - `radius_max` sets the
-#' size of features the result responds to and should be scaled with your
-#' pixel size, `num_directions` trades smoothness against time, and
-#' `noise_removal` protects against speckle immediately next to a cell.
+#' The parameters behave exactly as in [rvt_svf()] - `reach` sets the size of
+#' features the result responds to, in map units, `num_directions` trades
+#' smoothness against time, and `noise_removal` protects against speckle
+#' immediately next to a cell.
 #'
 #' A common pairing is to compute this alongside [rvt_openness_negative()]:
 #' the positive image favours convex features, the negative one concave, and
@@ -299,8 +373,8 @@ rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' clearly than either does alone.
 #'
 #' @section Recommended settings:
-#' As for [rvt_svf()]: Kokalj and Hesse (2017) use a **10 m** radius (so 10
-#' pixels on a 1 m DEM, 40 on a 0.25 m one) with 16 directions, and suggest
+#' As for [rvt_svf()]: Kokalj and Hesse (2017) use a **10 m** radius
+#' (`reach = 10`) with 16 directions, and suggest
 #' displaying positive openness with a linear stretch of 65-95 degrees on
 #' varied terrain, 85-91 on very flat ground, 55-95 on steep or complex
 #' ground.
@@ -338,11 +412,13 @@ rvt_asvf <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' rvt_openness(dem)
 #' @export
 rvt_openness <- function(dem, out_path = tempfile(fileext = ".tif"),
-                     num_directions = 16, radius_max = 10, noise_removal = 0,
+                     num_directions = 16, reach = 10, noise_removal = 0,
+                     pyramid_px = 100, pyramid_factor = 4,
                      tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
-  .horizon_run(dem, out_path, FALSE, TRUE, num_directions, radius_max,
-                noise_removal, tile_size, threads, overwrite, progress)
+  .horizon_run(dem, out_path, FALSE, TRUE, num_directions, reach,
+                noise_removal, tile_size, threads, overwrite, progress,
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
 }
 
 #' Negative openness
@@ -364,7 +440,7 @@ rvt_openness <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' comparable and can be differenced.
 #'
 #' @section Tuning:
-#' Identical to [rvt_openness()]. Use the same `radius_max` for both if you
+#' Identical to [rvt_openness()]. Use the same `reach` for both if you
 #' intend to compare or difference them - a mismatch there makes the two
 #' images respond to different feature sizes and the comparison stops meaning
 #' much.
@@ -399,10 +475,12 @@ rvt_openness <- function(dem, out_path = tempfile(fileext = ".tif"),
 #' rvt_openness_negative(dem)
 #' @export
 rvt_openness_negative <- function(dem, out_path = tempfile(fileext = ".tif"),
-                     num_directions = 16, radius_max = 10, noise_removal = 0,
+                     num_directions = 16, reach = 10, noise_removal = 0,
+                     pyramid_px = 100, pyramid_factor = 4,
                      tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
-  .horizon_run(dem, out_path, FALSE, TRUE, num_directions, radius_max,
+  .horizon_run(dem, out_path, FALSE, TRUE, num_directions, reach,
                 noise_removal, tile_size, threads, overwrite, progress,
-                negate = TRUE)
+                negate = TRUE,
+                pyramid_px = pyramid_px, pyramid_factor = pyramid_factor)
 }

@@ -84,7 +84,7 @@ darkens - deepening enclosed ground.
 }
 
 The two resulting images are then averaged. The horizon searches use each
-preset's own \code{radius_max} and \code{noise_removal}, so the flat-terrain pass
+preset's own \code{reach} and \code{noise_removal}, so the flat-terrain pass
 looks further out and filters more aggressively than the general one.
 Computation is at native resolution, tile by tile.
 }
@@ -94,7 +94,7 @@ Computation is at native resolution, tile by tile.
 \itemize{
 \item The two presets are ordinary lists, so the easiest adjustment is a
 modified copy - for example
-\code{modifyList(rvt_preset_general, list(radius_max = 20))} to make the
+\code{modifyList(rvt_preset_general, list(reach = 20))} to make the
 general pass respond to larger features. See \link{rvt_presets} for the
 fields and what they mean.
 \item To render a single terrain type rather than the average of two, pass the

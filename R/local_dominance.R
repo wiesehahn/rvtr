@@ -57,7 +57,7 @@
 #' Around each cell, terrain is sampled on a ring rather than along rays to
 #' the horizon:
 #'
-#' * Sample points sit between `min_rad` and `max_rad` pixels out, stepping
+#' * Sample points sit between `min_rad` and `max_rad` out, stepping
 #'   by `rad_inc`, and every `angular_res` degrees around the full circle -
 #'   by default 11 distances times 24 directions, so 264 samples per cell.
 #'   Each is rounded to the nearest pixel.
@@ -70,16 +70,14 @@
 #' * The total is divided by what perfectly flat ground would produce, which
 #'   is what puts flat terrain at exactly 1.
 #'
-#' Unlike the horizon-based metrics, **distances here are in pixels and are
-#' not converted to ground units**, so the numbers depend on your pixel size.
-#' Computation is at native resolution, tile by tile, with tiles overlapping
-#' by `max_rad`.
+#' Distances here are in map units, as everywhere else, so the same settings
+#' mean the same ground distances on any DEM. Computation is at native
+#' resolution, tile by tile, with tiles overlapping by `max_rad`.
 #'
 #' @section Tuning:
 #' * `min_rad` and `max_rad` set the band of feature sizes the result responds
-#'   to, and they are in **pixels**: the defaults cover 10-20 m on a 1 m DEM
-#'   but only 2.5-5 m on a 0.25 m DEM, so scale them with your resolution.
-#'   Widen the band for larger landforms.
+#'   to, and they are in **map units** (metres, normally): the defaults cover
+#'   10-20 m on any DEM. Widen the band for larger landforms.
 #' * Starting at `min_rad` rather than at the cell itself is deliberate - it
 #'   keeps immediate micro-relief and DEM noise from dominating. Lower it to
 #'   pick up smaller features, raise it to ignore more local roughness.
@@ -96,9 +94,9 @@
 #' @section Recommended settings:
 #' Kokalj and Hesse (2017) recommend a **10-20 m** search band with a 1.7 m
 #' observer on flat to moderate terrain, narrowing to about 10 m on steep or
-#' complex ground. Those are metres and `min_rad`/`max_rad` are pixels, so the
-#' defaults here match their advice only on a 1 m DEM; quadruple them for
-#' 0.25 m data. For display they suggest a linear stretch of roughly 0.5-1.8,
+#' complex ground. Those are metres, which is what these parameters take, so
+#' the defaults already match their advice on any DEM. For display they
+#' suggest a linear stretch of roughly 0.5-1.8,
 #' opening out to 0.5-3.0 on very flat ground.
 #'
 #' It is singled out as one of the better choices for **very subtle positive
@@ -123,9 +121,11 @@
 #' \doi{10.3986/9789612549848}
 #'
 #' @inheritParams rvt_svf
-#' @param min_rad,max_rad inner/outer radius of the sampled ring, in *pixels*
+#' @param min_rad,max_rad inner/outer radius of the sampled ring, in **map
+#'   units** (metres, normally)
 #'   (defaults 10 and 20)
-#' @param rad_inc distance step between samples, in pixels (default 1)
+#' @param rad_inc distance between samples along each ray, in map units;
+#'   anything finer than one cell means every cell (default 1)
 #' @param angular_res angle between sampled directions, in degrees
 #'   (default 15, giving 24 directions)
 #' @param observer_height height of the observer above the terrain, in the
@@ -146,12 +146,18 @@ rvt_local_dominance <- function(dem, out_path = tempfile(fileext = ".tif"),
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
-  overlap <- as.integer(max_rad)
+  max_px <- .cells(max_rad, info$xres, "max_rad", "outer")
+  min_px <- .cells(min_rad, info$xres, "min_rad", "inner")
+  inc_px <- .cells(rad_inc, info$xres, "rad_inc", "step")
+  if (min_px > max_px)
+    stop("`min_rad` must not exceed `max_rad`", call. = FALSE)
+
+  overlap <- as.integer(max_px)
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 
   .process_tiled(dem, list(ld = out_path), overlap, tile_size,
                   function(tile, xres, yres)
-                    .local_dominance_tile(tile, min_rad, max_rad, rad_inc,
+                    .local_dominance_tile(tile, min_px, max_px, inc_px,
                                            angular_res, observer_height, threads),
                   progress = progress, threads = threads)
   invisible(out_path)

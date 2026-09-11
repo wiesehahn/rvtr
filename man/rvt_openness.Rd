@@ -8,8 +8,10 @@ rvt_openness(
   dem,
   out_path = tempfile(fileext = ".tif"),
   num_directions = 16,
-  radius_max = 10,
+  reach = 10,
   noise_removal = 0,
+  pyramid_px = 100,
+  pyramid_factor = 4,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -25,10 +27,19 @@ produce seams}
 
 \item{num_directions}{number of compass directions scanned (default 16)}
 
-\item{radius_max}{how far to look, in \emph{pixels} (default 10)}
+\item{reach}{look this far in \strong{map units} (metres, normally) using a
+multi-resolution search, instead of \code{radius_max} pixels at full
+resolution. Cost then grows with the logarithm of the distance rather
+than in proportion to it, which is what makes a reach of hundreds of
+metres affordable on fine data. \code{radius_max} and \code{noise_removal} are
+ignored when this is set. See \link{rvt_reach}.}
 
 \item{noise_removal}{0-3; raises the minimum search radius to ignore
-near-cell noise (0, 10, 20 or 40 percent of \code{radius_max})}
+near-cell noise (0, 10, 20 or 40 percent of \code{reach})}
+
+\item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
+pixels scanned per level (default 100, the accuracy knob) and how much
+coarser each level is than the last (default 4). Only used with \code{reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -75,10 +86,10 @@ units for the angles to mean anything.
 
 \section{Tuning}{
 
-The parameters behave exactly as in \code{\link[=rvt_svf]{rvt_svf()}} - \code{radius_max} sets the
-size of features the result responds to and should be scaled with your
-pixel size, \code{num_directions} trades smoothness against time, and
-\code{noise_removal} protects against speckle immediately next to a cell.
+The parameters behave exactly as in \code{\link[=rvt_svf]{rvt_svf()}} - \code{reach} sets the size of
+features the result responds to, in map units, \code{num_directions} trades
+smoothness against time, and \code{noise_removal} protects against speckle
+immediately next to a cell.
 
 A common pairing is to compute this alongside \code{\link[=rvt_openness_negative]{rvt_openness_negative()}}:
 the positive image favours convex features, the negative one concave, and
@@ -88,8 +99,8 @@ clearly than either does alone.
 
 \section{Recommended settings}{
 
-As for \code{\link[=rvt_svf]{rvt_svf()}}: Kokalj and Hesse (2017) use a \strong{10 m} radius (so 10
-pixels on a 1 m DEM, 40 on a 0.25 m one) with 16 directions, and suggest
+As for \code{\link[=rvt_svf]{rvt_svf()}}: Kokalj and Hesse (2017) use a \strong{10 m} radius
+(\code{reach = 10}) with 16 directions, and suggest
 displaying positive openness with a linear stretch of 65-95 degrees on
 varied terrain, 85-91 on very flat ground, 55-95 on steep or complex
 ground.

@@ -25,7 +25,7 @@ produce seams}
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
 \item{local, meso, broad}{the three scale bands, each
-\code{c(min_radius, max_radius, step)} in pixels}
+\code{c(min_radius, max_radius, step)} in \strong{map units} (metres, normally)}
 
 \item{lightness}{contrast of the colour mapping (default 1.2)}
 
@@ -83,13 +83,12 @@ result divides by.
 \section{Tuning}{
 
 \itemize{
-\item The three scales are \code{c(min_radius, max_radius, step)} in \strong{pixels}, and
-the defaults assume roughly 1 m ground resolution. On finer data scale
-them up, or you will simply be looking at three views of the same small
-neighbourhood. The broad default reaches 2023 pixels, so on a small
+\item The three scales are \code{c(min_radius, max_radius, step)} in \strong{map units}
+(metres, normally), so they mean the same ground distances whatever the
+resolution. The broad default reaches 2023 m, so on a small
 raster that channel mostly reflects the mirrored edges - crop-to-fit
-rather than trusting red on a tile smaller than a couple of thousand
-pixels across.
+rather than trusting red on a tile smaller than a couple of kilometres
+across.
 \item \code{step} is purely a speed/precision trade: a coarser step visits fewer
 radii and runs proportionally faster, at the risk of stepping over the
 scale at which something stands out.

@@ -8,8 +8,10 @@ rvt_svf(
   dem,
   out_path = tempfile(fileext = ".tif"),
   num_directions = 16,
-  radius_max = 10,
+  reach = 10,
   noise_removal = 0,
+  pyramid_px = 100,
+  pyramid_factor = 4,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -25,10 +27,19 @@ produce seams}
 
 \item{num_directions}{number of compass directions scanned (default 16)}
 
-\item{radius_max}{how far to look, in \emph{pixels} (default 10)}
+\item{reach}{look this far in \strong{map units} (metres, normally) using a
+multi-resolution search, instead of \code{radius_max} pixels at full
+resolution. Cost then grows with the logarithm of the distance rather
+than in proportion to it, which is what makes a reach of hundreds of
+metres affordable on fine data. \code{radius_max} and \code{noise_removal} are
+ignored when this is set. See \link{rvt_reach}.}
 
 \item{noise_removal}{0-3; raises the minimum search radius to ignore
-near-cell noise (0, 10, 20 or 40 percent of \code{radius_max})}
+near-cell noise (0, 10, 20 or 40 percent of \code{reach})}
+
+\item{pyramid_px, pyramid_factor}{shape of that multi-resolution search:
+pixels scanned per level (default 100, the accuracy knob) and how much
+coarser each level is than the last (default 4). Only used with \code{reach}.}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -61,7 +72,7 @@ mounds and open ground come out bright.
 From each cell the terrain is scanned outwards along \code{num_directions}
 evenly spaced compass directions (16 by default, i.e. every 22.5 degrees):
 \itemize{
-\item Along each direction, samples are taken out to \code{radius_max} pixels,
+\item Along each direction, samples are taken out to \code{reach},
 finely enough (three samples per pixel) that no pixel the ray crosses is
 skipped; duplicates are then dropped.
 \item For each sample, the angle from the cell up to that sample is computed
@@ -83,15 +94,15 @@ the raster was split up.
 \section{Tuning}{
 
 \itemize{
-\item \code{radius_max} is the main control: it sets the size of the features the
-result responds to. The default 10 pixels is 10 m on a 1 m DEM but only
-2.5 m on a 0.25 m DEM, so \strong{scale it with your resolution}. Small radii
-emphasise fine local texture; large radii bring in shading from more
+\item \code{reach} is the main control: it sets the size of the features the
+result responds to. It is in \strong{map units} (metres, normally), so the
+same number means the same ground distance on any DEM. Short reaches
+emphasise fine local texture; long ones bring in shading from more
 distant landforms and take proportionally longer.
 \item \code{num_directions} trades smoothness for time (cost is roughly linear).
 16 is the usual choice; 32 reduces the faint directional banding that
 can appear in smooth terrain.
-\item \code{noise_removal} skips the innermost pixels of each ray. Raise it on
+\item \code{noise_removal} skips the innermost part of each ray. Raise it on
 noisy DEMs - vegetation or point-cloud speckle right next to a cell can
 otherwise set that cell's horizon on its own. Kokalj and Hesse note this
 markedly improves visibility of archaeological features where the data
@@ -103,10 +114,10 @@ point density really supports.
 \section{Recommended settings}{
 
 Kokalj and Hesse (2017) suggest, for archaeological work on any terrain, a
-\strong{10 m} search radius with \strong{16 directions}. Note that is metres while
-\code{radius_max} is pixels: 10 on a 1 m DEM, but 40 on a 0.25 m one. Much
-larger radii belong to other disciplines - they cite 10 km for
-meteorological work - and only generalise archaeological detail away.
+\strong{10 m} search radius with \strong{16 directions} - which is the default here,
+\code{reach = 10}, whatever the resolution of the DEM. Much larger radii belong
+to other disciplines - they cite 10 km for meteorological work - and only
+generalise archaeological detail away.
 
 For display they suggest a linear stretch of 0.65-1.0 on varied terrain and
 0.9-1.0 on very flat ground, where the useful values are otherwise squeezed
