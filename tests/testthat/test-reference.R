@@ -466,6 +466,249 @@ test_that("curvature matches analytic surfaces", {
   unlink(c(pl, pb, sd_, ridge, trough))
 })
 
+test_that("a windowed curvature fit is exact on quadratic surfaces", {
+  # The fit recovers any quadratic exactly, at *any* radius - that is what
+  # makes these surfaces the right check: unlike the 3x3 kernel, where a wider
+  # window would be an approximation, here there is nothing to approximate, so
+  # the tolerance can be tight rather than the 1e-2 the block above needs.
+  # Values are read at the centre cell alone, because the analytic curvature of
+  # a tilted paraboloid varies across the raster and a median over any patch
+  # would not equal it.
+  n <- 121L; ctr <- 61L
+  x <- col(matrix(0, n, n)) - ctr
+  y <- row(matrix(0, n, n)) - ctr
+  at_ctr <- function(p, ty, r) read_band(rvt_curvature(p, type = ty,
+                                                        radius = r))[ctr, ctr]
+
+  a <- 0.01; tilt <- 0.3; q <- 1 + tilt^2
+  pb <- make_raster(matrix(100 + a * (x^2 + y^2) + tilt * x, n, n))
+  H <- -((1 + tilt^2) * (2 * a) + (2 * a)) / (2 * q^1.5)
+  K <- (2 * a * 2 * a) / q^2
+  for (r in c(2, 5, 10)) {
+    expect_equal(at_ctr(pb, "mean", r), H, tolerance = 1e-4, label = paste("mean r", r))
+    expect_equal(at_ctr(pb, "gaussian", r), K, tolerance = 1e-4,
+                 label = paste("gaussian r", r))
+  }
+
+  # the saddle is the only one of these that exercises the mixed partial
+  cc <- 0.01
+  sd_ <- make_raster(matrix(100 + cc * x * y, n, n))
+  expect_lt(abs(at_ctr(sd_, "mean", 5)), 1e-9)
+  expect_equal(at_ctr(sd_, "gaussian", 5), -cc^2, tolerance = 1e-4)
+
+  # a plane has no curvature however wide the window
+  pl <- make_raster(matrix(100 + 0.2 * x + 0.1 * y, n, n))
+  for (ty in c("profile", "plan", "mean", "total", "gaussian"))
+    expect_lt(abs(at_ctr(pl, ty, 5)), 1e-9, label = ty)
+
+  unlink(c(pb, sd_, pl))
+})
+
+test_that("Shary and Koenderink curvatures have their analytic values", {
+  # These four are arithmetic on the principal curvatures, so the shapes below
+  # pin them exactly: a paraboloid is umbilic at its centre (both principals
+  # equal) and a saddle is the opposite extreme (equal and opposite).
+  n <- 121L; ctr <- 61L
+  x <- col(matrix(0, n, n)) - ctr
+  y <- row(matrix(0, n, n)) - ctr
+  at_ctr <- function(p, ty) read_band(rvt_curvature(p, type = ty))[ctr, ctr]
+
+  # Tolerance on the *magnitudes* is 1e-3, not tighter: the surfaces are stored
+  # Float32, so elevations near 100 quantise at ~8e-6 and a second difference
+  # over 1 m cells turns that into a few parts in 10,000 of a 0.02 curvature
+  # (measured: 2.1e-4). The ratios below are unaffected, because the same
+  # quantisation cancels top and bottom, so they keep a tight tolerance.
+
+  # bowl z = a(x^2+y^2): umbilic, and concave, so convex-positive makes it a
+  # pit. kmax = kmin = -2a.
+  a <- 0.01
+  bowl <- make_raster(matrix(100 + a * (x^2 + y^2), n, n))
+  expect_equal(at_ctr(bowl, "unsphericity"), 0, tolerance = 1e-6)
+  expect_equal(at_ctr(bowl, "casorati"), 2 * a, tolerance = 1e-3)
+  expect_equal(at_ctr(bowl, "shape_index"), -1, tolerance = 1e-4)
+  # and the dome is its mirror in every one of them
+  dome <- make_raster(matrix(100 - a * (x^2 + y^2), n, n))
+  expect_equal(at_ctr(dome, "shape_index"), 1, tolerance = 1e-4)
+  expect_equal(at_ctr(dome, "casorati"), 2 * a, tolerance = 1e-3)
+
+  # saddle z = c.x.y: kmax = -kmin = c, so a perfect saddle reads 0
+  cc <- 0.01
+  sd_ <- make_raster(matrix(100 + cc * x * y, n, n))
+  expect_equal(at_ctr(sd_, "unsphericity"), cc, tolerance = 1e-3)
+  expect_equal(at_ctr(sd_, "casorati"), cc, tolerance = 1e-3)
+  expect_equal(at_ctr(sd_, "shape_index"), 0, tolerance = 1e-6)
+
+  # a plane bends in no direction at all
+  pl <- make_raster(matrix(100 + 0.2 * x + 0.1 * y, n, n))
+  expect_equal(at_ctr(pl, "unsphericity"), 0, tolerance = 1e-9)
+  expect_equal(at_ctr(pl, "casorati"), 0, tolerance = 1e-9)
+
+  # unsphericity and casorati are magnitudes; on real terrain neither may go
+  # negative, and the shape index must stay inside its bounds
+  for (ty in c("unsphericity", "casorati")) {
+    v <- read_band(rvt_curvature(dem, type = ty))
+    expect_true(all(v[!is.na(v)] >= 0), label = ty)
+  }
+  si <- read_band(rvt_curvature(dem, type = "shape_index"))
+  expect_true(all(abs(si[!is.na(si)]) <= 1))
+
+  unlink(c(bowl, dome, sd_, pl))
+})
+
+test_that("the landform signatures in ?rvt_curvature hold", {
+  # The help describes each curvature by what it says about the terrain. These
+  # are those sentences turned into assertions, so the prose cannot drift from
+  # the kernel - it already had: it claimed a ridge crest has "a large negative
+  # minimal and a near-zero maximal", which is a valley, exactly backwards.
+  n <- 121L; ctr <- 61L
+  x <- col(matrix(0, n, n)) - ctr
+  y <- row(matrix(0, n, n)) - ctr
+  sig <- function(z, ty) {
+    p <- make_raster(matrix(z, n, n))
+    on.exit(unlink(p), add = TRUE)
+    read_band(rvt_curvature(p, type = ty))[ctr, ctr]
+  }
+  ridge  <- 100 - 0.02 * x^2
+  valley <- 100 + 0.02 * x^2
+  dome   <- 100 - 0.01 * (x^2 + y^2)
+  pit    <- 100 + 0.01 * (x^2 + y^2)
+  saddle <- 100 + 0.01 * x * y
+
+  # "a ridge bends hard across its crest and barely at all along it"
+  expect_gt(sig(ridge, "maximal"), 0.03)
+  expect_equal(sig(ridge, "minimal"), 0, tolerance = 1e-6)
+  # "a valley is the mirror of that"
+  expect_lt(sig(valley, "minimal"), -0.03)
+  expect_equal(sig(valley, "maximal"), 0, tolerance = 1e-6)
+  # "a dome has both positive, a pit both negative"
+  expect_gt(sig(dome, "minimal"), 0)
+  expect_lt(sig(pit, "maximal"), 0)
+  # gaussian: same sign every way is dome/bowl, opposite ways is a saddle
+  expect_gt(sig(dome, "gaussian"), 0)
+  expect_gt(sig(pit, "gaussian"), 0)
+  expect_lt(sig(saddle, "gaussian"), 0)
+  # unsphericity: zero where the ground curves alike in every direction
+  expect_equal(sig(dome, "unsphericity"), 0, tolerance = 1e-6)
+  expect_gt(sig(ridge, "unsphericity"), 0.01)
+  expect_gt(sig(saddle, "unsphericity"), 0.005)
+  # the documented shape_index scale: pit -1, valley -0.5, saddle 0,
+  # ridge +0.5, peak +1
+  expect_equal(sig(pit, "shape_index"),    -1,   tolerance = 1e-4)
+  expect_equal(sig(valley, "shape_index"), -0.5, tolerance = 1e-4)
+  expect_equal(sig(saddle, "shape_index"),  0,   tolerance = 1e-6)
+  expect_equal(sig(ridge, "shape_index"),   0.5, tolerance = 1e-4)
+  expect_equal(sig(dome, "shape_index"),    1,   tolerance = 1e-4)
+})
+
+test_that("twisting and rotor match their analytic identities", {
+  # The normalisation is the whole difficulty with these two, so they are
+  # pinned by identities rather than by remembered formulae.
+  n <- 81L; ctr <- 41L
+  x <- col(matrix(0, n, n)) - ctr
+  y <- row(matrix(0, n, n)) - ctr          # +y is south, as the kernel reads it
+  at_ctr <- function(z, ty) {
+    p <- make_raster(matrix(z, n, n))
+    on.exit(unlink(p), add = TRUE)
+    read_band(rvt_curvature(p, type = ty))[ctr, ctr]
+  }
+
+  # A ramp that twists: z = -x - a.x.y. At the origin the gradient is (-1, 0),
+  # so downhill is due east, and the slope steepens towards the south.
+  a <- 0.1
+  ramp <- -x - a * x * y
+  # twisting *is* d(slope angle)/d(arc length) along the contour. Here the
+  # contour is the line x = 0, on which z is identically 0, so that rate is
+  # a/(1+1) = a/2 in closed form.
+  expect_equal(at_ctr(ramp, "twisting"), a / 2, tolerance = 1e-2)
+  # rotor is the same numerator with the projected normalisation, = a here
+  expect_equal(at_ctr(ramp, "rotor"), a, tolerance = 1e-2)
+  # and both are positive, meaning "to the right looking downhill" - the
+  # descent direction really does swing southward, which is right of east
+  expect_gt(at_ctr(ramp, "twisting"), 0)
+  expect_gt(at_ctr(ramp, "rotor"), 0)
+  # mirroring north for south must flip both and nothing else
+  expect_equal(at_ctr(-x + a * x * y, "twisting"), -a / 2, tolerance = 1e-2)
+  expect_equal(at_ctr(-x + a * x * y, "rotor"), -a, tolerance = 1e-2)
+
+  # Surfaces whose contours are already lines of curvature cannot twist:
+  # a cone/dome (circular contours) and a cylinder ridge (straight ones).
+  expect_equal(at_ctr(100 - 0.01 * (x^2 + y^2), "twisting"), 0, tolerance = 1e-6)
+  expect_equal(at_ctr(100 - 0.02 * x^2 + 0.3 * y, "twisting"), 0, tolerance = 1e-6)
+  # a plane neither twists nor bends its flow lines
+  expect_equal(at_ctr(100 + 0.2 * x + 0.1 * y, "twisting"), 0, tolerance = 1e-9)
+  expect_equal(at_ctr(100 + 0.2 * x + 0.1 * y, "rotor"), 0, tolerance = 1e-9)
+})
+
+test_that("twisting never exceeds unsphericity", {
+  # In the principal frame the geodesic torsion is ((k2-k1)/2).sin(2.theta),
+  # so |twisting| <= unsphericity everywhere, with equality where the contour
+  # bisects the principal directions. This is the check that would catch a
+  # wrong denominator on real terrain, which the synthetic shapes above cannot.
+  tw <- read_band(rvt_curvature(dem, type = "twisting"))
+  un <- read_band(rvt_curvature(dem, type = "unsphericity"))
+  ok <- !is.na(tw) & !is.na(un)
+  # a hair of slack for the two rasters being stored Float32 independently
+  expect_true(all(abs(tw[ok]) <= un[ok] + 1e-6))
+  # the bound is tight, not vacuous: somewhere it is very nearly attained
+  expect_gt(max((abs(tw[ok]) / un[ok])[un[ok] > 1e-3]), 0.95)
+})
+
+test_that("difference curvature is the split mean curvature hides", {
+  # kd = (profile - tangential)/2 by definition, so the check is that the
+  # kernel's own profile and tangential reproduce it exactly - a consistency
+  # test, which is the right kind here because that *is* the definition.
+  g <- function(ty, ...) {
+    m <- read_band(rvt_curvature(dem, type = ty, ...))[100:900, 100:900]
+    m[!is.na(m)]
+  }
+  expect_equal(g("difference"), (g("profile") - g("tangential")) / 2,
+               tolerance = 1e-6)
+  # and it must hold on the windowed kernel too, not just the 3x3 one
+  expect_equal(g("difference", radius = 5),
+               (g("profile", radius = 5) - g("tangential", radius = 5)) / 2,
+               tolerance = 1e-6)
+})
+
+test_that("the curvature default is a different estimator from the fit", {
+  # Omitting `radius` runs the 3x3 second difference (what ArcGIS and
+  # WhiteboxTools return); giving one fits a quadratic, which at r = 1 averages
+  # the bending over all three rows instead of taking the middle row alone.
+  # An isolated one-cell bump separates them exactly: the fit sees two flat
+  # rows beside the spike and reports a third of the second difference.
+  z <- matrix(0, 41L, 41L); z[21L, 21L] <- 1
+  bump <- make_raster(z)
+  on.exit(unlink(bump), add = TRUE)
+  # total = zxx^2 + 2 zxy^2 + zyy^2, and zxy is 0 here, so sqrt(total/2) is |zxx|
+  zxx <- function(...) sqrt(read_band(rvt_curvature(bump, type = "total",
+                                                     ...))[21L, 21L] / 2)
+  expect_equal(zxx(), 2)                      # left + right - 2*centre
+  expect_equal(zxx(radius = 1), 2 / 3)        # averaged over three rows
+
+  # on real terrain the two must therefore disagree, and a wider window must
+  # damp the fine detail the finest scale is dominated by
+  prof <- function(...) {
+    m <- read_band(rvt_curvature(dem, type = "profile", ...))[100:900, 100:900]
+    m[!is.na(m)]
+  }
+  p0 <- prof(); p1 <- prof(radius = 1); p5 <- prof(radius = 5)
+  expect_false(isTRUE(all.equal(p0, p1)))
+  expect_gt(sd(p0), sd(p1))
+  expect_gt(sd(p1), sd(p5))
+})
+
+test_that("windowed curvature tiles invariantly and keeps the NoData mask", {
+  # A new overlap path - the default kernel pads by one cell, the fit by the
+  # whole radius - so the package's core guarantee needs re-checking here.
+  whole <- read_band(rvt_curvature(dem, radius = 5))
+  tiled <- read_band(rvt_curvature(dem, radius = 5, tile_size = 137))
+  expect_identical(whole, tiled)
+
+  # NoData inside the window contributes the centre cell's own elevation, so a
+  # hole must not erode a ring of cells around itself the way it once did for
+  # slope (see deviation 4 in CLAUDE.md)
+  expect_identical(is.na(whole), is.na(read_band(dem)))
+})
+
 test_that("Laplacian-of-Gaussian is flat on a plane and signed across an edge", {
   n <- 81L
   x <- col(matrix(0, n, n)) - 41

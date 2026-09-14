@@ -28,6 +28,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// curvature_fit_kernel
+NumericMatrix curvature_fit_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, double xres, double yres, int r, int type, int threads);
+RcppExport SEXP _rvtr_curvature_fit_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP xresSEXP, SEXP yresSEXP, SEXP rSEXP, SEXP typeSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type padded(paddedSEXP);
+    Rcpp::traits::input_parameter< int >::type pad(padSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow_out(nrow_outSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol_out(ncol_outSEXP);
+    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
+    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(curvature_fit_kernel(padded, pad, nrow_out, ncol_out, xres, yres, r, type, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // log_kernel
 NumericMatrix log_kernel(NumericMatrix padded, int pad, int nrow_out, int ncol_out, NumericVector gauss, int threads);
 RcppExport SEXP _rvtr_log_kernel(SEXP paddedSEXP, SEXP padSEXP, SEXP nrow_outSEXP, SEXP ncol_outSEXP, SEXP gaussSEXP, SEXP threadsSEXP) {
@@ -313,6 +332,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rvtr_curvature_kernel", (DL_FUNC) &_rvtr_curvature_kernel, 8},
+    {"_rvtr_curvature_fit_kernel", (DL_FUNC) &_rvtr_curvature_fit_kernel, 9},
     {"_rvtr_log_kernel", (DL_FUNC) &_rvtr_log_kernel, 6},
     {"_rvtr_daylight_kernel", (DL_FUNC) &_rvtr_daylight_kernel, 20},
     {"_rvtr_geomorphons_kernel", (DL_FUNC) &_rvtr_geomorphons_kernel, 12},

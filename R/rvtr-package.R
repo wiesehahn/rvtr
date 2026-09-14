@@ -91,10 +91,10 @@
 #' For metrics that take a radius, widening the radius is often the better way
 #' to change scale - it keeps the fine detail in the input instead of
 #' discarding it, and for [rvt_slrm()], [rvt_msrm()], [rvt_dev()] and
-#' [rvt_mstp()] it costs nothing extra. Coarsening is the right tool when the
-#' metric has no radius at all ([rvt_slope()], [rvt_aspect()],
-#' [rvt_curvature()], [rvt_log()]). See [rvt_resample()] for the full
-#' comparison.
+#' [rvt_mstp()] it costs nothing extra. [rvt_curvature()] and [rvt_log()] have
+#' a scale too, but pay for it. Coarsening is the only scale control where
+#' there is no radius at all ([rvt_slope()], [rvt_aspect()]). See
+#' [rvt_resample()] for the full comparison.
 #'
 #' The horizon-search metrics get both at once: `reach` (see [rvt_reach])
 #' keeps near terrain at full resolution while reading distant terrain from

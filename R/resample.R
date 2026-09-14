@@ -80,9 +80,11 @@
 #' microrelief *before* the metric sees it; widening a search radius keeps the
 #' microrelief and measures over more ground.
 #'
-#' * [rvt_slope()], [rvt_aspect()], [rvt_curvature()] and [rvt_log()] work off
-#'   a fixed 3x3 window and have no radius to widen - resampling is their only
-#'   scale control.
+#' * [rvt_slope()] and [rvt_aspect()] work off a fixed 3x3 window and have no
+#'   radius to widen - resampling is their only scale control.
+#' * [rvt_curvature()] and [rvt_log()] have a scale parameter (`radius` and
+#'   `sigma`), but unlike the box-filter family below, cost grows with it, so
+#'   coarsening is still worth considering for a large one.
 #' * [rvt_slrm()], [rvt_msrm()], [rvt_dev()] and [rvt_mstp()] cost the same per
 #'   pixel whatever their radius, so widening the radius is free and keeps more
 #'   information. Reach for that first.

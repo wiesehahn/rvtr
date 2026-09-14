@@ -2,11 +2,20 @@
 
 .curvature_types <- c(profile = 0L, plan = 1L, tangential = 2L,
                        mean = 3L, total = 4L, gaussian = 5L,
-                       minimal = 6L, maximal = 7L)
+                       minimal = 6L, maximal = 7L, unsphericity = 8L,
+                       casorati = 9L, shape_index = 10L, difference = 11L,
+                       twisting = 12L, rotor = 13L)
 
-.curvature_tile <- function(tile, xres, yres, type, threads) {
-  curvature_kernel(.pad_edge(tile, 1L), 1L, nrow(tile), ncol(tile),
-                    xres, yres, .curvature_types[[type]], threads)
+## Two kernels, one switch: the 3x3 second differences when no radius is given
+## (what ArcGIS and WhiteboxTools return), the fitted quadratic when one is.
+## They are not the same at r = 1 - see src/curvature.cpp.
+.curvature_tile <- function(tile, xres, yres, type, r_px, threads) {
+  ty <- .curvature_types[[type]]
+  if (is.null(r_px))
+    return(curvature_kernel(.pad_edge(tile, 1L), 1L, nrow(tile), ncol(tile),
+                             xres, yres, ty, threads))
+  curvature_fit_kernel(.pad_edge(tile, r_px), r_px, nrow(tile), ncol(tile),
+                        xres, yres, r_px, ty, threads)
 }
 
 #' Curvature
@@ -27,6 +36,8 @@
 #' subtle bank might reach 0.05. There is no natural range, so displaying it
 #' means picking a symmetric stretch around zero - something like -0.1 to 0.1
 #' - and a diverging palette so convex and concave read as opposite.
+#' `shape_index` is the exception: it is dimensionless and already bounded to
+#' -1 to 1, so it displays as it comes.
 #'
 #' @section How it works:
 #' A quadratic surface (Zevenbergen and Thorne 1987) is fitted to the eight
@@ -34,27 +45,74 @@
 #' second derivatives:
 #'
 #' \describe{
-#'   \item{`profile`}{curvature along the direction of steepest slope - how
-#'     the gradient changes as water would run down it. This is the one that
+#'   \item{`profile`}{**Does water speed up or slow down here?** Positive where
+#'     a slope steepens towards the brow of a bank, negative where it eases off
+#'     at the foot. Measured straight down the slope. This is the one that
 #'     picks out breaks of slope, and usually what people mean by "curvature"
 #'     unqualified.}
-#'   \item{`plan`}{curvature of the contour line through the cell - whether
-#'     flow converges (negative, hollows) or diverges (positive, spurs).}
-#'   \item{`tangential`}{plan curvature scaled by the slope; better behaved
-#'     than plan on gentle ground, where contours wander and plan curvature
-#'     becomes erratic.}
-#'   \item{`mean`}{the average of the two principal curvatures - a general
-#'     convexity measure that stays defined on flat ground.}
-#'   \item{`minimal`,`maximal`}{the two principal curvatures themselves: the
-#'     gentlest and sharpest bending at that cell, over all directions. A
-#'     ridge crest has a large negative minimal and a near-zero maximal; a
-#'     dome has both positive.}
-#'   \item{`gaussian`}{their product. Positive where the surface is dome- or
-#'     bowl-like (both curvatures the same sign), negative at saddles - passes
-#'     between two summits, or the junction of two valleys.}
-#'   \item{`total`}{how strongly the surface bends in any direction at all,
-#'     ignoring the sense - a magnitude, so never negative.}
+#'   \item{`plan`}{**Does water gather together or spread apart here?**
+#'     Negative in hollows and gullies where flow converges, positive on spurs
+#'     and noses where it fans out. Measured across the slope, along the
+#'     contour.}
+#'   \item{`tangential`}{The same gathering-or-spreading question as `plan`,
+#'     but better behaved on gentle ground, where contours wander and plan
+#'     curvature turns erratic. Prefer it on anything flat.}
+#'   \item{`mean`}{**Does the ground bulge outwards or dish inwards here?**
+#'     Averaged over every direction at once. The general-purpose convexity
+#'     measure, and the only one of these that stays meaningful on level
+#'     ground.}
+#'   \item{`minimal`,`maximal`}{**Which way does the ground bend most, and
+#'     which way least?** A ridge bends hard across its crest and barely at all
+#'     along it, so `maximal` is large and positive while `minimal` sits near
+#'     zero; a valley is the mirror of that. A dome has both positive, a pit
+#'     both negative.}
+#'   \item{`gaussian`}{**Is this a dome or bowl, or a saddle?** Positive where
+#'     the ground bends the same way in every direction, negative where it
+#'     bends up one way and down the other - passes between two summits, or the
+#'     junction of two valleys.}
+#'   \item{`total`}{**How much is happening here at all?** How strongly the
+#'     ground bends in any direction, ignoring whether it bends up or down. A
+#'     magnitude, so never negative - useful for finding where something is
+#'     going on when you do not care what.}
+#'   \item{`unsphericity`}{**Is the bending even or lopsided?** Near zero where
+#'     the ground curves the same way in every direction - a dome, a bowl, a
+#'     plane - and large on ridges, valleys and saddles that bend mostly one
+#'     way. Never negative.}
+#'   \item{`casorati`}{**How sharp is the bending, whatever shape it makes?**
+#'     Zero only where the ground is genuinely flat. Like `total` in spirit but
+#'     a properly normalised curvature, so it stays comparable between gentle
+#'     and steep ground.}
+#'   \item{`shape_index`}{**What shape is the ground, regardless of how hard it
+#'     bends?** A pit reads -1, a valley -0.5, a saddle 0, a ridge +0.5 and a
+#'     peak +1. It separates form from intensity, so a faint ridge and a sharp
+#'     one read alike, and being bounded it needs no stretch to display.}
+#'   \item{`difference`}{**Is this place more about water speeding up, or more
+#'     about water gathering?** Mean curvature averages those two and can read
+#'     zero where a strong acceleration cancels a strong convergence; this is
+#'     the distinction that goes missing there.}
+#'   \item{`twisting`}{**Is the hillside twisting?** How fast the steepness
+#'     changes as you walk *sideways* across a slope rather than up or down it.
+#'     Zero on any slope of even steepness, however steep. Positive where the
+#'     ground is steeper to your right as you look downhill. It is exactly the
+#'     rate of change of slope angle along the contour, in radians per map
+#'     unit, so the number means something directly.}
+#'   \item{`rotor`}{**Does the downhill path bend as it descends?** Positive
+#'     where a ball rolling down would veer right, negative left, zero where it
+#'     runs straight. Picks out corkscrewing spurs and gullies that turn as
+#'     they fall - a thing none of the others above can see, because they all
+#'     ask about bending *across* or *along* the slope, never about the slope
+#'     direction itself changing. It is the projected form of `twisting` and
+#'     shares `plan`'s weakness for the same reason: on near-level ground the
+#'     downhill direction is barely defined, so values explode (hundreds,
+#'     against `twisting`'s fraction of one). Use `twisting` unless you
+#'     specifically want the plan-view bend.}
 #' }
+#'
+#' `unsphericity`, `casorati`, `shape_index` and `difference` come from Shary's
+#' system, of which `mean`, `unsphericity` and `difference` are the three
+#' independent components - every other curvature here is a combination of
+#' those. `twisting` completes the basic trio of `profile`, `plan` and
+#' twisting, and `rotor` is its projected form.
 #'
 #' Except for `total`, these are the proper differential-geometry quantities,
 #' carrying the `(1 + slope^2)` denominators that turn second derivatives into
@@ -69,34 +127,76 @@
 #' WhiteboxTools: `mean`, `gaussian`, `minimal`, `maximal` and `profile` agree
 #' with both to four significant figures, and `total` matches WhiteboxTools.
 #'
-#' Only the immediate neighbours are used, so overlap is one pixel and the
-#' cost is trivial. Profile and plan curvature need a slope direction to be
-#' defined at all; on genuinely flat cells they are reported as 0 rather than
-#' as a division by nearly nothing.
+#' Give a `radius` and the scale changes: a quadratic surface is fitted by
+#' least squares over the whole window (Evans 1980; Wood 1996) and the same
+#' curvatures are read off its coefficients. This is the standard way to pick a
+#' scale, and the only one available - the Zevenbergen and Thorne fit passes
+#' exactly through nine points and has no wider form. The two are not identical
+#' at the smallest radius: the fit averages the bending over every row of the
+#' window, where the default takes the middle row alone. Leaving `radius` out
+#' therefore keeps the values other software returns, and setting it opts into
+#' the multi-scale form.
+#'
+#' Profile and plan curvature need a slope direction to be defined at all; on
+#' genuinely flat cells they are reported as 0 rather than as a division by
+#' nearly nothing. NoData inside the window contributes the centre cell's own
+#' elevation, so a hole never eats a ring of cells around itself - but at a
+#' large `radius` that biases curvature towards zero near big holes, so fill
+#' them first with [rvt_fill()].
 #'
 #' @section Tuning:
 #' * `type` is the only real choice, and `"profile"` is the usual starting
 #'   point for finding earthworks.
-#' * There is no scale parameter: curvature is always measured across single
-#'   pixels. On a noisy DEM that shows, and the answer is to smooth first or
-#'   use [rvt_log()], whose `sigma` sets the scale explicitly.
+#' * `radius` sets the scale, in **map units**. Omitted, curvature is measured
+#'   across single pixels, which on a noisy DEM shows. A few metres steadies it
+#'   and picks out banks and ditch lips; tens of metres describes the shape of
+#'   the hillslope instead. Cost grows with the square of the radius, so keep
+#'   it to what the features need.
+#' * [rvt_log()] is the alternative when you want an edge detector rather than
+#'   a curvature: its `sigma` sets a scale too, but by smoothing first.
 #'
 #' @inheritParams rvt_svf
 #' @param type one of `"profile"` (default), `"plan"`, `"tangential"`,
-#'   `"mean"`, `"minimal"`, `"maximal"`, `"gaussian"`, `"total"`
+#'   `"mean"`, `"minimal"`, `"maximal"`, `"gaussian"`, `"total"`,
+#'   `"unsphericity"`, `"casorati"`, `"shape_index"`, `"difference"`,
+#'   `"twisting"`, `"rotor"`
+#' @param radius half-width of the window a quadratic surface is fitted over,
+#'   in **map units**; omit it to measure across single pixels instead
 #' @return `out_path`, invisibly
 #' @references
 #' Zevenbergen, L. W. and Thorne, C. R. (1987) Quantitative analysis of land
 #' surface topography. *Earth Surface Processes and Landforms* 12, 47-56.
+#'
+#' Evans, I. S. (1980) An integrated system of terrain analysis and slope
+#' mapping. *Zeitschrift für Geomorphologie* Supplementband 36, 274-295.
+#'
+#' Wood, J. (1996) *The Geomorphological Characterisation of Digital Elevation
+#' Models*. PhD thesis, University of Leicester.
+#'
+#' Shary, P. A. (1995) Land surface in gravity points classification by a
+#' complete system of curvatures. *Mathematical Geology* 27, 373-390.
+#' \doi{10.1007/BF02084608}
+#'
+#' Koenderink, J. J. and van Doorn, A. J. (1992) Surface shape and curvature
+#' scales. *Image and Vision Computing* 10, 557-564.
+#' \doi{10.1016/0262-8856(92)90076-F}
+#'
+#' Minár, J., Evans, I. S. and Jenčo, M. (2020) A comprehensive system of
+#' definitions of land surface (topographic) curvatures. *Earth-Science
+#' Reviews* 211, 103414. \doi{10.1016/j.earscirev.2020.103414}
 #' @seealso [rvt_log()] for an edge detector with a scale parameter.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_curvature(dem)
 #' rvt_curvature(dem, type = "plan")
+#' rvt_curvature(dem, radius = 5)
 #' @export
 rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            type = c("profile", "plan", "tangential", "mean",
-                                    "minimal", "maximal", "gaussian", "total"),
+                                    "minimal", "maximal", "gaussian", "total",
+                                    "unsphericity", "casorati", "shape_index",
+                                    "difference", "twisting", "rotor"),
+                           radius = NULL,
                            tile_size = NULL, threads = rvt_threads(),
                            overwrite = FALSE, progress = FALSE) {
   type <- match.arg(type)
@@ -105,11 +205,15 @@ rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
   dem <- rvt_mosaic(dem)
 
   info <- .dem_info(dem)
-  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 1L)
+  r_px <- if (is.null(radius)) NULL
+          else .cells(radius, info$xres, "radius", "outer")
+  overlap <- if (is.null(r_px)) 1L else r_px
+  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 
-  .process_tiled(dem, list(curvature = out_path), 1L, tile_size,
+  .process_tiled(dem, list(curvature = out_path), overlap, tile_size,
                   function(tile, xres, yres)
-                    list(curvature = .curvature_tile(tile, xres, yres, type, threads)),
+                    list(curvature = .curvature_tile(tile, xres, yres, type,
+                                                      r_px, threads)),
                   progress = progress, threads = threads)
   invisible(out_path)
 }

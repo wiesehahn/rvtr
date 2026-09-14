@@ -111,9 +111,11 @@ looks, and the two are not interchangeable. Coarsening removes the
 microrelief \emph{before} the metric sees it; widening a search radius keeps the
 microrelief and measures over more ground.
 \itemize{
-\item \code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rvt_aspect()}}, \code{\link[=rvt_curvature]{rvt_curvature()}} and \code{\link[=rvt_log]{rvt_log()}} work off
-a fixed 3x3 window and have no radius to widen - resampling is their only
-scale control.
+\item \code{\link[=rvt_slope]{rvt_slope()}} and \code{\link[=rvt_aspect]{rvt_aspect()}} work off a fixed 3x3 window and have no
+radius to widen - resampling is their only scale control.
+\item \code{\link[=rvt_curvature]{rvt_curvature()}} and \code{\link[=rvt_log]{rvt_log()}} have a scale parameter (\code{radius} and
+\code{sigma}), but unlike the box-filter family below, cost grows with it, so
+coarsening is still worth considering for a large one.
 \item \code{\link[=rvt_slrm]{rvt_slrm()}}, \code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_dev]{rvt_dev()}} and \code{\link[=rvt_mstp]{rvt_mstp()}} cost the same per
 pixel whatever their radius, so widening the radius is free and keeps more
 information. Reach for that first.

@@ -5,6 +5,10 @@ curvature_kernel <- function(padded, pad, nrow_out, ncol_out, xres, yres, type, 
     .Call(`_rvtr_curvature_kernel`, padded, pad, nrow_out, ncol_out, xres, yres, type, threads)
 }
 
+curvature_fit_kernel <- function(padded, pad, nrow_out, ncol_out, xres, yres, r, type, threads) {
+    .Call(`_rvtr_curvature_fit_kernel`, padded, pad, nrow_out, ncol_out, xres, yres, r, type, threads)
+}
+
 log_kernel <- function(padded, pad, nrow_out, ncol_out, gauss, threads) {
     .Call(`_rvtr_log_kernel`, padded, pad, nrow_out, ncol_out, gauss, threads)
 }

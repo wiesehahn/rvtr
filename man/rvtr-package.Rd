@@ -101,10 +101,10 @@ and pipes straight into any metric:
 For metrics that take a radius, widening the radius is often the better way
 to change scale - it keeps the fine detail in the input instead of
 discarding it, and for \code{\link[=rvt_slrm]{rvt_slrm()}}, \code{\link[=rvt_msrm]{rvt_msrm()}}, \code{\link[=rvt_dev]{rvt_dev()}} and
-\code{\link[=rvt_mstp]{rvt_mstp()}} it costs nothing extra. Coarsening is the right tool when the
-metric has no radius at all (\code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rvt_aspect()}},
-\code{\link[=rvt_curvature]{rvt_curvature()}}, \code{\link[=rvt_log]{rvt_log()}}). See \code{\link[=rvt_resample]{rvt_resample()}} for the full
-comparison.
+\code{\link[=rvt_mstp]{rvt_mstp()}} it costs nothing extra. \code{\link[=rvt_curvature]{rvt_curvature()}} and \code{\link[=rvt_log]{rvt_log()}} have
+a scale too, but pay for it. Coarsening is the only scale control where
+there is no radius at all (\code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rvt_aspect()}}). See
+\code{\link[=rvt_resample]{rvt_resample()}} for the full comparison.
 
 The horizon-search metrics get both at once: \code{reach} (see \link{rvt_reach})
 keeps near terrain at full resolution while reading distant terrain from
