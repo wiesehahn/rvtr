@@ -38,17 +38,23 @@
 #' low. It is also one of the ingredients [rvt_vat()] blends.
 #'
 #' @section How it works:
-#' Slope comes from a standard finite-difference estimate over the eight
-#' surrounding cells: the east-west gradient is taken from the two horizontal
-#' neighbours and the north-south gradient from the two vertical ones, each
-#' divided by the corresponding pixel size, and the slope is the arctangent of
-#' their combined magnitude.
+#' Slope comes from a central difference over the **four** orthogonal
+#' neighbours: the east-west gradient is taken from the two horizontal ones
+#' and the north-south gradient from the two vertical ones, each divided by
+#' the corresponding pixel size, and the slope is the arctangent of their
+#' combined magnitude.
+#'
+#' Several estimators are in common use and they do not give the same answer,
+#' so it is worth naming the one here. This four-neighbour form responds to
+#' the finest detail in the DEM, and to the most noise; Horn's eight-neighbour
+#' estimate (what `gdaldem` and [gdalraster::dem_proc()] use) and the
+#' Evans-Young quadratic fit average over a wider stencil and come out
+#' smoother. The four-neighbour form is used here so that slope, aspect and
+#' hillshade stay consistent with each other and with [rvt_vat()].
 #'
 #' Because horizontal distances come from the raster's own resolution, the
 #' elevation units must match the map units (metres over metres) for the
-#' angles to be right. Only the immediate neighbours are used, so this
-#' responds to the finest detail - and to any noise - in the DEM. Computation
-#' is at native resolution, tile by tile.
+#' angles to be right. Computation is at native resolution, tile by tile.
 #'
 #' @section Tuning:
 #' There is nothing to tune but the output units. Slope has no radius or
@@ -76,6 +82,11 @@
 #' Kokalj, Ž. and Hesse, R. (2017) *Airborne Laser Scanning Raster Data
 #' Visualization: A Guide to Good Practice*. Ljubljana: Založba ZRC.
 #' \doi{10.3986/9789612549848}
+#'
+#' Pike, R. J., Evans, I. S. and Hengl, T. (2009) Geomorphometry: a brief
+#' guide. In: Hengl, T. and Reuter, H. I. (eds.) *Geomorphometry: Concepts,
+#' Software, Applications*. Developments in Soil Science 33. Amsterdam:
+#' Elsevier, 3-30. \doi{10.1016/S0166-2481(08)00001-9}
 #'
 #' @inheritParams rvt_svf
 #' @param units `"degree"` (default), `"radian"`, or `"percent"` (100 times
