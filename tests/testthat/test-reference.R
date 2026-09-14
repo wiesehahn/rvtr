@@ -398,16 +398,16 @@ test_that("geomorphons classify the obvious shapes", {
   on.exit(unlink(c(cone, pit, flat)), add = TRUE)
 
   cls <- rvt_geomorphon_classes
-  expect_equal(read_band(rvt_geomorphons(cone, search = 15))[c0, c0],
+  expect_equal(read_band(rvt_geomorphons(cone, reach = 15))[c0, c0],
                as.numeric(cls[["peak"]]))
-  expect_equal(read_band(rvt_geomorphons(pit, search = 15))[c0, c0],
+  expect_equal(read_band(rvt_geomorphons(pit, reach = 15))[c0, c0],
                as.numeric(cls[["pit"]]))
   # perfectly level ground: every direction is within the flatness threshold
-  f <- read_band(rvt_geomorphons(flat, search = 15))
+  f <- read_band(rvt_geomorphons(flat, reach = 15))
   expect_true(all(f[30:70, 30:70] == as.numeric(cls[["flat"]])))
 
   # real terrain: only valid class codes, and NoData preserved
-  g <- read_band(rvt_geomorphons(dem, search = 10))
+  g <- read_band(rvt_geomorphons(dem, reach = 10))
   expect_true(all(g[!is.na(g)] %in% as.numeric(cls)))
   expect_equal(sum(is.na(g)), sum(is.na(read_band(dem))))
 })

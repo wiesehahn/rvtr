@@ -7,7 +7,7 @@
 rvt_geomorphons(
   dem,
   out_path = fs::file_temp(ext = "tif"),
-  search = 20,
+  reach = 20,
   skip = 1,
   flat_threshold = 1,
   flat_distance = 0,
@@ -24,7 +24,7 @@ produce seams}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
-\item{search}{how far to look, in \strong{map units} (metres, normally;
+\item{reach}{how far to look, in \strong{map units} (metres, normally;
 default 20)}
 
 \item{skip}{innermost distance to ignore, in map units; 0 skips nothing
@@ -70,7 +70,7 @@ further analysis rather than a picture in its own right.
 }
 \section{How it works}{
 
-Along each of eight directions the algorithm looks out to \code{search}
+Along each of eight directions the algorithm looks out to \code{reach}
 and records the highest and lowest line-of-sight angles - the most it has to
 look up, and the most it has to look down. Whichever is larger decides that
 direction's verdict: terrain rises away, falls away, or is level within the
@@ -84,14 +84,17 @@ matter, not which particular directions - so the classification is
 rotation-invariant by construction.
 
 It is the same ray walk as \code{\link[=rvt_svf]{rvt_svf()}}, so cost scales the same way with
-\code{search}; it just keeps both extremes per direction instead of the maximum
-alone.
+\code{reach}; it just keeps both extremes per direction instead of the maximum
+alone. Those two extremes are exactly what \code{\link[=rvt_openness]{rvt_openness()}} and
+\code{\link[=rvt_openness_negative]{rvt_openness_negative()}} average - geomorphons was introduced as an
+extension of terrain openness, classifying the pattern of those angles
+rather than averaging them away.
 }
 
 \section{Tuning}{
 
 \itemize{
-\item \code{search} is the main control and sets \strong{the scale of landform you get}.
+\item \code{reach} is the main control and sets \strong{the scale of landform you get}.
 Small values classify micro-relief - individual banks and ditches; large
 values classify the hill the whole site sits on. It is in \strong{map units}, so
 scale it with your resolution. There is no universally right value:
@@ -105,13 +108,13 @@ speckle.
 \item \code{flat_distance} (map units, 0 to disable) relaxes the flatness threshold
 with range: past this distance a fixed angle would make every distant
 slope significant, so beyond it the threshold becomes the angle the same
-height difference subtends. Worth setting when \code{search} is large.
+height difference subtends. Worth setting when \code{reach} is large.
 }
 }
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_geomorphons(dem, search = 10)
+rvt_geomorphons(dem, reach = 10)
 }
 \references{
 Jasiewicz, J. and Stepinski, T. (2013) Geomorphons - a pattern recognition
@@ -119,5 +122,7 @@ approach to classification and mapping of landforms. \emph{Geomorphology} 182,
 147-156. \doi{10.1016/j.geomorph.2012.11.005}
 }
 \seealso{
-\link{rvt_geomorphon_classes} for the class codes.
+\link{rvt_geomorphon_classes} for the class codes; \code{\link[=rvt_openness]{rvt_openness()}}
+and \code{\link[=rvt_openness_negative]{rvt_openness_negative()}} for the continuous measures this
+classifies.
 }
