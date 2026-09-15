@@ -28,7 +28,9 @@
 #' Trend removal: [rvt_slrm()] (also [rvt_tpi()]), [rvt_dev()], [rvt_msrm()],
 #' [rvt_mstp()].
 #'
-#' Composite: [rvt_vat()] ready-made; [rvt_blend()] to compose your own.
+#' Composite: [rvt_vat()] ready-made; [rvt_blend()] to compose your own;
+#' [rvt_relight()] to light an orthophoto with its terrain, in named
+#' [rvt_relight_styles].
 #'
 #' Preparing a surface: [rvt_fill()] closes NoData gaps, [rvt_smooth()]
 #' removes noise without rounding off breaks of slope. Both are worth
