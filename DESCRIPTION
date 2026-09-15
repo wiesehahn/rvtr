@@ -20,10 +20,11 @@ Description: Topographic visualizations following the Relief Visualization
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1)
-Imports: Rcpp, gdalraster, methods, grDevices, graphics, fs, tools,
+Imports: Rcpp, gdalraster, methods, grDevices, graphics, fs, tools, utils,
     jsonlite
 LinkingTo: Rcpp
-Suggests: testthat (>= 3.0.0), sf
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, ragg, sf
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 SystemRequirements: GDAL, C++17
 Roxygen: list(markdown = TRUE)
