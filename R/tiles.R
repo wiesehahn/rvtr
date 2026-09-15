@@ -272,7 +272,7 @@ rvt_threads <- function(n = NULL) {
   nx <- info$nx; ny <- info$ny
 
   if (!is.null(aux)) aux <- lapply(aux, function(a) {
-    ai <- .dem_info(a$path)
+    ai <- .dem_info(a$path, if (is.null(a$band)) 1L else a$band)
     c(a, list(nx = ai$nx, ny = ai$ny, nodata = ai$nodata))
   })
 
@@ -318,7 +318,8 @@ rvt_threads <- function(n = NULL) {
           cx1 <- min(a$nx - 1L, (gx1 %/% a$fac) + a$overlap)
           cy1 <- min(a$ny - 1L, (gy1 %/% a$fac) + a$overlap)
           list(m = .read_window(a$path, cx0, cy0, cx1 - cx0 + 1L, cy1 - cy0 + 1L,
-                                 a$nodata),
+                                 a$nodata,
+                                 if (is.null(a$band)) 1L else a$band),
                 cx0 = as.integer(cx0), cy0 = as.integer(cy0),
                 fac = as.integer(a$fac))
         })

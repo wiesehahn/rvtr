@@ -20,7 +20,7 @@ Description: Topographic visualizations following the Relief Visualization
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1)
-Imports: Rcpp, gdalraster, methods, grDevices, fs
+Imports: Rcpp, gdalraster, methods, grDevices, graphics, fs
 LinkingTo: Rcpp
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3

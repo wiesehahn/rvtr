@@ -8,25 +8,12 @@
 ## blend arithmetic follow rvt.blend.BlenderCombination$render_all_images(),
 ## which renders from the last layer to the first.
 
-## RVT's normalize_lin(): linear cut-off then stretch to 0-1.
-.norm_lin <- function(x, lo, hi) {
-  x[x < lo] <- lo
-  x[x > hi] <- hi
-  (x - lo) / (hi - lo)
-}
-
-.blend_overlay <- function(active, background) {
-  out <- background
-  hi <- !is.na(background) & background > 0.5
-  lo <- !is.na(background) & background <= 0.5
-  out[hi] <- 1 - (1 - 2 * (background[hi] - 0.5)) * (1 - active[hi])
-  out[lo] <- 2 * background[lo] * active[lo]
-  out
-}
-
-.apply_opacity <- function(active, background, opacity) {
-  active * opacity + background * (1 - opacity)
-}
+## `.norm_lin()`, `.blend_overlay()` and `.apply_opacity()` now live in
+## R/blend.R, which generalises this stack into rvt_blend(). They behave
+## identically; rvt_vat() is deliberately *not* reimplemented on top of the
+## engine, because it is validated against rvt-py down to the rvt_compat bug
+## flag and that is worth more than sharing the code path. A test asserts the
+## engine reproduces .vat_stack() instead.
 
 #' VAT terrain presets
 #'

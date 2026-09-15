@@ -9,12 +9,14 @@
 #' handling. This just adds a downsampled read (so a huge raster still
 #' renders fast) and a path-in, path-out interface for piping.
 #'
-#' @param path path to a single-band raster
+#' @param path path to a single-band raster, or an `rvt_stack` from
+#'   [rvt_blend()], which is rendered to a temporary raster first
 #' @param max_dim longest side, in pixels, to render at (default 1000);
 #'   downsampling happens on read via GDAL, not by loading the full raster
 #'   first
-#' @param col colour ramp (default: a grey ramp), passed to
-#'   [gdalraster::plot_raster()]'s `col_map_fn`
+#' @param col a palette name such as `"Grays"` (default), `"Viridis"` or
+#'   `"Blue-Red 3"`, or a vector of colours. Names ignore case, spaces and
+#'   hyphens, and a unique start is enough. [rvt_palettes()] shows them all.
 #' @param legend show a colour scale (default `FALSE`, just the image)
 #' @param axes show axes with coordinates (default `FALSE`)
 #' @param band which band to draw, for multi-band results such as
@@ -51,8 +53,7 @@
 #' and convex will stop reading as the opposite of concave:
 #'
 #' ```r
-#' div <- grDevices::hcl.colors(256, "Blue-Red 3")
-#' p |> rvt_plot(col = div, minmax_def = c(-0.3, 0.3), legend = TRUE)
+#' p |> rvt_plot("Blue-Red 3", minmax_def = c(-0.3, 0.3), legend = TRUE)
 #' ```
 #'
 #' Turning the `legend` on while choosing a stretch is worth the space - it is
@@ -70,10 +71,10 @@
 #' knowing:
 #'
 #' * `main = "..."` for a title; `axes = TRUE` adds coordinate axes.
-#' * `col` takes any colour ramp. Use a diverging one for signed data, a
-#'   **discrete** one for [rvt_geomorphons()] - its values are class codes, so
-#'   a continuous ramp implies an order that isn't there:
-#'   `rvt_plot(g, col = grDevices::hcl.colors(10, "Spectral"))`.
+#' * `col` takes a palette name or colours. Use a diverging palette for signed
+#'   data, a **qualitative** one for [rvt_geomorphons()] - its values are
+#'   class codes, so a ramp implies an order that isn't there:
+#'   `rvt_plot(g, "Dark 3")`. [rvt_palettes()] draws every option.
 #' * `band = i` picks one band out of a multi-band result; a 3-band one such
 #'   as [rvt_mstp()] is drawn as RGB automatically.
 #' * `max_dim` caps the rendered size. Downsampling happens during the read,
@@ -91,16 +92,25 @@
 #' rvt_plot(dem)
 #' rvt_plot(dem, legend = TRUE, axes = TRUE, main = basename(dem))
 #'
+#' # any palette by name; rvt_palettes() shows them all
+#' dem |> rvt_svf() |> rvt_plot("Viridis")
+#'
 #' # signed data: diverging palette, symmetric stretch
-#' div <- grDevices::hcl.colors(256, "Blue-Red 3")
-#' dem |> rvt_slrm() |> rvt_plot(col = div, minmax_def = c(-1, 1), legend = TRUE)
+#' dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE)
 #'
 #' # percentile stretch when the range isn't known
-#' dem |> rvt_curvature() |> rvt_plot(col = div, minmax_pct_cut = c(2, 98))
+#' dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
+#'
+#' # a blend stack draws directly, with no rvt_render() call
+#' rvt_hillshade(dem) |>
+#'   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
+#'   rvt_plot()
 #' @export
-rvt_plot <- function(path, max_dim = 1000,
-                      col = grDevices::hcl.colors(256, "Grays"),
-                      legend = FALSE, axes = FALSE, band = NULL, ...) {
+rvt_plot <- function(path, col = "Grays", max_dim = 1000, legend = FALSE,
+                      axes = FALSE, band = NULL, ...) {
+  # a blend stack is a recipe, not a file - render it to a temporary raster so
+  # exploring a composite needs no rvt_render() call
+  if (inherits(path, "rvt_stack")) path <- rvt_render(path)
   path <- .as_path(path)
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
   on.exit(ds$close())
@@ -119,7 +129,9 @@ rvt_plot <- function(path, max_dim = 1000,
 
   gdalraster::plot_raster(v, xsize = out_nx, ysize = out_ny,
                            nbands = length(band),
-                           col_map_fn = if (length(band) == 1L) col else NULL,
+                           # an RGB composite has no colour map, so a palette
+                           # name is only resolved when it will be used
+                           col_map_fn = if (length(band) == 1L) .resolve_col(col) else NULL,
                            legend = legend && length(band) == 1L, axes = axes,
                            xlab = "", ylab = "", ...)
   invisible(path)

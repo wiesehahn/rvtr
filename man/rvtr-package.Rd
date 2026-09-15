@@ -37,7 +37,7 @@ Surface form: \code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rv
 Trend removal: \code{\link[=rvt_slrm]{rvt_slrm()}} (also \code{\link[=rvt_tpi]{rvt_tpi()}}), \code{\link[=rvt_dev]{rvt_dev()}}, \code{\link[=rvt_msrm]{rvt_msrm()}},
 \code{\link[=rvt_mstp]{rvt_mstp()}}.
 
-Composite: \code{\link[=rvt_vat]{rvt_vat()}}.
+Composite: \code{\link[=rvt_vat]{rvt_vat()}} ready-made; \code{\link[=rvt_blend]{rvt_blend()}} to compose your own.
 
 Preparing a surface: \code{\link[=rvt_fill]{rvt_fill()}} closes NoData gaps, \code{\link[=rvt_smooth]{rvt_smooth()}}
 removes noise without rounding off breaks of slope. Both are worth
@@ -48,13 +48,38 @@ hole:
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{dem |> rvt_fill() |> rvt_smooth() |> rvt_curvature()
 }\if{html}{\out{</div>}}
 
-Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_resample]{rvt_resample()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}}.
+Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_resample]{rvt_resample()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}},
+\code{\link[=rvt_palettes]{rvt_palettes()}} to browse the palettes \code{rvt_plot()} takes by name.
 
 Not reimplemented here, because \code{gdalraster} already does them well and at
 comparable speed: terrain ruggedness index and roughness, via
 \code{gdalraster::dem_proc(mode = "TRI")} and \code{mode = "roughness"}. Its
 \code{mode = "TPI"} is fixed to a 3x3 window; \code{\link[=rvt_tpi]{rvt_tpi()}} takes any radius.
 }
+\section{Combining visualizations}{
+
+No single visualization shows everything, so the usual answer is to lay
+several over one another. \code{\link[=rvt_blend]{rvt_blend()}} does that with the same blend modes
+QGIS offers, reading bottom to top:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem |> rvt_hillshade() |>
+  rvt_blend(rvt_openness(dem), "overlay",  opacity = 0.5) |>
+  rvt_blend(rvt_svf(dem),      "multiply", opacity = 0.25) |>
+  rvt_plot()
+}\if{html}{\out{</div>}}
+
+Metrics are computed once and blended as often as you like, so tuning an
+opacity costs seconds rather than recomputing a horizon search. For the soft,
+evenly-lit look of a rendered terrain model, start from sky illumination
+rather than a single sun:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{dem |> rvt_sky_illumination() |>
+  rvt_blend(rvt_svf(dem),       "multiply", opacity = 0.3) |>
+  rvt_blend(rvt_hillshade(dem), "overlay",  opacity = 0.4) |>
+  rvt_plot()
+}\if{html}{\out{</div>}}
+}
+
 \section{Choosing a visualization}{
 
 Kokalj and Hesse's \emph{Guide to Good Practice} (2017) is the standard

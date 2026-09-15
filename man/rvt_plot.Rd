@@ -6,8 +6,8 @@
 \usage{
 rvt_plot(
   path,
+  col = "Grays",
   max_dim = 1000,
-  col = grDevices::hcl.colors(256, "Grays"),
   legend = FALSE,
   axes = FALSE,
   band = NULL,
@@ -15,14 +15,16 @@ rvt_plot(
 )
 }
 \arguments{
-\item{path}{path to a single-band raster}
+\item{path}{path to a single-band raster, or an \code{rvt_stack} from
+\code{\link[=rvt_blend]{rvt_blend()}}, which is rendered to a temporary raster first}
+
+\item{col}{a palette name such as \code{"Grays"} (default), \code{"Viridis"} or
+\code{"Blue-Red 3"}, or a vector of colours. Names ignore case, spaces and
+hyphens, and a unique start is enough. \code{\link[=rvt_palettes]{rvt_palettes()}} shows them all.}
 
 \item{max_dim}{longest side, in pixels, to render at (default 1000);
 downsampling happens on read via GDAL, not by loading the full raster
 first}
-
-\item{col}{colour ramp (default: a grey ramp), passed to
-\code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}'s \code{col_map_fn}}
 
 \item{legend}{show a colour scale (default \code{FALSE}, just the image)}
 
@@ -72,8 +74,7 @@ For any \strong{signed} result - curvature, \code{\link[=rvt_log]{rvt_log()}}, \
 a diverging palette, or zero will not land on the palette's neutral centre
 and convex will stop reading as the opposite of concave:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{div <- grDevices::hcl.colors(256, "Blue-Red 3")
-p |> rvt_plot(col = div, minmax_def = c(-0.3, 0.3), legend = TRUE)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{p |> rvt_plot("Blue-Red 3", minmax_def = c(-0.3, 0.3), legend = TRUE)
 }\if{html}{\out{</div>}}
 
 Turning the \code{legend} on while choosing a stretch is worth the space - it is
@@ -93,10 +94,10 @@ Anything \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}} accepts
 knowing:
 \itemize{
 \item \code{main = "..."} for a title; \code{axes = TRUE} adds coordinate axes.
-\item \code{col} takes any colour ramp. Use a diverging one for signed data, a
-\strong{discrete} one for \code{\link[=rvt_geomorphons]{rvt_geomorphons()}} - its values are class codes, so
-a continuous ramp implies an order that isn't there:
-\code{rvt_plot(g, col = grDevices::hcl.colors(10, "Spectral"))}.
+\item \code{col} takes a palette name or colours. Use a diverging palette for signed
+data, a \strong{qualitative} one for \code{\link[=rvt_geomorphons]{rvt_geomorphons()}} - its values are
+class codes, so a ramp implies an order that isn't there:
+\code{rvt_plot(g, "Dark 3")}. \code{\link[=rvt_palettes]{rvt_palettes()}} draws every option.
 \item \code{band = i} picks one band out of a multi-band result; a 3-band one such
 as \code{\link[=rvt_mstp]{rvt_mstp()}} is drawn as RGB automatically.
 \item \code{max_dim} caps the rendered size. Downsampling happens during the read,
@@ -116,10 +117,17 @@ dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_plot(dem)
 rvt_plot(dem, legend = TRUE, axes = TRUE, main = basename(dem))
 
+# any palette by name; rvt_palettes() shows them all
+dem |> rvt_svf() |> rvt_plot("Viridis")
+
 # signed data: diverging palette, symmetric stretch
-div <- grDevices::hcl.colors(256, "Blue-Red 3")
-dem |> rvt_slrm() |> rvt_plot(col = div, minmax_def = c(-1, 1), legend = TRUE)
+dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE)
 
 # percentile stretch when the range isn't known
-dem |> rvt_curvature() |> rvt_plot(col = div, minmax_pct_cut = c(2, 98))
+dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
+
+# a blend stack draws directly, with no rvt_render() call
+rvt_hillshade(dem) |>
+  rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
+  rvt_plot()
 }

@@ -28,7 +28,7 @@
 #' Trend removal: [rvt_slrm()] (also [rvt_tpi()]), [rvt_dev()], [rvt_msrm()],
 #' [rvt_mstp()].
 #'
-#' Composite: [rvt_vat()].
+#' Composite: [rvt_vat()] ready-made; [rvt_blend()] to compose your own.
 #'
 #' Preparing a surface: [rvt_fill()] closes NoData gaps, [rvt_smooth()]
 #' removes noise without rounding off breaks of slope. Both are worth
@@ -40,12 +40,37 @@
 #' dem |> rvt_fill() |> rvt_smooth() |> rvt_curvature()
 #' ```
 #'
-#' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()].
+#' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()],
+#' [rvt_palettes()] to browse the palettes `rvt_plot()` takes by name.
 #'
 #' Not reimplemented here, because `gdalraster` already does them well and at
 #' comparable speed: terrain ruggedness index and roughness, via
 #' `gdalraster::dem_proc(mode = "TRI")` and `mode = "roughness"`. Its
 #' `mode = "TPI"` is fixed to a 3x3 window; [rvt_tpi()] takes any radius.
+#'
+#' @section Combining visualizations:
+#' No single visualization shows everything, so the usual answer is to lay
+#' several over one another. [rvt_blend()] does that with the same blend modes
+#' QGIS offers, reading bottom to top:
+#'
+#' ```r
+#' dem |> rvt_hillshade() |>
+#'   rvt_blend(rvt_openness(dem), "overlay",  opacity = 0.5) |>
+#'   rvt_blend(rvt_svf(dem),      "multiply", opacity = 0.25) |>
+#'   rvt_plot()
+#' ```
+#'
+#' Metrics are computed once and blended as often as you like, so tuning an
+#' opacity costs seconds rather than recomputing a horizon search. For the soft,
+#' evenly-lit look of a rendered terrain model, start from sky illumination
+#' rather than a single sun:
+#'
+#' ```r
+#' dem |> rvt_sky_illumination() |>
+#'   rvt_blend(rvt_svf(dem),       "multiply", opacity = 0.3) |>
+#'   rvt_blend(rvt_hillshade(dem), "overlay",  opacity = 0.4) |>
+#'   rvt_plot()
+#' ```
 #'
 #' @section Choosing a visualization:
 #' Kokalj and Hesse's *Guide to Good Practice* (2017) is the standard
