@@ -154,9 +154,15 @@ rvt_resample <- function(src, res, method = "cubic",
 
   # Overviews are built with the same intent as the resampling itself:
   # averaging a classification would invent codes that aren't classes.
-  ovr <- if (method %in% c("mode", "near")) "MODE" else "AVERAGE"
+  categorical <- method %in% c("mode", "near")
+  ovr <- if (categorical) "MODE" else "CUBIC"
+  # Predictor by content, measured on 8-bit data: STANDARD shrinks continuous
+  # imagery by 22-30% (DEFLATE/ZSTD/LZW) but *enlarges* classified maps by
+  # ~10%, whose long runs of one value compress better undifferenced. Also:
+  # the COG driver takes YES/NO/STANDARD/FLOATING_POINT - "NONE" is not a
+  # value, and was silently ignored with only a level-6 warning.
   predictor <- if (dtype %in% c("Float32", "Float64")) "FLOATING_POINT"
-                else if (dtype == "Byte") "NONE" else "STANDARD"
+                else if (categorical) "NO" else "STANDARD"
 
   common <- c("-tr", format(res[1], scientific = FALSE),
                      format(res[2], scientific = FALSE),

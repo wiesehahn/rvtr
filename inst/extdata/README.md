@@ -110,3 +110,26 @@ for (t in tiles) {
 Gitignored (`inst/extdata/dgm1_*`) for the same reason as the `rvt_*` files —
 about 15 MB of data that is reproducible in one command. The tests that use
 them skip themselves when they are missing.
+
+## LGLN sample data — not in this folder at all
+
+The vignette, the relighting examples and the network tests use Lower Saxony
+open data fetched with `rvt_data_lgln()`, usually the 1 km tile beside Burg
+Hardenberg (EPSG:25832, 565000–566000 E, 5720000–5721000 N):
+
+```r
+pt  <- c(9.9464, 51.6317)
+dtm <- rvt_data_lgln(pt, "dtm")                        # DGM1, 1 m
+dsm <- rvt_data_lgln(pt, "dsm")                        # DOM1, 1 m
+rgb <- rvt_data_lgln(pt, "rgb", year = 2025, res = 1)  # DOP20, on the terrain grid
+```
+
+Nothing is committed or shipped. By default the result is a virtual raster
+over LGLN's remote Cloud-Optimized GeoTIFFs, found through its STAC APIs
+(`dgm`, `dom`, `dop` at `<name>.stac.lgln.niedersachsen.de`); `download = TRUE`
+caches a copy in `tools::R_user_dir("rvtr", "cache")/lgln/`.
+
+LGLN open geodata, CC BY 4.0 under section 7 of LGLN's terms of use (AGNB).
+Credit as `© GeoBasis-DE/LGLN <year of download>`, adding `, Daten geändert`
+for anything derived from the data. `tests/testthat/test-data_lgln.R` skips
+its network tests when offline.

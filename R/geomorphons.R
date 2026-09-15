@@ -131,6 +131,8 @@ rvt_geomorphons <- function(dem, out_path = fs::file_temp(ext = "tif"),
                     list(geomorphons = .geomorphons_tile(tile, xres, yres, reach,
                                                           skip, flat_threshold,
                                                           flat_distance, threads)),
-                  progress = progress, threads = threads)
+                  progress = progress, threads = threads,
+                  # class codes: overviews by majority, never by averaging
+                  categorical = TRUE)
   invisible(out_path)
 }

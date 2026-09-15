@@ -204,19 +204,23 @@ rvt_threads <- function(n = NULL) {
 ## incremental RasterIO writes - hence writing to a plain tiled GeoTIFF above
 ## and converting here, rather than writing the COG directly.
 ##
-## AVERAGE resampling for overviews: it's NoData-aware (pixels flagged via
-## setNoDataValue() are excluded from the mean, not averaged in as if they
-## were real low values) and appropriate for continuous data like SVF/openness
-## /VAT - nearest-neighbour (the driver's default) would look blocky in a
-## quick low-res preview. PREDICTOR=FLOATING_POINT is the COG driver's name
-## for what the plain GTiff driver above calls PREDICTOR=3 - same TIFF
-## predictor tag, different driver, different string.
-.finalize_cog <- function(scratch_path, out_path, threads) {
+## Overviews: MODE for categorical results (geomorphons class codes), CUBIC
+## otherwise. Averaging classes invents codes that aren't classes - measured on
+## geomorphons, 36 distinct non-integer overview values against 9 whole classes
+## with MODE. CUBIC was checked beside NoData holes before adopting it: same
+## NoData count as AVERAGE and no values outside the data's range.
+## OVERVIEWS=IGNORE_EXISTING because the COG writer otherwise *copies* a
+## source's existing overviews and ignores RESAMPLING entirely (the scratch
+## file has none, but the rule is cheap to keep uniform). PREDICTOR=FLOATING_POINT
+## is the COG driver's name for what the plain GTiff driver above calls
+## PREDICTOR=3 - same TIFF predictor tag, different driver, different string.
+.finalize_cog <- function(scratch_path, out_path, threads, categorical = FALSE) {
   gdalraster::translate(scratch_path, out_path,
     cl_arg = c("-of", "COG",
                 "-co", "COMPRESS=DEFLATE",
                 "-co", "PREDICTOR=FLOATING_POINT",
-                "-co", "RESAMPLING=AVERAGE",
+                "-co", paste0("RESAMPLING=", if (categorical) "MODE" else "CUBIC"),
+                "-co", "OVERVIEWS=IGNORE_EXISTING",
                 "-co", paste0("NUM_THREADS=", threads)),
     quiet = TRUE)
   .rm_path(scratch_path)
@@ -267,7 +271,7 @@ rvt_threads <- function(n = NULL) {
 ## raster is tiled.
 .process_tiled <- function(src, out_paths, overlap, tile_size, fun,
                             band = 1L, progress = FALSE, threads = rvt_threads(),
-                            nbands = NULL, aux = NULL) {
+                            nbands = NULL, aux = NULL, categorical = FALSE) {
   info <- .dem_info(src, band)
   nx <- info$nx; ny <- info$ny
 
@@ -340,7 +344,9 @@ rvt_threads <- function(n = NULL) {
     }
   }
 
-  for (nm in names(out_paths)) .finalize_cog(scratch_paths[[nm]], out_paths[[nm]], threads)
+  for (nm in names(out_paths))
+    .finalize_cog(scratch_paths[[nm]], out_paths[[nm]], threads,
+                  categorical = categorical)
 
   invisible(out_paths)
 }

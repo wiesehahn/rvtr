@@ -51,6 +51,16 @@ hole:
 Support: \code{\link[=rvt_mosaic]{rvt_mosaic()}}, \code{\link[=rvt_resample]{rvt_resample()}}, \code{\link[=rvt_threads]{rvt_threads()}}, \code{\link[=rvt_plot]{rvt_plot()}},
 \code{\link[=rvt_palettes]{rvt_palettes()}} to browse the palettes \code{rvt_plot()} takes by name.
 
+Data: \code{\link[=rvt_data_lgln]{rvt_data_lgln()}} streams terrain, surface and orthophoto data for any place
+in Lower Saxony and any flight year (\code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} lists them).
+
+Loading the package sets GDAL's \code{GTIFF_SRS_SOURCE} option to \code{"EPSG"},
+unless you have already set it. Many European survey GeoTIFFs describe their
+coordinate system in a way that differs trivially from the EPSG registry,
+and without this GDAL warns about it every time such a file is opened. The
+results are unaffected. To keep GDAL's default behaviour, set the option to
+\code{"GEOKEYS"} yourself, before or after loading.
+
 Not reimplemented here, because \code{gdalraster} already does them well and at
 comparable speed: terrain ruggedness index and roughness, via
 \code{gdalraster::dem_proc(mode = "TRI")} and \code{mode = "roughness"}. Its

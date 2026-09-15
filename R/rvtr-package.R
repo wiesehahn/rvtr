@@ -43,6 +43,16 @@
 #' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()],
 #' [rvt_palettes()] to browse the palettes `rvt_plot()` takes by name.
 #'
+#' Data: [rvt_data_lgln()] streams terrain, surface and orthophoto data for any place
+#' in Lower Saxony and any flight year ([rvt_data_lgln_years()] lists them).
+#'
+#' Loading the package sets GDAL's `GTIFF_SRS_SOURCE` option to `"EPSG"`,
+#' unless you have already set it. Many European survey GeoTIFFs describe their
+#' coordinate system in a way that differs trivially from the EPSG registry,
+#' and without this GDAL warns about it every time such a file is opened. The
+#' results are unaffected. To keep GDAL's default behaviour, set the option to
+#' `"GEOKEYS"` yourself, before or after loading.
+#'
 #' Not reimplemented here, because `gdalraster` already does them well and at
 #' comparable speed: terrain ruggedness index and roughness, via
 #' `gdalraster::dem_proc(mode = "TRI")` and `mode = "roughness"`. Its
