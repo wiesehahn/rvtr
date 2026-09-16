@@ -296,7 +296,7 @@ lets trees and buildings cast shadows too.
 
 The result is darker than the photo wherever something casts a shadow. On this
 tile, where trees and buildings cover more than half the ground, the whole
-image comes out at a little over half the photo's brightness, while sunlit
+image comes out at about two thirds of the photo's brightness, while sunlit
 open ground keeps nearly all of it.
 
 ```{r relight, fig.height = 3.75}
@@ -315,8 +315,8 @@ setting passed directly overrides the style, so
 light with an even lower sun.
 
 ```{r relight-styles, fig.height = 5.2}
-styles <- c("golden_hour", "winter", "twilight",
-            "blue_hour", "vivid", "hard_shadows")
+styles <- c("verdant", "golden_hour", "winter",
+            "twilight", "blue_hour", "vivid")
 
 op <- par(mfrow = c(2, 3))
 for (style in styles) {

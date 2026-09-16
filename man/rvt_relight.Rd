@@ -15,6 +15,7 @@ rvt_relight(
   reach = NULL,
   saturation = NULL,
   contrast = NULL,
+  vegetation = NULL,
   sun_strength = NULL,
   sky_strength = NULL,
   bounce = NULL,
@@ -48,6 +49,10 @@ degrees; 0 for hard shadows}
 \item{saturation}{colour strength of the photo; 1 leaves it unchanged}
 
 \item{contrast}{contrast of the result; 1 leaves it unchanged}
+
+\item{vegetation}{extra colour given to green ground only, 0 for none.
+Deepens foliage, pulls warm greens apart from cool ones and separates
+light from dark canopy, leaving roofs, roads, water and bare soil alone}
 
 \item{sun_strength, sky_strength}{strength of the sun and sky light}
 

@@ -28,6 +28,8 @@ shadow onto its surroundings.}
 \item{\code{low_sun}, \code{high_sun}}{A lower sun for long shadows, or a higher
 one for short shadows.}
 \item{\code{hard_shadows}}{Crisp shadow edges instead of soft ones.}
+\item{\code{verdant}}{Woodland and fields brought forward: deeper, more varied
+greens, with everything else left as it is.}
 \item{\code{golden_hour}}{Warm, low-contrast evening light.}
 \item{\code{winter}}{Cold, frosty light with longer shadows and dimmer
 highlights.}

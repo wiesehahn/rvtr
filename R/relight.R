@@ -7,8 +7,9 @@
 ## express this; one function that computes the light and applies it can.
 
 .relight_args <- c("sun_azimuth", "sun_elevation", "softness", "reach",
-                   "saturation", "contrast", "sun_strength", "sky_strength",
-                   "bounce", "occlusion", "sun_color", "sky_color")
+                   "saturation", "contrast", "vegetation", "sun_strength",
+                   "sky_strength", "bounce", "occlusion", "sun_color",
+                   "sky_color")
 
 #' Lighting styles for rvt_relight()
 #'
@@ -28,6 +29,8 @@
 #'   \item{`low_sun`, `high_sun`}{A lower sun for long shadows, or a higher
 #'     one for short shadows.}
 #'   \item{`hard_shadows`}{Crisp shadow edges instead of soft ones.}
+#'   \item{`verdant`}{Woodland and fields brought forward: deeper, more varied
+#'     greens, with everything else left as it is.}
 #'   \item{`golden_hour`}{Warm, low-contrast evening light.}
 #'   \item{`winter`}{Cold, frosty light with longer shadows and dimmer
 #'     highlights.}
@@ -44,30 +47,34 @@
 #' @export
 rvt_relight_styles <- list(
   default = list(sun_azimuth = 315, sun_elevation = 25, softness = 2,
-                 reach = 150, saturation = 1.15, contrast = 1.05,
-                 sun_strength = 0.68, sky_strength = 0.55,
-                 bounce = 0.30, occlusion = 0.60,
-                 sun_color = "#FFEDCC", sky_color = "#8CA6E6"),
+                 reach = 150, saturation = 1.12, contrast = 1.0,
+                 vegetation = 0, sun_strength = 0.58, sky_strength = 0.66,
+                 bounce = 0.74, occlusion = 0.20,
+                 sun_color = "#FFEDCC", sky_color = "#A7BCE8"),
   neutral = list(sun_color = "#EEEEEE", sky_color = "#A5A5A5"),
-  no_cast_shadows = list(bounce = 1),
-  soft_shadows = list(bounce = 0.45, sky_strength = 0.62),
-  vivid = list(saturation = 1.30, contrast = 1.12),
+  # the open-sky settings come along, or this ends up darker than
+  # soft_shadows, which would be the wrong way round
+  no_cast_shadows = list(bounce = 1, occlusion = 0.10, sky_strength = 0.70),
+  soft_shadows = list(bounce = 0.86, sky_strength = 0.70, occlusion = 0.10),
+  vivid = list(saturation = 1.26, contrast = 1.06),
   low_sun = list(sun_elevation = 15),
   high_sun = list(sun_elevation = 40),
   hard_shadows = list(softness = 0),
+  verdant = list(vegetation = 0.55, saturation = 1.02,
+                 sun_color = "#FFF3D6", sky_color = "#B0C6EA"),
   golden_hour = list(sun_color = "#FFE0B8", sky_color = "#8599D6",
-                     saturation = 1.08),
-  winter = list(sun_elevation = 18, sun_strength = 0.60,
+                     saturation = 1.06),
+  winter = list(sun_elevation = 18, sun_strength = 0.56,
                 sun_color = "#EEF3FF", sky_color = "#A8C2F5",
                 saturation = 0.90),
   # a 20 m rise at 6-8 degrees casts a shadow of 140-190 m, hence the reach
   twilight = list(sun_elevation = 8, softness = 3, reach = 300,
-                  sun_strength = 0.45, sky_strength = 0.60, bounce = 0.45,
+                  sun_strength = 0.45, sky_strength = 0.64, bounce = 0.60,
                   sun_color = "#F2B9A0", sky_color = "#8A86C4",
                   saturation = 1.0, contrast = 1.0),
   blue_hour = list(sun_elevation = 6, softness = 4, reach = 300,
-                   sun_strength = 0.15, sky_strength = 0.85, bounce = 0.60,
-                   occlusion = 0.70, sun_color = "#C9C2E6",
+                   sun_strength = 0.15, sky_strength = 0.88, bounce = 0.70,
+                   occlusion = 0.50, sun_color = "#C9C2E6",
                    sky_color = "#6C86CC", saturation = 0.92, contrast = 1.0)
 )
 
@@ -86,9 +93,35 @@ rvt_relight_styles <- list(
     stop("`sun_elevation` must stay between 0 and 90 degrees, softness included.",
          call. = FALSE)
   if (p$softness < 0) stop("`softness` must not be negative.", call. = FALSE)
+  if (p$vegetation < 0) stop("`vegetation` must not be negative.", call. = FALSE)
   p$sun_rgb <- as.numeric(grDevices::col2rgb(p$sun_color)) / 255
   p$sky_rgb <- as.numeric(grDevices::col2rgb(p$sky_color)) / 255
   p
+}
+
+## Colour of the photo before the light is applied: overall saturation, plus
+## the optional vegetation treatment. Every step is per cell against fixed
+## constants - never a tile statistic - so tiles stay independent.
+.relight_colour <- function(photo, lum, p) {
+  if (p$vegetation <= 0)
+    return(lapply(photo, function(x) lum + (x - lum) * p$saturation))
+
+  # how far the green channel leads the other two; 0.06 of full scale is
+  # already unmistakably green, so foliage reaches full weight and grey roofs,
+  # water and bare soil stay at 0
+  w <- pmin(pmax((photo[[2]] - (photo[[1]] + photo[[3]]) / 2) / 0.06, 0), 1)
+  ch <- lapply(photo, function(x) lum + (x - lum) * (p$saturation + p$vegetation * w))
+
+  # a small fixed warm bias, not a stretch of the red-blue difference: the sky
+  # light is blue, shaded canopy is already blue-leaning, and amplifying that
+  # difference drove whole woods to teal instead of telling species apart
+  shift <- 0.035 * p$vegetation * w
+  ch[[1]] <- ch[[1]] + shift
+  ch[[3]] <- ch[[3]] - shift
+
+  # separation between light and dark foliage about a canopy-typical mid-tone,
+  # which is where the nuance between stands comes from
+  lapply(ch, function(x) 0.35 + (x - 0.35) * (1 + 0.30 * p$vegetation * w))
 }
 
 ## One tile. `tile` is the hillshade; the aux windows arrive as the three
@@ -106,17 +139,19 @@ rvt_relight_styles <- list(
   direct[is.na(direct)] <- 1
   direct <- pmin(direct, 1.6)
 
-  # sky light, reduced in hollows that see less of the sky
-  open <- pmin(pmax((svf - 0.6) / 0.4, 0), 1)
+  # sky light, reduced in hollows that see less of the sky. The knee starts
+  # well below open ground's sky-view factor: ordinary canopy sits near 0.4,
+  # and cutting it off there left woodland almost black.
+  open <- pmin(pmax((svf - 0.35) / 0.45, 0), 1)
   open[is.na(open)] <- 1
   ambient <- 1 - p$occlusion * (1 - open)
 
   lum <- 0.2126 * photo[[1]] + 0.7152 * photo[[2]] + 0.0722 * photo[[3]]
+  ch <- .relight_colour(photo, lum, p)
   lapply(1:3, function(k) {
-    ch <- lum + (photo[[k]] - lum) * p$saturation
     light <- p$sun_strength * direct * p$sun_rgb[k] +
       p$sky_strength * ambient * p$sky_rgb[k]
-    v <- 0.5 + (ch * light - 0.5) * p$contrast
+    v <- 0.5 + (ch[[k]] * light - 0.5) * p$contrast
     pmin(pmax(v, 0), 1) * 255
   })
 }
@@ -175,6 +210,9 @@ rvt_relight_styles <- list(
 #' @param reach how far shadows are traced, in map units
 #' @param saturation colour strength of the photo; 1 leaves it unchanged
 #' @param contrast contrast of the result; 1 leaves it unchanged
+#' @param vegetation extra colour given to green ground only, 0 for none.
+#'   Deepens foliage, pulls warm greens apart from cool ones and separates
+#'   light from dark canopy, leaving roofs, roads, water and bare soil alone
 #' @param sun_strength,sky_strength strength of the sun and sky light
 #' @param bounce share of sun light that still reaches ground in cast shadow
 #' @param occlusion how much sky light enclosed ground loses, 0 to 1
@@ -199,6 +237,7 @@ rvt_relight <- function(ortho, dem, out_path = fs::file_temp(ext = "tif"),
                          sun_azimuth = NULL, sun_elevation = NULL,
                          softness = NULL, reach = NULL,
                          saturation = NULL, contrast = NULL,
+                         vegetation = NULL,
                          sun_strength = NULL, sky_strength = NULL,
                          bounce = NULL, occlusion = NULL,
                          sun_color = NULL, sky_color = NULL,
