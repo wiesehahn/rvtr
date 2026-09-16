@@ -1,0 +1,134 @@
+# Multi-scale topographic position (MSTP)
+
+A three-band colour composite showing, for each cell, the scale at which
+it most stands out from its surroundings. Broad-scale prominence drives
+the red channel, medium-scale green, and fine-scale blue - so the colour
+tells you the *size* of the feature a cell belongs to, not just that one
+is there.
+
+## Usage
+
+``` r
+rvt_mstp(
+  dem,
+  out_path = fs::file_temp(ext = "tif"),
+  local = c(3, 21, 2),
+  meso = c(23, 203, 18),
+  broad = c(223, 2023, 180),
+  lightness = 1.2,
+  tile_size = NULL,
+  threads = rvt_threads(),
+  overwrite = FALSE,
+  progress = FALSE
+)
+```
+
+## Arguments
+
+- dem:
+
+  path to a DEM, or a vector of paths forming a mosaic (see
+  [`rvt_mosaic()`](https://wiesehahn.github.io/rvtr/reference/rvt_mosaic.md));
+  mosaics are read across file boundaries, so tiles do not produce seams
+
+- out_path:
+
+  output GeoTIFF path (default: a temp file)
+
+- local, meso, broad:
+
+  the three scale bands, each `c(min_radius, max_radius, step)` in **map
+  units** (metres, normally)
+
+- lightness:
+
+  contrast of the colour mapping (default 1.2)
+
+- tile_size:
+
+  tile edge in pixels; NULL picks a size targeting roughly 256 MB per
+  working matrix
+
+- threads:
+
+  C++ threads (see
+  [`rvt_threads()`](https://wiesehahn.github.io/rvtr/reference/rvt_threads.md))
+
+- overwrite:
+
+  recompute even if `out_path` exists
+
+- progress:
+
+  report per-tile progress
+
+## Value
+
+`out_path`, invisibly - a 3-band (RGB) raster
+
+## Details
+
+Reading it is largely a matter of colour: blue picks out small, sharp
+things (field banks, ditches, individual mounds), green mid-sized
+landforms (terraces, spurs, hollows), red the broad setting (hill
+masses, major valleys). White means a cell stands out at every scale - a
+hilltop that is also a local high - while dark areas are unremarkable at
+all three, the flats and even slopes. Because each channel is scaled by
+how *variable* its surroundings are, the result stays readable in both
+rugged and flat country without adjustment.
+
+## How it works
+
+The building block is deviation from mean elevation: for a square
+window, `(cell - mean) / sd`. Dividing by the standard deviation is what
+makes the three channels comparable - it measures prominence relative to
+local roughness rather than in metres.
+
+For each of the three scale bands, that is evaluated at every window
+radius from the band's minimum to its maximum, and the value with the
+largest magnitude is kept. Each channel is then mapped to 0-1 through
+`1 - exp(-lightness * |deviation|)`, which compresses extremes into the
+visible range, and the three become the red, green and blue bands of a
+single 3-band raster - so
+[`rvt_plot()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot.md)
+draws it in colour by default.
+
+Means and standard deviations come from summed-area tables, so a
+2000-pixel window costs no more than a 3-pixel one; the run time is set
+by how many radii are visited, not how large they are. Near the raster
+edge the terrain is mirrored rather than smeared outwards - with windows
+this large, repeating the edge value would flatten the standard
+deviation the result divides by.
+
+## Tuning
+
+- The three scales are `c(min_radius, max_radius, step)` in **map
+  units** (metres, normally), so they mean the same ground distances
+  whatever the resolution. The broad default reaches 2023 m, so on a
+  small raster that channel mostly reflects the mirrored edges -
+  crop-to-fit rather than trusting red on a tile smaller than a couple
+  of kilometres across.
+
+- `step` is purely a speed/precision trade: a coarser step visits fewer
+  radii and runs proportionally faster, at the risk of stepping over the
+  scale at which something stands out.
+
+- `lightness` sets how quickly the colour saturates. Raise it for a
+  brighter, higher-contrast image where moderate deviations already read
+  strongly; lower it to reserve bright colour for the genuinely
+  prominent.
+
+## See also
+
+[`rvt_msrm()`](https://wiesehahn.github.io/rvtr/reference/rvt_msrm.md),
+which also works across scales but returns a single band in metres
+rather than a colour composite.
+
+## Examples
+
+``` r
+dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
+# scales cut down to suit a 1000 x 1000 sample tile
+rvt_mstp(dem, local = c(3, 21, 2), meso = c(23, 103, 18),
+         broad = c(123, 223, 50))
+```
