@@ -1,0 +1,76 @@
+url: https://wiesehahn.github.io/rvtr/
+template:
+  bootstrap: 5
+
+reference:
+- title: Overview
+  contents:
+  - rvtr-package
+  - rvt_reach
+
+- title: Shading and sun
+  contents:
+  - rvt_hillshade
+  - rvt_multi_hillshade
+  - rvt_shadow
+  - rvt_daylight
+  - rvt_insolation
+
+- title: Sky and horizon
+  contents:
+  - rvt_svf
+  - rvt_asvf
+  - rvt_sky_illumination
+  - rvt_openness
+  - rvt_openness_negative
+
+- title: Local relief
+  contents:
+  - rvt_slrm
+  - rvt_msrm
+  - rvt_dev
+  - rvt_local_dominance
+  - rvt_mstp
+
+- title: Surface shape
+  contents:
+  - rvt_slope
+  - rvt_aspect
+  - rvt_curvature
+  - rvt_log
+  - rvt_geomorphons
+  - rvt_geomorphon_classes
+
+- title: Preparation
+  contents:
+  - rvt_fill
+  - rvt_smooth
+  - rvt_resample
+  - rvt_mosaic
+
+- title: Composites and blending
+  contents:
+  - rvt_vat
+  - rvt_presets
+  - rvt_blend
+  - rvt_blend_modes
+  - rvt_stack
+  - rvt_range
+  - rvt_render
+  - rvt_relight
+  - rvt_relight_styles
+
+- title: Plotting
+  contents:
+  - rvt_plot
+  - rvt_plot3d
+  - rvt_palettes
+
+- title: Data
+  contents:
+  - rvt_data_lgln
+  - rvt_data_lgln_years
+
+- title: Settings
+  contents:
+  - rvt_threads

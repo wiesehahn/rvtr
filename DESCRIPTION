@@ -18,6 +18,8 @@ Description: Topographic visualizations following the Relief Visualization
     wrapping it in a GDAL virtual raster, so searches read across file
     boundaries seamlessly and tile edges show no seams.
 License: MIT + file LICENSE
+URL: https://github.com/wiesehahn/rvtr, https://wiesehahn.github.io/rvtr/
+BugReports: https://github.com/wiesehahn/rvtr/issues
 Encoding: UTF-8
 Depends: R (>= 4.1)
 Imports: Rcpp, gdalraster, methods, grDevices, graphics, fs, tools, utils,
