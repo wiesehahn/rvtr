@@ -74,8 +74,11 @@ hole:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_fill.html">rvt_fill</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_smooth.html">rvt_smooth</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_curvature.html">rvt_curvature</a></span><span class="op">(</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>Support: <code><a href="rvt_mosaic.html">rvt_mosaic()</a></code>, <code><a href="rvt_resample.html">rvt_resample()</a></code>, <code><a href="rvt_threads.html">rvt_threads()</a></code>, <code><a href="rvt_plot.html">rvt_plot()</a></code>,
 <code><a href="rvt_palettes.html">rvt_palettes()</a></code> to browse the palettes <code><a href="rvt_plot.html">rvt_plot()</a></code> takes by name.</p>
-<p>Data: <code><a href="rvt_data_lgln.html">rvt_data_lgln()</a></code> streams terrain, surface and orthophoto data for any place
-in Lower Saxony and any flight year (<code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code> lists them).</p>
+<p>Data: <code><a href="rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code> streams terrain for anywhere in the world, at
+the best resolution published there (<code><a href="rvt_data_mapterhorn_sources.html">rvt_data_mapterhorn_sources()</a></code> lists
+the sources). <code><a href="rvt_data_lgln.html">rvt_data_lgln()</a></code> streams terrain, surface and orthophoto data
+for any place in Lower Saxony and any flight year (<code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code>
+lists them).</p>
 <p>Loading the package sets GDAL's <code>GTIFF_SRS_SOURCE</code> option to <code>"EPSG"</code>,
 unless you have already set it. Many European survey GeoTIFFs describe their
 coordinate system in a way that differs trivially from the EPSG registry,
@@ -169,6 +172,13 @@ pass and the cost grows only with the logarithm of the distance.</p>
     <p>Kokalj, Ž. and Hesse, R. (2017) <em>Airborne Laser Scanning Raster Data
 Visualization: A Guide to Good Practice</em>. Prostor, kraj, čas 14. Ljubljana:
 Založba ZRC. <a href="https://doi.org/10.3986/9789612549848" class="external-link">doi:10.3986/9789612549848</a></p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p>Useful links:</p><ul><li><p><a href="https://github.com/wiesehahn/rvtr" class="external-link">https://github.com/wiesehahn/rvtr</a></p></li>
+<li><p><a href="https://wiesehahn.github.io/rvtr/">https://wiesehahn.github.io/rvtr/</a></p></li>
+<li><p>Report bugs at <a href="https://github.com/wiesehahn/rvtr/issues" class="external-link">https://github.com/wiesehahn/rvtr/issues</a></p></li>
+</ul></div>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>

@@ -183,6 +183,11 @@
 </tr>
 <tr>
 <td><strong>Data</strong></td>
+<td><code><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code></td>
+<td>terrain for anywhere in the world, from 30 m down to 0.25 m where published</td>
+</tr>
+<tr>
+<td></td>
 <td><code><a href="reference/rvt_data_lgln.html">rvt_data_lgln()</a></code></td>
 <td>open DTM, DSM and orthophotos for Lower Saxony</td>
 </tr>
@@ -218,13 +223,16 @@
 <p>The <a href="vignettes/blending.Rmd">blending vignette</a> walks through all thirteen modes.</p>
 </div>
 <div class="section level2">
-<h2 id="sample-data">Sample data<a class="anchor" aria-label="anchor" href="#sample-data"></a>
+<h2 id="getting-terrain">Getting terrain<a class="anchor" aria-label="anchor" href="#getting-terrain"></a>
 </h2>
-<p><code><a href="reference/rvt_data_lgln.html">rvt_data_lgln()</a></code> streams open data from Lower Saxony’s survey authority (LGLN) for any point or extent in the state:</p>
+<p><code><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code> returns terrain for any point or extent on Earth from <a href="https://mapterhorn.com" class="external-link">Mapterhorn</a>: 30 m everywhere, and national LiDAR models where they are published, such as 1 m across Germany and 0.5 m in Switzerland. It picks the finest resolution available and reprojects to the local UTM zone, so distances stay in metres. Nothing is downloaded until something reads the data.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">pt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9.9464</span>, <span class="fl">51.6317</span><span class="op">)</span>   <span class="co"># longitude, latitude</span></span>
-<span><span class="fu"><a href="reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dtm"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Data licence CC BY 4.0: © GeoBasis-DE/LGLN (year of download), plus “Daten geändert” for derived products.</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">7.6586</span>, <span class="fl">45.9763</span><span class="op">)</span> <span class="op">|&gt;</span>                        <span class="co"># longitude, latitude: the Matterhorn</span></span>
+<span>  <span class="fu"><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn</a></span><span class="op">(</span>res <span class="op">=</span> <span class="fl">2</span>, size <span class="op">=</span> <span class="fl">3000</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The data comes from many producers under their own open licences. The sources used are printed when fetched, and <code><a href="reference/rvt_data_mapterhorn_sources.html">rvt_data_mapterhorn_sources()</a></code> lists them; see <a href="https://mapterhorn.com/attribution" class="external-link uri">https://mapterhorn.com/attribution</a>.</p>
+<p>For Lower Saxony, <code><a href="reference/rvt_data_lgln.html">rvt_data_lgln()</a></code> also provides the surface model and orthophotos, on the survey’s native grid (CC BY 4.0: © GeoBasis-DE/LGLN, year of download, plus “Daten geändert” for derived products).</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

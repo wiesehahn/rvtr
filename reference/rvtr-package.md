@@ -95,6 +95,11 @@ to browse the palettes
 takes by name.
 
 Data:
+[`rvt_data_mapterhorn()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn.md)
+streams terrain for anywhere in the world, at the best resolution
+published there
+([`rvt_data_mapterhorn_sources()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn_sources.md)
+lists the sources).
 [`rvt_data_lgln()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln.md)
 streams terrain, surface and orthophoto data for any place in Lower
 Saxony and any flight year
@@ -231,6 +236,16 @@ Kokalj, Ž. and Hesse, R. (2017) *Airborne Laser Scanning Raster Data
 Visualization: A Guide to Good Practice*. Prostor, kraj, čas 14.
 Ljubljana: Založba ZRC.
 [doi:10.3986/9789612549848](https://doi.org/10.3986/9789612549848)
+
+## See also
+
+Useful links:
+
+- <https://github.com/wiesehahn/rvtr>
+
+- <https://wiesehahn.github.io/rvtr/>
+
+- Report bugs at <https://github.com/wiesehahn/rvtr/issues>
 
 ## Author
 

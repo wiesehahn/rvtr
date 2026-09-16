@@ -107,6 +107,10 @@
 
 ## Data
 
+- [`rvt_data_mapterhorn()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn.md)
+  : Terrain for anywhere in the world, from Mapterhorn
+- [`rvt_data_mapterhorn_sources()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn_sources.md)
+  : Which Mapterhorn sources cover a place
 - [`rvt_data_lgln()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln.md)
   : Lower Saxony elevation and orthophotos, for any place
 - [`rvt_data_lgln_years()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln_years.md)
