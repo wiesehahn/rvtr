@@ -154,6 +154,15 @@ Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data
 Visualization: A Guide to Good Practice}. Prostor, kraj, čas 14. Ljubljana:
 Založba ZRC. \doi{10.3986/9789612549848}
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/wiesehahn/rvtr}
+  \item \url{https://wiesehahn.github.io/rvtr/}
+  \item Report bugs at \url{https://github.com/wiesehahn/rvtr/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Jens Wiesehahn \email{wiesehahn.jens@gmail.com}
 
