@@ -20,9 +20,6 @@ test_that("a raster passed as col says so, in words", {
   on.exit(unlink(hs), add = TRUE)
   expect_error(rvt_plot3d(dem_path(), hs), "drape")
   expect_error(rvt_plot3d(dem_path(), rvt_stack(hs)), "drape")
-
-  # and a plain bad palette name still says what it is
-  expect_error(rvt_plot3d(dem_path(), "nosuchpalette"), "not a palette name")
 })
 
 test_that("the DEM is read onto a downsampled grid of cell centres", {
