@@ -55,7 +55,8 @@ dem |> rvt_vat() |> rvt_plot()        # ready-made composite for spotting earthw
 | **Display** | `rvt_vat()`, `rvt_blend()`, `rvt_render()` | composites and 13 blend modes |
 | | `rvt_relight()` | orthophotos lit by their own terrain, with cast and soft shadows |
 | | `rvt_plot()`, `rvt_plot3d()`, `rvt_palettes()` | quick 2D and interactive 3D views |
-| **Data** | `rvt_data_lgln()` | open DTM, DSM and orthophotos for Lower Saxony |
+| **Data** | `rvt_data_mapterhorn()` | terrain for anywhere in the world, from 30 m down to 0.25 m where published |
+| | `rvt_data_lgln()` | open DTM, DSM and orthophotos for Lower Saxony |
 
 Every help page explains how the method works, how to tune it, and which
 settings suit flat, moderate and steep terrain. `?rvtr` gives an overview of
@@ -106,18 +107,29 @@ dem |> rvt_hillshade() |>
 The [blending vignette](vignettes/blending.Rmd) walks through all thirteen
 modes.
 
-## Sample data
+## Getting terrain
 
-`rvt_data_lgln()` streams open data from Lower Saxony's survey authority (LGLN)
-for any point or extent in the state:
+`rvt_data_mapterhorn()` returns terrain for any point or extent on Earth from
+[Mapterhorn](https://mapterhorn.com): 30 m everywhere, and national LiDAR
+models where they are published, such as 1 m across Germany and 0.5 m in
+Switzerland. It picks the finest resolution available and reprojects to the
+local UTM zone, so distances stay in metres. Nothing is downloaded until
+something reads the data.
 
 ```r
-pt <- c(9.9464, 51.6317)   # longitude, latitude
-rvt_data_lgln(pt, "dtm") |> rvt_hillshade() |> rvt_plot()
+c(7.6586, 45.9763) |>                        # longitude, latitude: the Matterhorn
+  rvt_data_mapterhorn(res = 2, size = 3000) |>
+  rvt_hillshade() |>
+  rvt_plot()
 ```
 
-Data licence CC BY 4.0: © GeoBasis-DE/LGLN (year of download), plus
-"Daten geändert" for derived products.
+The data comes from many producers under their own open licences. The sources
+used are printed when fetched, and `rvt_data_mapterhorn_sources()` lists them;
+see <https://mapterhorn.com/attribution>.
+
+For Lower Saxony, `rvt_data_lgln()` also provides the surface model and
+orthophotos, on the survey's native grid (CC BY 4.0: © GeoBasis-DE/LGLN, year
+of download, plus "Daten geändert" for derived products).
 
 ## References
 

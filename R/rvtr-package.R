@@ -45,8 +45,11 @@
 #' Support: [rvt_mosaic()], [rvt_resample()], [rvt_threads()], [rvt_plot()],
 #' [rvt_palettes()] to browse the palettes `rvt_plot()` takes by name.
 #'
-#' Data: [rvt_data_lgln()] streams terrain, surface and orthophoto data for any place
-#' in Lower Saxony and any flight year ([rvt_data_lgln_years()] lists them).
+#' Data: [rvt_data_mapterhorn()] streams terrain for anywhere in the world, at
+#' the best resolution published there ([rvt_data_mapterhorn_sources()] lists
+#' the sources). [rvt_data_lgln()] streams terrain, surface and orthophoto data
+#' for any place in Lower Saxony and any flight year ([rvt_data_lgln_years()]
+#' lists them).
 #'
 #' Loading the package sets GDAL's `GTIFF_SRS_SOURCE` option to `"EPSG"`,
 #' unless you have already set it. Many European survey GeoTIFFs describe their

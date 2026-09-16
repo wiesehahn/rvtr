@@ -68,6 +68,8 @@ reference:
 
 - title: Data
   contents:
+  - rvt_data_mapterhorn
+  - rvt_data_mapterhorn_sources
   - rvt_data_lgln
   - rvt_data_lgln_years
 

@@ -56,12 +56,6 @@
   c(v[1], v[2], v[1] + v[3], v[2] + v[3])
 }
 
-.lgln_snap <- function(extent, res) {
-  r <- function(v) round(v, 6)
-  c(r(floor(extent[1] / res + 1e-9) * res), r(floor(extent[2] / res + 1e-9) * res),
-    r(ceiling(extent[3] / res - 1e-9) * res), r(ceiling(extent[4] / res - 1e-9) * res))
-}
-
 .lgln_tile_of <- function(xy) {
   x0 <- floor(xy[1] / 1000) * 1000; y0 <- floor(xy[2] / 1000) * 1000
   c(x0, y0, x0 + 1000, y0 + 1000)
@@ -94,10 +88,10 @@
     g <- sf::st_transform(g, 25832)
     if (length(g) == 1L && all(sf::st_geometry_type(g) == "POINT")) {
       xy <- as.numeric(sf::st_coordinates(g))[1:2]
-      return(list(extent = .lgln_snap(.lgln_tile_of(xy), res), res = res,
+      return(list(extent = .data_snap(.lgln_tile_of(xy), res), res = res,
                   kind = "point"))
     }
-    return(list(extent = .lgln_snap(as.numeric(sf::st_bbox(g)), res), res = res,
+    return(list(extent = .data_snap(as.numeric(sf::st_bbox(g)), res), res = res,
                 kind = "extent"))
   }
 
@@ -111,10 +105,10 @@
            call. = FALSE)
     xy <- gdalraster::transform_xy(cbind(lon, lat), "EPSG:4326", "EPSG:25832")
     if (length(x) == 2L)
-      return(list(extent = .lgln_snap(.lgln_tile_of(xy[1, ]), res), res = res,
+      return(list(extent = .data_snap(.lgln_tile_of(xy[1, ]), res), res = res,
                   kind = "point"))
     ext <- c(min(xy[, 1]), min(xy[, 2]), max(xy[, 1]), max(xy[, 2]))
-    return(list(extent = .lgln_snap(ext, res), res = res, kind = "extent"))
+    return(list(extent = .data_snap(ext, res), res = res, kind = "extent"))
   }
 
   stop(paste("`x` must be a longitude/latitude point c(lon, lat), a bbox",
@@ -280,33 +274,13 @@
                     call. = FALSE))
   if (!download) return(.as_path(vrt))
 
-  fs::dir_create(fs::path_dir(out_path))
-  # written to a hidden file beside the target, then moved into place, so an
-  # interrupted download never leaves a truncated file that looks valid
-  tmp <- fs::path(fs::path_dir(out_path), paste0(".", fs::path_file(out_path), ".part"))
-  .rm_path(tmp)
-  on.exit(.rm_path(tmp), add = TRUE)
   predictor <- if (p$type == "Byte") "STANDARD" else "FLOATING_POINT"
-  ok <- tryCatch({
-    gdalraster::translate(vrt, tmp,
-      cl_arg = c("-of", "COG",
-                 "-co", "COMPRESS=DEFLATE",
-                 "-co", paste0("PREDICTOR=", predictor),
-                 "-co", "RESAMPLING=CUBIC",
-                 "-co", "OVERVIEWS=IGNORE_EXISTING",
-                 "-co", paste0("NUM_THREADS=", threads),
-                 "-mo", paste0("SOURCE=LGLN ", p$label, ", ", picked$year),
-                 "-mo", paste0("ATTRIBUTION=", .lgln_credit()),
-                 "-mo", paste0("LICENSE=", .lgln_licence)),
-      quiet = TRUE)
-    fs::file_exists(tmp)
-  }, error = function(e) FALSE)
-  if (!isTRUE(ok))
+  md <- c(SOURCE = paste0("LGLN ", p$label, ", ", picked$year),
+          ATTRIBUTION = .lgln_credit(), LICENSE = .lgln_licence)
+  if (!.data_write_cog(vrt, out_path, predictor, md, threads))
     stop(sprintf(paste("Could not download the LGLN %s for %d. The data is fetched",
                        "on demand, so this needs an internet connection."),
                  product, picked$year), call. = FALSE)
-  .rm_path(out_path)
-  fs::file_move(tmp, out_path)
   out_path
 }
 
