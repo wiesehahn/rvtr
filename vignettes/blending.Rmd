@@ -53,8 +53,8 @@ The usual answer is to lay several of them over one another, and
 `rvt_blend()` does that with the same blend modes a GIS offers.
 
 This vignette explains how a blend is built, shows all thirteen modes side by
-side, works through two composites and ends with the ready-made composite
-the package provides.
+side, works through two composites, covers the ready-made composite the
+package provides, and ends by relighting an orthophoto with its terrain.
 
 ## The sample data
 
@@ -285,6 +285,46 @@ rvt_vat(dtm, presets = list(wider, rvt_preset_flat))
 A ready-made composite is the quick route. When a layer needs to change in a
 way the presets do not expose, write the stack out with `rvt_blend()`, as in
 the relief recipe above.
+
+## Relighting an orthophoto
+
+Blending lays shading over a photo. `rvt_relight()` goes a step further and
+lights the photo with the terrain beneath it, the way a rendered landscape
+model is lit: a warm sun on slopes that face it, soft cast shadows, and cool
+sky light that gives the shadows a slight blue cast. Using the surface model
+lets trees and buildings cast shadows too.
+
+The result is darker than the photo wherever something casts a shadow. On this
+tile, where trees and buildings cover more than half the ground, the whole
+image comes out at about two thirds of the photo's brightness, while sunlit
+open ground keeps nearly all of it.
+
+```{r relight, fig.height = 3.75}
+dsm <- rvt_data_lgln(pt, "dsm")  # ground plus trees and buildings
+true_colour <- c(0, 0, 0, 255, 255, 255)
+
+op <- par(mfrow = c(1, 2))
+rvt_plot(rgb, main = "Orthophoto", minmax_def = true_colour)
+rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", minmax_def = true_colour)
+par(op)
+```
+
+The lighting comes in named styles, listed in `rvt_relight_styles`. Any
+setting passed directly overrides the style, so
+`rvt_relight(rgb, dsm, style = "winter", sun_elevation = 10)` gives a winter
+light with an even lower sun.
+
+```{r relight-styles, fig.height = 5.2}
+styles <- c("verdant", "golden_hour", "winter",
+            "twilight", "blue_hour", "vivid")
+
+op <- par(mfrow = c(2, 3))
+for (style in styles) {
+  rvt_relight(rgb, dsm, style = style) |>
+    rvt_plot(main = style, minmax_def = true_colour, max_dim = 500)
+}
+par(op)
+```
 
 ## Choosing colours
 

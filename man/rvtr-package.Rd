@@ -37,7 +37,9 @@ Surface form: \code{\link[=rvt_slope]{rvt_slope()}}, \code{\link[=rvt_aspect]{rv
 Trend removal: \code{\link[=rvt_slrm]{rvt_slrm()}} (also \code{\link[=rvt_tpi]{rvt_tpi()}}), \code{\link[=rvt_dev]{rvt_dev()}}, \code{\link[=rvt_msrm]{rvt_msrm()}},
 \code{\link[=rvt_mstp]{rvt_mstp()}}.
 
-Composite: \code{\link[=rvt_vat]{rvt_vat()}} ready-made; \code{\link[=rvt_blend]{rvt_blend()}} to compose your own.
+Composite: \code{\link[=rvt_vat]{rvt_vat()}} ready-made; \code{\link[=rvt_blend]{rvt_blend()}} to compose your own;
+\code{\link[=rvt_relight]{rvt_relight()}} to light an orthophoto with its terrain, in named
+\link{rvt_relight_styles}.
 
 Preparing a surface: \code{\link[=rvt_fill]{rvt_fill()}} closes NoData gaps, \code{\link[=rvt_smooth]{rvt_smooth()}}
 removes noise without rounding off breaks of slope. Both are worth
