@@ -59,6 +59,7 @@ side. Values are 0-1, ready to display directly.</p>
 <span>  tile_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  threads <span class="op">=</span> <span class="fu"><a href="rvt_threads.html">rvt_threads</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  rvt_compat <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  quality <span class="op">=</span> <span class="fl">90</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  progress <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -101,6 +102,11 @@ produce seams</p></dd>
 the openness layer's declared 50% opacity have no effect. <code>FALSE</code>
 (default) applies the opacity as configured; <code>TRUE</code> is only useful for
 comparing output against rvt-py.</p></dd>
+
+
+<dt id="arg-quality">quality<a class="anchor" aria-label="anchor" href="#arg-quality"></a></dt>
+<dd><p>for a <code>.webp</code> or <code>.jpg</code> <code>out_path</code>, compression quality 1-100
+(default 90)</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
@@ -168,6 +174,14 @@ tuned to give.</p></li>
 <li><p><code>rvt_compat</code> exists only for checking output against rvt-py and should
 be left alone otherwise; see its parameter description.</p></li>
 </ul></div>
+    <div class="section level2">
+    <h2 id="output">Output<a class="anchor" aria-label="anchor" href="#output"></a></h2>
+
+
+<p>A Cloud-Optimized GeoTIFF, values 0-1. Give <code>out_path</code> a <code>.webp</code> or <code>.jpg</code>
+extension to write a plain greyscale picture instead, with no GeoTIFF made
+along the way and no georeferencing; see <code><a href="rvt_image.html">rvt_image()</a></code> for the formats.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

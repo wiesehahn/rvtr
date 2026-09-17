@@ -107,9 +107,9 @@ bottom up:
 
 stack
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file25551ab4b155.tif         (background) opacity 1.00  range auto
-#>   2. file2555435390de.tif         multiply    opacity 0.50  range 0.7-1
-#> Not a raster yet - call rvt_render() to write it.
+#>   1. file2580805b5d3.tif          (background) opacity 1.00  range auto
+#>   2. file258010e6fda.tif          multiply    opacity 0.50  range 0.7-1
+#> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```
 
 However long the chain, the layers are read and blended in a single pass

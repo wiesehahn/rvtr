@@ -59,6 +59,7 @@ dem |> rvt_vat() |> rvt_plot()        # ready-made composite for spotting earthw
 | **Display** | [`rvt_vat()`](https://wiesehahn.github.io/rvtr/reference/rvt_vat.md), [`rvt_blend()`](https://wiesehahn.github.io/rvtr/reference/rvt_blend.md), [`rvt_render()`](https://wiesehahn.github.io/rvtr/reference/rvt_render.md) | composites and 13 blend modes |
 |  | [`rvt_relight()`](https://wiesehahn.github.io/rvtr/reference/rvt_relight.md) | orthophotos lit by their own terrain, with cast and soft shadows |
 |  | [`rvt_plot()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot.md), [`rvt_plot3d()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot3d.md), [`rvt_palettes()`](https://wiesehahn.github.io/rvtr/reference/rvt_palettes.md) | quick 2D and interactive 3D views |
+|  | [`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md) | any raster or blend as a WebP or JPEG picture, with a palette |
 | **Data** | [`rvt_data_mapterhorn()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn.md) | terrain for anywhere in the world, from 30 m down to 0.25 m where published |
 |  | [`rvt_data_lgln()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln.md) | open DTM, DSM and orthophotos for Lower Saxony |
 
@@ -105,7 +106,8 @@ dem |> rvt_fill() |> rvt_smooth() |> rvt_resample(2) |> rvt_curvature() |> rvt_p
 
 Layer finished rasters with the blend modes a GIS offers. The piped
 raster is the background, and nothing is computed until you plot or
-render:
+render. Layers may differ in resolution by a whole factor, such as a 0.2
+m orthophoto under a 1 m hillshade; the result keeps the finest one.
 
 ``` r
 
@@ -113,6 +115,19 @@ dem |> rvt_hillshade() |>
   rvt_blend(rvt_openness(dem), "overlay",  opacity = 0.5) |>
   rvt_blend(rvt_svf(dem),      "multiply", opacity = 0.25) |>
   rvt_render("relief.tif")
+```
+
+End the path in `.webp` or `.jpg` instead to get a picture for a web
+page or report directly.
+[`rvt_relight()`](https://wiesehahn.github.io/rvtr/reference/rvt_relight.md)
+and [`rvt_vat()`](https://wiesehahn.github.io/rvtr/reference/rvt_vat.md)
+do the same, and
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+makes a picture of any other result with a colour palette:
+
+``` r
+
+dem |> rvt_svf() |> rvt_image("svf.webp", "Viridis", range = c(0.7, 1))
 ```
 
 The [blending
@@ -267,6 +282,8 @@ MIT
   : Quick-look plot of a raster
 - [`rvt_plot3d()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot3d.md)
   : Interactive 3D view of a terrain model
+- [`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+  : Save a raster or blend as an image
 - [`rvt_palettes()`](https://wiesehahn.github.io/rvtr/reference/rvt_palettes.md)
   : Browse the colour palettes
 

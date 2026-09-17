@@ -16,6 +16,7 @@ rvt_vat(
   tile_size = NULL,
   threads = rvt_threads(),
   rvt_compat = FALSE,
+  quality = 90,
   overwrite = FALSE,
   progress = FALSE
 )
@@ -58,6 +59,11 @@ rvt_vat(
   layer's declared 50% opacity have no effect. `FALSE` (default) applies
   the opacity as configured; `TRUE` is only useful for comparing output
   against rvt-py.
+
+- quality:
+
+  for a `.webp` or `.jpg` `out_path`, compression quality 1-100 (default
+  90)
 
 - overwrite:
 
@@ -136,6 +142,14 @@ Computation is at native resolution, tile by tile.
 
 - `rvt_compat` exists only for checking output against rvt-py and should
   be left alone otherwise; see its parameter description.
+
+## Output
+
+A Cloud-Optimized GeoTIFF, values 0-1. Give `out_path` a `.webp` or
+`.jpg` extension to write a plain greyscale picture instead, with no
+GeoTIFF made along the way and no georeferencing; see
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+for the formats.
 
 ## Examples
 

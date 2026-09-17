@@ -125,6 +125,18 @@ raster's own minimum and maximum are used, measured once before any tile is
 read. Set it to concentrate contrast where it matters - <code>c(0.7, 1)</code> on a
 sky-view factor spreads out the band where ordinary terrain actually lives.
 <code><a href="rvt_range.html">rvt_range()</a></code> reads a percentile stretch off the raster.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="different-resolutions">Different resolutions<a class="anchor" aria-label="anchor" href="#different-resolutions"></a></h2>
+
+
+<p>Layers may differ in resolution by a whole factor - a 0.2 m orthophoto under
+a 1 m hillshade, say - as long as they cover the same extent in the same
+coordinate system. The result is rendered at the finest resolution in the
+stack, and coarser layers are upsampled onto it with bilinear interpolation
+when rendering. Rasters fetched for one place with <code><a href="rvt_data_lgln.html">rvt_data_lgln()</a></code> or
+<code><a href="rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code> line up this way. Anything else stops with an error
+naming the mismatch, rather than blending misaligned.</p>
 <p>A three-band layer is stretched over a single range spanning all its bands,
 never one range per band: stretching each channel to its own extremes would
 shift the colour balance. Stretch the channels yourself first if that is
@@ -143,9 +155,9 @@ ready-made archaeological composite.</p></div>
 <span class="r-in"><span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">rvt_blend</span><span class="op">(</span><span class="va">hs</span>, <span class="va">svf</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;rvt_stack&gt; 2 layers, bottom to top</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   1. file214b3995d2cc.tif         (background) opacity 1.00  range auto</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   2. file214b6a1102eb.tif         multiply    opacity 0.25  range auto</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Not a raster yet - call rvt_render() to write it.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1. file218c7150d009.tif         (background) opacity 1.00  range auto</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2. file218c52bb70eb.tif         multiply    opacity 0.25  range auto</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

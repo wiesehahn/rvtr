@@ -92,6 +92,20 @@ terrain actually lives.
 [`rvt_range()`](https://wiesehahn.github.io/rvtr/reference/rvt_range.md)
 reads a percentile stretch off the raster.
 
+## Different resolutions
+
+Layers may differ in resolution by a whole factor - a 0.2 m orthophoto
+under a 1 m hillshade, say - as long as they cover the same extent in
+the same coordinate system. The result is rendered at the finest
+resolution in the stack, and coarser layers are upsampled onto it with
+bilinear interpolation when rendering. Rasters fetched for one place
+with
+[`rvt_data_lgln()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln.md)
+or
+[`rvt_data_mapterhorn()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_mapterhorn.md)
+line up this way. Anything else stops with an error naming the mismatch,
+rather than blending misaligned.
+
 A three-band layer is stretched over a single range spanning all its
 bands, never one range per band: stretching each channel to its own
 extremes would shift the colour balance. Stretch the channels yourself
@@ -113,7 +127,7 @@ hs <- rvt_hillshade(dem)
 svf <- rvt_svf(dem)
 rvt_blend(hs, svf, "multiply", opacity = 0.25)
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file214b3995d2cc.tif         (background) opacity 1.00  range auto
-#>   2. file214b6a1102eb.tif         multiply    opacity 0.25  range auto
-#> Not a raster yet - call rvt_render() to write it.
+#>   1. file218c7150d009.tif         (background) opacity 1.00  range auto
+#>   2. file218c52bb70eb.tif         multiply    opacity 0.25  range auto
+#> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```

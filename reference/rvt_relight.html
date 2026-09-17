@@ -89,8 +89,10 @@ than a flat photo with shading laid over it.</p>
 
 
 <dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
-<dd><p>surface or terrain model on exactly the orthophoto's grid, or a
-vector of paths to mosaic</p></dd>
+<dd><p>surface or terrain model covering the orthophoto's extent, or a
+vector of paths to mosaic. Its resolution may differ from the photo's by a
+whole factor: a 1 m surface under a 0.2 m photo is lit at 1 m and the
+light upsampled, so the result keeps the photo's full resolution.</p></dd>
 
 
 <dt id="arg-out-path">out_path<a class="anchor" aria-label="anchor" href="#arg-out-path"></a></dt>
@@ -210,6 +212,10 @@ lower sun.</p>
 <p>A three-band, 8-bit Cloud-Optimized GeoTIFF compressed with WebP. <code>quality</code>
 trades file size for fidelity; the default of 90 is visually lossless for
 imagery at typical viewing sizes.</p>
+<p>Give <code>out_path</code> a <code>.webp</code> or <code>.jpg</code> extension to write a plain picture
+instead, for web pages and reports: no georeferencing, and no GeoTIFF made
+along the way. WebP is the smaller of the two; JPEG is readable everywhere
+and allows larger images. See <code><a href="rvt_image.html">rvt_image()</a></code> for the comparison.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

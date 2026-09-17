@@ -102,6 +102,8 @@
   : Quick-look plot of a raster
 - [`rvt_plot3d()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot3d.md)
   : Interactive 3D view of a terrain model
+- [`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+  : Save a raster or blend as an image
 - [`rvt_palettes()`](https://wiesehahn.github.io/rvtr/reference/rvt_palettes.md)
   : Browse the colour palettes
 

@@ -182,6 +182,11 @@
 <td>quick 2D and interactive 3D views</td>
 </tr>
 <tr>
+<td></td>
+<td><code><a href="reference/rvt_image.html">rvt_image()</a></code></td>
+<td>any raster or blend as a WebP or JPEG picture, with a palette</td>
+</tr>
+<tr>
 <td><strong>Data</strong></td>
 <td><code><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code></td>
 <td>terrain for anywhere in the world, from 30 m down to 0.25 m where published</td>
@@ -214,19 +219,22 @@
 <div class="section level2">
 <h2 id="blending">Blending<a class="anchor" aria-label="anchor" href="#blending"></a>
 </h2>
-<p>Layer finished rasters with the blend modes a GIS offers. The piped raster is the background, and nothing is computed until you plot or render:</p>
+<p>Layer finished rasters with the blend modes a GIS offers. The piped raster is the background, and nothing is computed until you plot or render. Layers may differ in resolution by a whole factor, such as a 0.2 m orthophoto under a 1 m hillshade; the result keeps the finest one.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="fu"><a href="reference/rvt_openness.html">rvt_openness</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span>, <span class="st">"overlay"</span>,  opacity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="fu"><a href="reference/rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span>,      <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="reference/rvt_render.html">rvt_render</a></span><span class="op">(</span><span class="st">"relief.tif"</span><span class="op">)</span></span></code></pre></div>
+<p>End the path in <code>.webp</code> or <code>.jpg</code> instead to get a picture for a web page or report directly. <code><a href="reference/rvt_relight.html">rvt_relight()</a></code> and <code><a href="reference/rvt_vat.html">rvt_vat()</a></code> do the same, and <code><a href="reference/rvt_image.html">rvt_image()</a></code> makes a picture of any other result with a colour palette:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/rvt_image.html">rvt_image</a></span><span class="op">(</span><span class="st">"svf.webp"</span>, <span class="st">"Viridis"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>The <a href="vignettes/blending.Rmd">blending vignette</a> walks through all thirteen modes.</p>
 </div>
 <div class="section level2">
 <h2 id="getting-terrain">Getting terrain<a class="anchor" aria-label="anchor" href="#getting-terrain"></a>
 </h2>
 <p><code><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn()</a></code> returns terrain for any point or extent on Earth from <a href="https://mapterhorn.com" class="external-link">Mapterhorn</a>: 30 m everywhere, and national LiDAR models where they are published, such as 1 m across Germany and 0.5 m in Switzerland. It picks the finest resolution available and reprojects to the local UTM zone, so distances stay in metres. Nothing is downloaded until something reads the data.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">7.6586</span>, <span class="fl">45.9763</span><span class="op">)</span> <span class="op">|&gt;</span>                        <span class="co"># longitude, latitude: the Matterhorn</span></span>
 <span>  <span class="fu"><a href="reference/rvt_data_mapterhorn.html">rvt_data_mapterhorn</a></span><span class="op">(</span>res <span class="op">=</span> <span class="fl">2</span>, size <span class="op">=</span> <span class="fl">3000</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>

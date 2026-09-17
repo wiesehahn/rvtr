@@ -43,8 +43,10 @@ rvt_relight(
 
 - dem:
 
-  surface or terrain model on exactly the orthophoto's grid, or a vector
-  of paths to mosaic
+  surface or terrain model covering the orthophoto's extent, or a vector
+  of paths to mosaic. Its resolution may differ from the photo's by a
+  whole factor: a 1 m surface under a 0.2 m photo is lit at 1 m and the
+  light upsampled, so the result keeps the photo's full resolution.
 
 - out_path:
 
@@ -168,6 +170,13 @@ with an even lower sun.
 A three-band, 8-bit Cloud-Optimized GeoTIFF compressed with WebP.
 `quality` trades file size for fidelity; the default of 90 is visually
 lossless for imagery at typical viewing sizes.
+
+Give `out_path` a `.webp` or `.jpg` extension to write a plain picture
+instead, for web pages and reports: no georeferencing, and no GeoTIFF
+made along the way. WebP is the smaller of the two; JPEG is readable
+everywhere and allows larger images. See
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+for the comparison.
 
 ## See also
 
