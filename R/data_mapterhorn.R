@@ -235,22 +235,40 @@
     '<ZeroBlockHttpCodes>204,404</ZeroBlockHttpCodes></GDAL_WMS>'),
     .mt_tiles_url, -.mt_merc, .mt_merc, .mt_merc, -.mt_merc, z), wms)
 
-  # Terrarium: elevation = R * 256 + G + B / 256 - 32768. A missing tile reads
-  # as 0, 0, 0 and so decodes to exactly -32768, which becomes NoData.
+  # Terrarium: elevation = R * 256 + G + B / 256 - 32768. This level decodes
+  # only R * 256 + G + B / 256, the elevation plus 32768; .mt_vrt() subtracts
+  # the offset at the very end. A missing tile reads as 0, 0, 0, so it decodes
+  # to exactly 0, which is NoData here - no real terrain comes near it.
+  #
+  # Two things were learnt the hard way:
+  # * The `expression` pixel function (the first version) only exists since
+  #   GDAL 3.11. The GitHub runners' Ubuntu GDAL is 3.8, where every read
+  #   failed with "read raster failed". `sum` over ComplexSources with a
+  #   per-source scale dates back to GDAL 2.2.
+  # * The offset cannot sit in a source's ScaleOffset. GDAL skips a source
+  #   whose blocks are empty (a missing tile), so the offset is never applied
+  #   there and the cell reads 0 instead of -32768 - a valid height rather
+  #   than NoData, which silently stopped coarser levels filling the hole.
+  #   Keeping the level offset-free makes a missing tile 0 either way.
+  # Sources are read as Float64, so every term - multiples of 1/256 up to
+  # 65535 - is exact.
   n <- 512 * 2^z
   px <- 2 * .mt_merc / n
-  src <- function(b) sprintf(paste0('<SimpleSource><SourceFilename relativeToVRT="0">%s',
-                                    '</SourceFilename><SourceBand>%d</SourceBand></SimpleSource>'),
-                             wms, b)
+  src <- function(b, ratio) sprintf(paste0(
+    '<ComplexSource><SourceFilename relativeToVRT="0">%s</SourceFilename>',
+    '<SourceBand>%d</SourceBand><ScaleOffset>0</ScaleOffset>',
+    '<ScaleRatio>%s</ScaleRatio></ComplexSource>'),
+    wms, b, format(ratio, digits = 17))
   vrt <- fs::file_temp(ext = "vrt")
   writeLines(sprintf(paste0(
     '<VRTDataset rasterXSize="%.0f" rasterYSize="%.0f"><SRS>EPSG:3857</SRS>',
     '<GeoTransform>%.9f, %.12f, 0, %.9f, 0, %.12f</GeoTransform>',
-    '<VRTRasterBand dataType="Float32" band="1" subClass="VRTDerivedRasterBand">',
-    '<NoDataValue>-32768</NoDataValue><PixelFunctionType>expression</PixelFunctionType>',
-    '<PixelFunctionArguments expression="B1 * 256 + B2 + B3 / 256 - 32768" dialect="muparser"/>',
+    '<VRTRasterBand dataType="Float64" band="1" subClass="VRTDerivedRasterBand">',
+    '<NoDataValue>0</NoDataValue><PixelFunctionType>sum</PixelFunctionType>',
+    '<SourceTransferType>Float64</SourceTransferType>',
     '%s%s%s</VRTRasterBand></VRTDataset>'),
-    n, n, -.mt_merc, px, .mt_merc, -px, src(1), src(2), src(3)), vrt)
+    n, n, -.mt_merc, px, .mt_merc, -px,
+    src(1, 256), src(2, 1), src(3, 1 / 256)), vrt)
   vrt
 }
 
@@ -280,19 +298,55 @@
     # * the default approximate transform is fitted per chunk; -et 0 is exact
     # -ovr NONE: the zoom is chosen here, never by the warper.
     scale <- sprintf("%.12f", .mt_px(z, lat) / res)
+    # Float64: the level still carries the +32768 offset, and Float32 at that
+    # magnitude only resolves ~4 mm
     gdalraster::warp(.mt_level_vrt(z), out, t_srs = crs,
       cl_arg = c("-of", "VRT", "-te", sprintf("%.6f", extent), "-tr", tr, tr,
-                 "-r", "cubic", "-ot", "Float32", "-et", "0", "-ovr", "NONE",
+                 "-r", "cubic", "-ot", "Float64", "-et", "0", "-ovr", "NONE",
                  "-wo", paste0("XSCALE=", scale), "-wo", paste0("YSCALE=", scale),
-                 "-srcnodata", "-32768", "-dstnodata", "-9999"),
+                 "-srcnodata", "0", "-dstnodata", "-9999"),
       quiet = TRUE)
     out
   }, character(1))
-  if (length(warped) == 1L) return(warped)
+
+  # Stack coarse under fine and remove the Terrarium offset in one VRT. Every
+  # source declares NODATA, so a missing cell is skipped - the finer level
+  # shows only where it has data - and the offset is applied to real values
+  # only. The warped levels share one grid, so nothing is resampled here.
+  g <- gdalraster::GDALRaster$new(warped[1], read_only = TRUE)
+  nx <- g$getRasterXSize(); ny <- g$getRasterYSize()
+  gt <- g$getGeoTransform(); wkt <- g$getProjection()
+  g$close()
+  srcs <- vapply(warped, function(w) sprintf(paste0(
+    '<ComplexSource><SourceFilename relativeToVRT="0">%s</SourceFilename>',
+    '<SourceBand>1</SourceBand><NODATA>-9999</NODATA>',
+    '<ScaleOffset>-32768</ScaleOffset><ScaleRatio>1</ScaleRatio></ComplexSource>'),
+    w), character(1))
+  # The stack is Float64: GDAL applies a source's offset in the band's data
+  # type, and Float32 at ~33000 rounds to 1/256 m (measured: up to 0.002 m off).
+  # A Float32 wrapper converts once the offset is gone, at ~400 m where Float32
+  # is exact to well below a millimetre.
+  header <- sprintf(paste0(
+    '<VRTDataset rasterXSize="%d" rasterYSize="%d"><SRS>%s</SRS>',
+    '<GeoTransform>%s</GeoTransform>'),
+    nx, ny, .xml_escape(wkt), paste(sprintf("%.12f", gt), collapse = ", "))
+  stack <- fs::file_temp(ext = "vrt")
+  writeLines(paste0(header,
+    '<VRTRasterBand dataType="Float64" band="1"><NoDataValue>-9999</NoDataValue>',
+    paste(srcs, collapse = ""), '</VRTRasterBand></VRTDataset>'), stack)
   out <- fs::file_temp(ext = "vrt")
-  gdalraster::buildVRT(out, warped,
-    cl_arg = c("-srcnodata", "-9999", "-vrtnodata", "-9999"), quiet = TRUE)
+  writeLines(paste0(header,
+    '<VRTRasterBand dataType="Float32" band="1"><NoDataValue>-9999</NoDataValue>',
+    sprintf(paste0('<SimpleSource><SourceFilename relativeToVRT="0">%s</SourceFilename>',
+                   '<SourceBand>1</SourceBand></SimpleSource>'), stack),
+    '</VRTRasterBand></VRTDataset>'), out)
   out
+}
+
+.xml_escape <- function(x) {
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  gsub(">", "&gt;", x, fixed = TRUE)
 }
 
 ## Short, stable name for a CRS in cache file names. A hash of the WKT, not
