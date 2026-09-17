@@ -718,11 +718,16 @@ test_that("Laplacian-of-Gaussian is flat on a plane and signed across an edge", 
   step <- matrix(100, n, n); step[, 42:n] <- 101
   sp <- make_raster(step)
   lg <- read_band(rvt_log(sp, sigma = 2))[41, ]
-  # a step produces the classic antisymmetric pair: positive on the low side,
-  # negative on the high side, summing to ~0
-  expect_gt(max(lg[35:41]), 0)
-  expect_lt(min(lg[42:48]), 0)
+  # a step produces the classic antisymmetric pair, summing to ~0. Convex is
+  # positive, as for rvt_curvature(): the lip on the high side is positive,
+  # the foot on the low side negative - the negative of the raw Laplacian
+  expect_lt(min(lg[35:41]), 0)
+  expect_gt(max(lg[42:48]), 0)
   expect_equal(sum(lg[35:48]), 0, tolerance = 1e-6)
+
+  # and the same sign as curvature on the same edge
+  cv <- read_band(rvt_curvature(sp))[41, ]
+  expect_equal(sign(lg[c(39, 44)]), sign(cv[c(41, 42)]))
 
   unlink(c(pl, sp))
 })

@@ -227,10 +227,12 @@ rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
   w / sum(w)
 }
 
+## Negated: the Laplacian is positive in hollows, and this package reads convex
+## as positive throughout (curvature, relief models), so LoG follows suit.
 .log_tile <- function(tile, sigma, threads) {
   g <- .gauss_kernel(sigma)
   pad <- as.integer((length(g) - 1) / 2 + 1)
-  log_kernel(.pad_edge(tile, pad), pad, nrow(tile), ncol(tile), g, threads)
+  -log_kernel(.pad_edge(tile, pad), pad, nrow(tile), ncol(tile), g, threads)
 }
 
 #' Laplacian of Gaussian (edge enhancement)
@@ -249,9 +251,12 @@ rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' **overlay**: averaged into a sky-view factor or local dominance image it
 #' sharpens edges and, usefully, counteracts the saturation those metrics
 #' suffer on steep slopes when the stretch has been set for gentle ground.
-#' Values are centred on zero, so display it with a symmetric stretch and a
-#' diverging palette, or invert it - the guide notes an inverted greyscale
-#' reads best.
+#' Values are centred on zero and **convex ground is positive**, as in
+#' [rvt_curvature()] and the relief models: the lip of a bank or the top of an
+#' edge reads positive, a ditch bottom or the foot of a slope negative. That is
+#' the negative of the raw Laplacian, so where Kokalj and Hesse recommend an
+#' inverted greyscale for the Laplacian, a plain greyscale gives the same
+#' picture here. Display it with a symmetric stretch and a diverging palette.
 #'
 #' @section How it works:
 #' The Gaussian is separable, so smoothing is a horizontal pass followed by a
