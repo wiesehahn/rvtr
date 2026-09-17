@@ -91,10 +91,34 @@ test_that("tile borders leave no seams", {
   for (k in 1:3) expect_lte(max(abs(whole[[k]] - pieces[[k]])), 1)
 })
 
-test_that("an orthophoto on a different grid is refused", {
+test_that("an orthophoto covering a different area is refused", {
   skip_if_offline()
   rgb <- relight_crop(relight_rgb(), 300L)
   dsm <- relight_crop(relight_dsm(), 200L)
   on.exit(unlink(c(rgb, dsm)), add = TRUE)
-  expect_error(rvt_relight(rgb, dsm), "rvt_resample")
+  expect_error(rvt_relight(rgb, dsm), "same extent")
+})
+
+test_that("a coarser surface lights the photo at the photo's resolution", {
+  skip_if_offline()
+  # the same 300 m: photo at 1 m, surface at 2 m
+  rgb <- relight_crop(relight_rgb(), 300L)
+  dsm2 <- tempfile(fileext = ".tif")
+  gdalraster::translate(rvt_data_lgln(relight_pt, "dsm", res = 2), dsm2, quiet = TRUE,
+                        cl_arg = c("-srcwin", "175", "175", "150", "150"))
+  on.exit(unlink(c(rgb, dsm2)), add = TRUE)
+
+  whole <- relight_read(rvt_relight(rgb, dsm2))
+  expect_equal(c(whole$nx, whole$ny, whole$nb), c(300, 300, 3))
+  expect_equal(whole$gt, relight_read(rgb)$gt)
+  # still independent of tile_size (WebP allows one level of error)
+  pieces <- relight_read(rvt_relight(rgb, dsm2, tile_size = 137))
+  for (k in 1:3) expect_lte(max(abs(whole$bands[[k]] - pieces$bands[[k]])), 1)
+
+  # and the other way round: a coarser photo is brought up to the surface
+  rgb2 <- tempfile(fileext = ".tif")
+  gdalraster::translate(rgb, rgb2, quiet = TRUE, cl_arg = c("-outsize", "150", "150"))
+  dsm <- relight_crop(relight_dsm(), 300L)
+  on.exit(unlink(c(rgb2, dsm)), add = TRUE)
+  expect_equal(relight_read(rvt_relight(rgb2, dsm))$nx, 300)
 })

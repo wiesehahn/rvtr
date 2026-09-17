@@ -182,8 +182,14 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
 #'   the openness layer's declared 50% opacity have no effect. `FALSE`
 #'   (default) applies the opacity as configured; `TRUE` is only useful for
 #'   comparing output against rvt-py.
+#' @param quality for a `.webp` or `.jpg` `out_path`, compression quality 1-100
+#'   (default 90)
 #' @return `out_path`, invisibly. `dem` is the first argument, so this is
 #'   pipe-friendly: `dem |> rvt_vat("vat.tif")`.
+#' @section Output:
+#' A Cloud-Optimized GeoTIFF, values 0-1. Give `out_path` a `.webp` or `.jpg`
+#' extension to write a plain greyscale picture instead, with no GeoTIFF made
+#' along the way and no georeferencing; see [rvt_image()] for the formats.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' rvt_vat(dem)
@@ -192,10 +198,13 @@ rvt_vat <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16,
                 presets = list(rvt_preset_general, rvt_preset_flat),
                 tile_size = NULL, threads = rvt_threads(),
-                rvt_compat = FALSE, overwrite = FALSE, progress = FALSE) {
+                rvt_compat = FALSE, quality = 90, overwrite = FALSE,
+                progress = FALSE) {
+  .check_quality(quality)
   out_path <- .as_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
+  format <- .image_format(out_path)
 
   info <- .dem_info(dem)
   # presets carry `reach` in map units; the kernel wants whole cells
@@ -207,9 +216,14 @@ rvt_vat <- function(dem, out_path = fs::file_temp(ext = "tif"),
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, overlap)
 
   .process_tiled(dem, list(vat = out_path), overlap, tile_size,
-                  function(tile, xres, yres)
-                    .vat_tile(tile, xres, yres, num_directions, presets, threads,
-                               rvt_compat),
-                  progress = progress, threads = threads)
+                  function(tile, xres, yres) {
+                    v <- .vat_tile(tile, xres, yres, num_directions, presets,
+                                   threads, rvt_compat)
+                    if (!is.null(format)) v$vat <- .image_bands(list(v$vat), format)
+                    v
+                  },
+                  progress = progress, threads = threads,
+                  nbands = if (!is.null(format)) c(vat = .image_nbands(1L, format)),
+                  image = !is.null(format), quality = quality)
   invisible(out_path)
 }

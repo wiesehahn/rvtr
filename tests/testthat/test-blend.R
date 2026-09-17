@@ -166,8 +166,52 @@ test_that("misaligned layers are refused, not silently blended", {
   small <- tempfile(fileext = ".tif")
   gdalraster::translate(dem, small, quiet = TRUE,
                          cl_arg = c("-srcwin", "0", "0", "500", "500"))
-  on.exit(unlink(c(hs, small)), add = TRUE)
-  expect_error(rvt_blend(hs, small, "multiply"), "rvt_resample")
+  # same size and cell size as the hillshade, but shifted 10 m east: the old
+  # check compared only size and resolution, and let this through
+  shifted <- tempfile(fileext = ".tif")
+  gdalraster::translate(hs, shifted, quiet = TRUE)
+  ds <- methods::new(gdalraster::GDALRaster, shifted, read_only = FALSE)
+  gt <- ds$getGeoTransform(); gt[1] <- gt[1] + 10; ds$setGeoTransform(gt); ds$close()
+  # 2.5 m against 1 m: not a whole factor
+  r25 <- rvt_resample(dem, 2.5)
+  on.exit(unlink(c(hs, small, shifted, r25)), add = TRUE)
+
+  expect_error(rvt_blend(hs, small, "multiply"), "same extent")
+  expect_error(rvt_blend(hs, shifted, "multiply"), "same extent")
+  expect_error(rvt_blend(hs, r25, "multiply"), "whole")
+})
+
+test_that("layers at whole-factor resolutions render on the finest grid", {
+  hs <- rvt_hillshade(dem)
+  svf4 <- rvt_svf(rvt_resample(dem, 4), reach = 16)       # 250 x 250 at 4 m
+  on.exit(unlink(c(hs, svf4)), add = TRUE)
+
+  # whichever way round, the output is the fine grid
+  a <- rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0.5))
+  b <- rvt_render(rvt_blend(svf4, hs, "multiply", opacity = 0.5))
+  on.exit(unlink(c(a, b)), add = TRUE)
+  expect_equal(dim(read_b(a)), c(1000L, 1000L))
+  expect_equal(dim(read_b(b)), c(1000L, 1000L))
+  expect_output(print(rvt_blend(svf4, hs)), "1000 x 1000, 1 m")
+
+  # the coarse layer arrives smoothly, not as 4 x 4 blocks: bilinear, so
+  # neighbouring fine cells inside one coarse cell differ
+  up <- read_b(rvt_render(rvt_stack(svf4) |> rvt_blend(hs, opacity = 0)))
+  expect_gt(mean(up[2:999, 2] != up[2:999, 3]), 0.5)
+
+  # at opacity 0 the coarse layer changes nothing where it has data (NoData in
+  # any layer is NoData out, whatever its opacity)
+  fine_only <- read_b(rvt_render(rvt_stack(hs)))
+  zero <- read_b(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0)))
+  ok <- !is.na(zero)
+  expect_gt(mean(ok), 0.95)
+  expect_equal(zero[ok], fine_only[ok])
+
+  # and the render still cannot depend on tile_size
+  whole  <- read_b(a)
+  pieces <- read_b(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0.5),
+                              tile_size = 137))
+  expect_identical(whole, pieces)
 })
 
 test_that("rvt_range reads a frozen stretch off the raster", {

@@ -64,6 +64,7 @@ reference:
   contents:
   - rvt_plot
   - rvt_plot3d
+  - rvt_image
   - rvt_palettes
 
 - title: Data

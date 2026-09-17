@@ -55,6 +55,7 @@ dem |> rvt_vat() |> rvt_plot()        # ready-made composite for spotting earthw
 | **Display** | `rvt_vat()`, `rvt_blend()`, `rvt_render()` | composites and 13 blend modes |
 | | `rvt_relight()` | orthophotos lit by their own terrain, with cast and soft shadows |
 | | `rvt_plot()`, `rvt_plot3d()`, `rvt_palettes()` | quick 2D and interactive 3D views |
+| | `rvt_image()` | any raster or blend as a WebP or JPEG picture, with a palette |
 | **Data** | `rvt_data_mapterhorn()` | terrain for anywhere in the world, from 30 m down to 0.25 m where published |
 | | `rvt_data_lgln()` | open DTM, DSM and orthophotos for Lower Saxony |
 
@@ -95,13 +96,23 @@ dem |> rvt_fill() |> rvt_smooth() |> rvt_resample(2) |> rvt_curvature() |> rvt_p
 ## Blending
 
 Layer finished rasters with the blend modes a GIS offers. The piped raster is
-the background, and nothing is computed until you plot or render:
+the background, and nothing is computed until you plot or render. Layers may
+differ in resolution by a whole factor, such as a 0.2 m orthophoto under a 1 m
+hillshade; the result keeps the finest one.
 
 ```r
 dem |> rvt_hillshade() |>
   rvt_blend(rvt_openness(dem), "overlay",  opacity = 0.5) |>
   rvt_blend(rvt_svf(dem),      "multiply", opacity = 0.25) |>
   rvt_render("relief.tif")
+```
+
+End the path in `.webp` or `.jpg` instead to get a picture for a web page or
+report directly. `rvt_relight()` and `rvt_vat()` do the same, and
+`rvt_image()` makes a picture of any other result with a colour palette:
+
+```r
+dem |> rvt_svf() |> rvt_image("svf.webp", "Viridis", range = c(0.7, 1))
 ```
 
 The [blending vignette](vignettes/blending.Rmd) walks through all thirteen

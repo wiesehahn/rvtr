@@ -69,6 +69,17 @@ raster's own minimum and maximum are used, measured once before any tile is
 read. Set it to concentrate contrast where it matters - \code{c(0.7, 1)} on a
 sky-view factor spreads out the band where ordinary terrain actually lives.
 \code{\link[=rvt_range]{rvt_range()}} reads a percentile stretch off the raster.
+}
+
+\section{Different resolutions}{
+
+Layers may differ in resolution by a whole factor - a 0.2 m orthophoto under
+a 1 m hillshade, say - as long as they cover the same extent in the same
+coordinate system. The result is rendered at the finest resolution in the
+stack, and coarser layers are upsampled onto it with bilinear interpolation
+when rendering. Rasters fetched for one place with \code{\link[=rvt_data_lgln]{rvt_data_lgln()}} or
+\code{\link[=rvt_data_mapterhorn]{rvt_data_mapterhorn()}} line up this way. Anything else stops with an error
+naming the mismatch, rather than blending misaligned.
 
 A three-band layer is stretched over a single range spanning all its bands,
 never one range per band: stretching each channel to its own extremes would

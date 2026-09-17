@@ -93,15 +93,65 @@ rvt_blend_modes <- c("normal", "lighten", "darken", "multiply", "screen",
                       "addition", "subtract", "difference", "overlay",
                       "hard_light", "dodge", "burn", "soft_light")
 
-## Grid identity, checked up front rather than discovered as garbage output.
-.check_aligned <- function(base, other, what) {
-  a <- .dem_info(base); b <- .dem_info(other)
-  if (a$nx != b$nx || a$ny != b$ny ||
-      !isTRUE(all.equal(a$xres, b$xres)) || !isTRUE(all.equal(a$yres, b$yres)))
-    stop(sprintf(
-      "`%s` is %d x %d at %g m, but the stack is %d x %d at %g m.\nBlending needs one grid - see `rvt_resample()`.",
-      what, b$nx, b$ny, b$xres, a$nx, a$ny, a$xres), call. = FALSE)
-  invisible(TRUE)
+## A raster's grid: size, cell size, extent and CRS.
+.grid <- function(path) {
+  ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
+  on.exit(ds$close())
+  res <- ds$res()
+  list(nx = ds$getRasterXSize(), ny = ds$getRasterYSize(),
+       xres = res[1], yres = res[2], bbox = as.numeric(ds$bbox()),
+       srs = ds$getProjection())
+}
+
+## Two grids can be combined when they cover the same extent in the same CRS
+## and one is an exact whole-factor subdivision of the other - 1 m over 0.2 m,
+## not 1 m over 0.3 m. Returns the finer grid, which is the one layers are
+## brought onto. Checked up front rather than discovered as garbage output;
+## comparing extents matters as much as sizes, since two equally sized rasters
+## shifted against each other would otherwise blend misaligned.
+.grid_join <- function(a, b, what, base = "the stack") {
+  fmt <- function(g) sprintf("%d x %d at %g m", g$nx, g$ny, g$xres)
+  if (nzchar(a$srs) && nzchar(b$srs) && !gdalraster::srs_is_same(a$srs, b$srs))
+    stop(sprintf("`%s` is in a different coordinate system from %s.", what, base),
+         call. = FALSE)
+  whole <- function(r) r >= 1 && abs(r - round(r)) < 1e-6
+  rx <- a$xres / b$xres; ry <- a$yres / b$yres
+  finer <- if (whole(rx) && whole(ry)) b
+           else if (whole(1 / rx) && whole(1 / ry)) a
+           else NULL
+  if (is.null(finer))
+    stop(sprintf(paste0(
+      "`%s` is %s, but %s is %s.\nResolutions can differ, but only by a whole ",
+      "factor (e.g. 1 m and 0.2 m) - see `rvt_resample()`."),
+      what, fmt(b), base, fmt(a)), call. = FALSE)
+  tol <- min(a$xres, b$xres) * 1e-3
+  if (any(abs(a$bbox - b$bbox) > tol))
+    stop(sprintf(paste0(
+      "`%s` covers %s, but %s covers %s.\nLayers must cover the same extent; ",
+      "fetch or crop them for the same area."),
+      what, paste(format(b$bbox, nsmall = 1), collapse = ", "), base,
+      paste(format(a$bbox, nsmall = 1), collapse = ", ")), call. = FALSE)
+  finer
+}
+
+## Bring a coarser raster onto grid `g` (same extent, whole-factor finer).
+## Written to a real file, never left as a lazy VRT, so no read downstream can
+## depend on tile_size. Bilinear: smooth, and unlike cubic it cannot overshoot,
+## which on a 0/1 shadow layer would ring around every shadow edge. Nearest
+## (cell replication) was tried and judged worse on screen, despite keeping
+## edges exact. -ovr NONE keeps a source COG's overviews out of it.
+.upsample <- function(path, g) {
+  out <- fs::file_temp(ext = "tif")
+  gdalraster::translate(path, out, quiet = TRUE,
+    cl_arg = c("-outsize", g$nx, g$ny, "-r", "bilinear", "-ovr", "NONE",
+               "-co", "TILED=YES", "-co", "COMPRESS=DEFLATE",
+               "-co", "BIGTIFF=IF_SAFER"))
+  out
+}
+
+.on_grid <- function(path, g) {
+  h <- .grid(path)
+  h$nx == g$nx && h$ny == g$ny
 }
 
 .nbands <- function(path) {
@@ -186,7 +236,8 @@ rvt_range <- function(path, pct = NULL, band = 1L, max_dim = 1000L) {
 #' @export
 rvt_stack <- function(base, range = NULL, invert = FALSE) {
   if (inherits(base, "rvt_stack")) return(base)
-  s <- list(layers = list(.layer(base, "normal", 1, range, invert)))
+  l <- .layer(base, "normal", 1, range, invert)
+  s <- list(layers = list(l), grid = .grid(l$path))
   class(s) <- "rvt_stack"
   s
 }
@@ -234,6 +285,15 @@ rvt_stack <- function(base, range = NULL, invert = FALSE) {
 #' sky-view factor spreads out the band where ordinary terrain actually lives.
 #' [rvt_range()] reads a percentile stretch off the raster.
 #'
+#' @section Different resolutions:
+#' Layers may differ in resolution by a whole factor - a 0.2 m orthophoto under
+#' a 1 m hillshade, say - as long as they cover the same extent in the same
+#' coordinate system. The result is rendered at the finest resolution in the
+#' stack, and coarser layers are upsampled onto it with bilinear interpolation
+#' when rendering. Rasters fetched for one place with [rvt_data_lgln()] or
+#' [rvt_data_mapterhorn()] line up this way. Anything else stops with an error
+#' naming the mismatch, rather than blending misaligned.
+#'
 #' A three-band layer is stretched over a single range spanning all its bands,
 #' never one range per band: stretching each channel to its own extremes would
 #' shift the colour balance. Stretch the channels yourself first if that is
@@ -261,7 +321,7 @@ rvt_blend <- function(x, layer, mode = "normal", opacity = 1,
                        range = NULL, invert = FALSE) {
   s <- rvt_stack(x)
   l <- .layer(layer, mode, opacity, range, invert)
-  .check_aligned(s$layers[[1]]$path, l$path, deparse(substitute(layer)))
+  s$grid <- .grid_join(s$grid, .grid(l$path), deparse(substitute(layer)))
   s$layers <- c(s$layers, list(l))
   s
 }
@@ -279,7 +339,9 @@ print.rvt_stack <- function(x, ...) {
                 else sprintf("range %g-%g", l$range[1], l$range[2]),
                 if (l$invert) ", inverted" else ""))
   }
-  cat("Not a raster yet - call rvt_render() to write it.\n")
+  g <- x$grid
+  cat(sprintf("Renders at %d x %d, %g m. Not a raster yet - call rvt_render() to write it.\n",
+              g$nx, g$ny, g$xres))
   invisible(x)
 }
 
@@ -315,15 +377,25 @@ print.rvt_stack <- function(x, ...) {
 #' Render a blend stack to a raster
 #'
 #' Writes the composed image built by [rvt_blend()] as a Cloud-Optimized
-#' GeoTIFF, values 0-1, ready to display.
+#' GeoTIFF, values 0-1, ready to display - or straight to a WebP or JPEG
+#' picture when `out_path` ends in `.webp` or `.jpg`.
 #'
 #' This is where the work happens. Layers are read tile by tile and blended in
 #' one pass, so a stack of any depth costs a single traverse of the data.
 #' Each layer's stretch range is measured once, before the first tile, which is
 #' what keeps the result independent of `tile_size`.
 #'
+#' @section Output:
+#' The file extension decides the format. `.tif` writes a Cloud-Optimized
+#' GeoTIFF to use in a GIS. `.webp` and `.jpg` write a plain picture with no
+#' georeferencing, for web pages and reports, with no GeoTIFF made along the
+#' way; see [rvt_image()] for how the two formats compare. A single-band blend
+#' is written in grey; for a colour palette use
+#' `rvt_image(stack, "out.webp", col = ...)`.
+#'
 #' @param stack an `rvt_stack` from [rvt_blend()]
-#' @param out_path where to write; defaults to a temporary file
+#' @param out_path where to write; defaults to a temporary GeoTIFF
+#' @param quality for `.webp` and `.jpg`, compression quality 1-100 (default 90)
 #' @inheritParams rvt_svf
 #' @return `out_path`, invisibly
 #' @seealso [rvt_blend()]
@@ -334,13 +406,36 @@ print.rvt_stack <- function(x, ...) {
 #'   rvt_render()
 #' @export
 rvt_render <- function(stack, out_path = fs::file_temp(ext = "tif"),
-                        tile_size = NULL, threads = rvt_threads(),
+                        quality = 90, tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   if (!inherits(stack, "rvt_stack"))
     stop("`stack` must come from rvt_blend() or rvt_stack()", call. = FALSE)
+  .check_quality(quality)
   out_path <- .as_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
+  format <- .image_format(out_path)
 
+  r <- .render_setup(stack)
+  on.exit(.rm_path(r$temp), add = TRUE)
+  g <- stack$grid
+  if (is.null(tile_size)) tile_size <- .auto_tile_size(g$nx, g$ny, 0L)
+
+  .process_tiled(r$src, list(blend = out_path), 0L, tile_size,
+                  function(tile, xres, yres, ctx) {
+                    b <- .blend_tile(tile, r$layers, r$nb, ctx)
+                    list(blend = if (is.null(format)) b else .image_bands(b, format))
+                  },
+                  progress = progress, threads = threads,
+                  nbands = c(blend = if (is.null(format)) r$nb
+                                     else .image_nbands(r$nb, format)),
+                  aux = r$aux, image = !is.null(format), quality = quality)
+  invisible(out_path)
+}
+
+## Everything a render needs before the first tile: ranges frozen, coarser
+## layers upsampled, and every band of every layer as an aux entry. Shared by
+## rvt_render() and rvt_image(). `temp` lists files the caller must remove.
+.render_setup <- function(stack) {
   layers <- stack$layers
   # Freeze every range *now*, before a single tile is read. A range derived
   # per tile would make the same ground read differently depending on which
@@ -358,6 +453,17 @@ rvt_render <- function(stack, out_path = fs::file_temp(ext = "tif"),
       l$range <- c(min(rs[1, ]), max(rs[2, ]))
     }
     if (!all(is.finite(l$range)) || l$range[1] >= l$range[2]) l$range <- c(0, 1)
+    l
+  })
+
+  # Layers coarser than the finest are upsampled onto its grid - after the
+  # ranges are frozen above, which read the original rasters.
+  ups <- character(0)
+  layers <- lapply(layers, function(l) {
+    if (!.on_grid(l$path, stack$grid)) {
+      l$path <- .upsample(l$path, stack$grid)
+      ups <<- c(ups, l$path)
+    }
     l
   })
 
@@ -379,13 +485,5 @@ rvt_render <- function(stack, out_path = fs::file_temp(ext = "tif"),
     layers[[i]]$aux <- idx
   }
 
-  info <- .dem_info(layers[[1]]$path)
-  if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 0L)
-
-  .process_tiled(layers[[1]]$path, list(blend = out_path), 0L, tile_size,
-                  function(tile, xres, yres, ctx)
-                    list(blend = .blend_tile(tile, layers, nb, ctx)),
-                  progress = progress, threads = threads,
-                  nbands = c(blend = nb), aux = aux)
-  invisible(out_path)
+  list(layers = layers, aux = aux, nb = nb, src = layers[[1]]$path, temp = ups)
 }

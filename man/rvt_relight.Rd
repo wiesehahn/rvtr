@@ -32,8 +32,10 @@ rvt_relight(
 \arguments{
 \item{ortho}{path to a three-band orthophoto}
 
-\item{dem}{surface or terrain model on exactly the orthophoto's grid, or a
-vector of paths to mosaic}
+\item{dem}{surface or terrain model covering the orthophoto's extent, or a
+vector of paths to mosaic. Its resolution may differ from the photo's by a
+whole factor: a 1 m surface under a 0.2 m photo is lit at 1 m and the
+light upsampled, so the result keeps the photo's full resolution.}
 
 \item{out_path}{where to write; defaults to a temporary file}
 
@@ -124,6 +126,11 @@ lower sun.
 A three-band, 8-bit Cloud-Optimized GeoTIFF compressed with WebP. \code{quality}
 trades file size for fidelity; the default of 90 is visually lossless for
 imagery at typical viewing sizes.
+
+Give \code{out_path} a \code{.webp} or \code{.jpg} extension to write a plain picture
+instead, for web pages and reports: no georeferencing, and no GeoTIFF made
+along the way. WebP is the smaller of the two; JPEG is readable everywhere
+and allows larger images. See \code{\link[=rvt_image]{rvt_image()}} for the comparison.
 }
 
 \examples{

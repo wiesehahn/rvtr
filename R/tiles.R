@@ -271,9 +271,24 @@ rvt_threads <- function(n = NULL) {
 ## raster is tiled.
 .process_tiled <- function(src, out_paths, overlap, tile_size, fun,
                             band = 1L, progress = FALSE, threads = rvt_threads(),
-                            nbands = NULL, aux = NULL, categorical = FALSE) {
+                            nbands = NULL, aux = NULL, categorical = FALSE,
+                            image = FALSE, quality = 90) {
   info <- .dem_info(src, band)
   nx <- info$nx; ny <- info$ny
+
+  # An output ending in .webp/.jpg is a picture, finished by .finalize_image().
+  # Only callers that produce 0-255 display bands may ask for one; a metric's
+  # Float32 values cast to Byte would be silent garbage. Size limits are
+  # checked here, before a single tile is computed.
+  formats <- lapply(out_paths, .image_format)
+  for (nm in names(out_paths)) {
+    f <- formats[[nm]]
+    if (is.null(f)) next
+    if (!isTRUE(image))
+      stop(paste("This function writes a GeoTIFF (`.tif`). For a picture, pipe",
+                 "its result into rvt_image()."), call. = FALSE)
+    .image_check_size(nx, ny, f)
+  }
 
   if (!is.null(aux)) aux <- lapply(aux, function(a) {
     ai <- .dem_info(a$path, if (is.null(a$band)) 1L else a$band)
@@ -344,9 +359,13 @@ rvt_threads <- function(n = NULL) {
     }
   }
 
-  for (nm in names(out_paths))
-    .finalize_cog(scratch_paths[[nm]], out_paths[[nm]], threads,
-                  categorical = categorical)
+  for (nm in names(out_paths)) {
+    if (is.null(formats[[nm]]))
+      .finalize_cog(scratch_paths[[nm]], out_paths[[nm]], threads,
+                    categorical = categorical)
+    else
+      .finalize_image(scratch_paths[[nm]], out_paths[[nm]], formats[[nm]], quality)
+  }
 
   invisible(out_paths)
 }

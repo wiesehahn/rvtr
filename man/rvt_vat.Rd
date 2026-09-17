@@ -12,6 +12,7 @@ rvt_vat(
   tile_size = NULL,
   threads = rvt_threads(),
   rvt_compat = FALSE,
+  quality = 90,
   overwrite = FALSE,
   progress = FALSE
 )
@@ -37,6 +38,9 @@ produce seams}
 the openness layer's declared 50\% opacity have no effect. \code{FALSE}
 (default) applies the opacity as configured; \code{TRUE} is only useful for
 comparing output against rvt-py.}
+
+\item{quality}{for a \code{.webp} or \code{.jpg} \code{out_path}, compression quality 1-100
+(default 90)}
 
 \item{overwrite}{recompute even if \code{out_path} exists}
 
@@ -106,6 +110,13 @@ tuned to give.
 \item \code{rvt_compat} exists only for checking output against rvt-py and should
 be left alone otherwise; see its parameter description.
 }
+}
+
+\section{Output}{
+
+A Cloud-Optimized GeoTIFF, values 0-1. Give \code{out_path} a \code{.webp} or \code{.jpg}
+extension to write a plain greyscale picture instead, with no GeoTIFF made
+along the way and no georeferencing; see \code{\link[=rvt_image]{rvt_image()}} for the formats.
 }
 
 \examples{

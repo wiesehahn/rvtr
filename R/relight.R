@@ -199,9 +199,16 @@ rvt_relight_styles <- list(
 #' trades file size for fidelity; the default of 90 is visually lossless for
 #' imagery at typical viewing sizes.
 #'
+#' Give `out_path` a `.webp` or `.jpg` extension to write a plain picture
+#' instead, for web pages and reports: no georeferencing, and no GeoTIFF made
+#' along the way. WebP is the smaller of the two; JPEG is readable everywhere
+#' and allows larger images. See [rvt_image()] for the comparison.
+#'
 #' @param ortho path to a three-band orthophoto
-#' @param dem surface or terrain model on exactly the orthophoto's grid, or a
-#'   vector of paths to mosaic
+#' @param dem surface or terrain model covering the orthophoto's extent, or a
+#'   vector of paths to mosaic. Its resolution may differ from the photo's by a
+#'   whole factor: a 1 m surface under a 0.2 m photo is lit at 1 m and the
+#'   light upsampled, so the result keeps the photo's full resolution.
 #' @param out_path where to write; defaults to a temporary file
 #' @param style name of a style in [rvt_relight_styles] (default `"default"`)
 #' @param sun_azimuth,sun_elevation sun position in degrees
@@ -254,7 +261,8 @@ rvt_relight <- function(ortho, dem, out_path = fs::file_temp(ext = "tif"),
   dem <- rvt_mosaic(dem)
   if (.nbands(ortho) != 3L)
     stop("`ortho` must have three bands (red, green, blue).", call. = FALSE)
-  .check_aligned(dem, ortho, "ortho")
+  dem_grid <- .grid(dem)
+  g <- .grid_join(dem_grid, .grid(ortho), "ortho", base = "`dem`")
 
   tmp <- function() fs::file_temp(ext = "tif")
   hs <- rvt_hillshade(dem, tmp(), sun_azimuth = p$sun_azimuth,
@@ -268,7 +276,22 @@ rvt_relight <- function(ortho, dem, out_path = fs::file_temp(ext = "tif"),
                             reach = p$reach, threads = threads)),
     character(1))
   scratch <- tmp()
-  on.exit(.rm_path(c(hs, svf, shadows, scratch)), add = TRUE)
+  made <- c(hs, svf, shadows, scratch)
+  on.exit(.rm_path(made), add = TRUE)
+
+  # Whichever side is coarser is upsampled onto the finer grid. A 1 m surface
+  # under a 0.2 m photo keeps every pixel of the photo: the light is computed
+  # at the surface's own resolution, where it costs 25 times less, and is
+  # smooth at 0.2 m anyway.
+  if (dem_grid$nx != g$nx || dem_grid$ny != g$ny) {
+    hs <- .upsample(hs, g); svf <- .upsample(svf, g)
+    shadows <- vapply(shadows, .upsample, character(1), g = g, USE.NAMES = FALSE)
+    made <- c(made, hs, svf, shadows)
+  }
+  if (!.on_grid(ortho, g)) {
+    ortho <- .upsample(ortho, g)
+    made <- c(made, ortho)
+  }
 
   aux <- c(lapply(1:3, function(b)
              list(path = ortho, band = b, fac = 1L, overlap = 0L)),
@@ -276,6 +299,20 @@ rvt_relight <- function(ortho, dem, out_path = fs::file_temp(ext = "tif"),
            lapply(shadows, function(s) list(path = s, fac = 1L, overlap = 0L)))
   info <- .dem_info(hs)
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 0L)
+
+  # a picture: written straight from the tiled pass, no GeoTIFF in between
+  format <- .image_format(out_path)
+  if (!is.null(format)) {
+    .process_tiled(hs, list(relight = out_path), 0L, tile_size,
+                   function(tile, xres, yres, ctx) {
+                     b <- .relight_tile(tile, ctx, p, length(shadows))
+                     list(relight = .image_bands(lapply(b, `/`, 255), format))
+                   },
+                   progress = progress, threads = threads,
+                   nbands = c(relight = .image_nbands(3L, format)), aux = aux,
+                   image = TRUE, quality = quality)
+    return(invisible(out_path))
+  }
 
   .process_tiled(hs, list(relight = scratch), 0L, tile_size,
                  function(tile, xres, yres, ctx)

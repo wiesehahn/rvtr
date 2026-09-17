@@ -7,6 +7,7 @@
 rvt_render(
   stack,
   out_path = fs::file_temp(ext = "tif"),
+  quality = 90,
   tile_size = NULL,
   threads = rvt_threads(),
   overwrite = FALSE,
@@ -16,7 +17,9 @@ rvt_render(
 \arguments{
 \item{stack}{an \code{rvt_stack} from \code{\link[=rvt_blend]{rvt_blend()}}}
 
-\item{out_path}{where to write; defaults to a temporary file}
+\item{out_path}{where to write; defaults to a temporary GeoTIFF}
+
+\item{quality}{for \code{.webp} and \code{.jpg}, compression quality 1-100 (default 90)}
 
 \item{tile_size}{tile edge in pixels; NULL picks a size targeting roughly
 256 MB per working matrix}
@@ -32,7 +35,8 @@ rvt_render(
 }
 \description{
 Writes the composed image built by \code{\link[=rvt_blend]{rvt_blend()}} as a Cloud-Optimized
-GeoTIFF, values 0-1, ready to display.
+GeoTIFF, values 0-1, ready to display - or straight to a WebP or JPEG
+picture when \code{out_path} ends in \code{.webp} or \code{.jpg}.
 }
 \details{
 This is where the work happens. Layers are read tile by tile and blended in
@@ -40,6 +44,16 @@ one pass, so a stack of any depth costs a single traverse of the data.
 Each layer's stretch range is measured once, before the first tile, which is
 what keeps the result independent of \code{tile_size}.
 }
+\section{Output}{
+
+The file extension decides the format. \code{.tif} writes a Cloud-Optimized
+GeoTIFF to use in a GIS. \code{.webp} and \code{.jpg} write a plain picture with no
+georeferencing, for web pages and reports, with no GeoTIFF made along the
+way; see \code{\link[=rvt_image]{rvt_image()}} for how the two formats compare. A single-band blend
+is written in grey; for a colour palette use
+\code{rvt_image(stack, "out.webp", col = ...)}.
+}
+
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 rvt_hillshade(dem) |>
