@@ -1,2 +1,4 @@
 *.html
 *.R
+# shared figure setup sourced by every vignette - not tangled output
+!_common.R

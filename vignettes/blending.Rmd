@@ -8,27 +8,7 @@ vignette: >
 ---
 
 ```{r options, include = FALSE}
-# Sharp figures: rendered by ragg at 120 dpi, so a full-width figure is still
-# drawn with more pixels than the page shows. JPEG at quality 80 keeps detailed
-# rasters and photos small without visible artefacts; the palette chart, flat
-# colours and fine text, overrides it with PNG. knitr knows ragg_png by name but
-# not a ragg JPEG device, hence this wrapper.
-ragg_jpeg <- function(filename, width, height, ...) {
-  ragg::agg_jpeg(filename, width = width, height = height, units = "in",
-                 res = knitr::opts_current$get("dpi"), quality = 80)
-}
-knitr::opts_chunk$set(
-  collapse = TRUE, comment = "#>", out.width = "100%",
-  fig.width = 7, fig.height = 6, dpi = 120,
-  dev = "ragg_jpeg", fig.ext = "jpeg",
-  panels = TRUE
-)
-# Narrow margins and plain, understated panel titles for every figure, set out
-# of sight so the visible code shows only what matters for blending.
-knitr::knit_hooks$set(panels = function(before, options, envir) {
-  if (before) graphics::par(mar = c(0.3, 0.3, 1.6, 0.3), font.main = 1,
-                            cex.main = 1.05, col.main = "grey20")
-})
+source("_common.R")
 ```
 
 ```{r setup, include = FALSE}
@@ -53,7 +33,7 @@ The usual answer is to lay several of them over one another, and
 `rvt_blend()` does that with the same blend modes a GIS offers.
 
 This vignette explains how a blend is built, shows all thirteen modes side by
-side, works through two composites, covers the ready-made composite the
+side, works through three composites, covers the ready-made composite the
 package provides, and ends by relighting an orthophoto with its terrain.
 
 ## The sample data
@@ -61,28 +41,41 @@ package provides, and ends by relighting an orthophoto with its terrain.
 `rvt_data_lgln()` reads open data for any place in Lower Saxony, streamed from
 the state survey authority. A point returns the 1 km tile it lies in; here,
 the tile beside Burg Hardenberg: farmland, woodland, a castle on its spur and a
-village. The orthophoto is fetched at 1 m, so it lies on the terrain grid.
+village. Three products are used: the orthophoto, fetched at 1 m so it lies on
+the terrain grid; the terrain model, the bare ground; and the surface model,
+the ground with trees and buildings on it. The [data vignette](data.html)
+covers fetching data in detail.
 
-```{r data, fig.height = 2.55}
+Below, both elevation models are shown with the anisotropic sky-view factor
+(`rvt_asvf()`), which gives a sense of light from the north-west while hiding
+nothing in shadow. The terrain model reveals the castle's spur, the slopes and
+straight lines running beneath the forest; the surface model shows the tree
+crowns and houses that cover them.
+
+```{r data, fig.width = fig_w(3), fig.height = fig_h(1), layout = c(1, 3)}
 pt  <- c(9.9464, 51.6317)                              # longitude, latitude
-dtm <- rvt_data_lgln(pt, "dtm")                        # terrain: the bare ground
 rgb <- rvt_data_lgln(pt, "rgb", year = 2025, res = 1)  # orthophoto at 1 m
+dtm <- rvt_data_lgln(pt, "dtm")                        # terrain: the bare ground
+dsm <- rvt_data_lgln(pt, "dsm")                        # surface: trees and buildings
 
-hs  <- rvt_hillshade(dtm)
-svf <- rvt_svf(dtm, reach = 10)
-
-op <- par(mfrow = c(1, 3))
-rvt_plot(rgb, main = "Orthophoto")
-rvt_plot(hs,  main = "Hillshade")
-rvt_plot(svf, main = "Sky-view factor")
-par(op)
+rvt_plot(rgb, main = "Orthophoto", max_dim = 400)
+rvt_asvf(dtm, reach = 10) |> rvt_plot(main = "Terrain model", max_dim = 400,
+                                      minmax_def = c(0.7, 1))
+rvt_asvf(dsm, reach = 10) |> rvt_plot(main = "Surface model", max_dim = 400,
+                                      minmax_def = c(0.4, 1))
 ```
-
-Each layer is downloaded the first time it is requested and read from a local
-cache afterwards.
 
 Data: © GeoBasis-DE/LGLN `r format(Sys.Date(), "%Y")`, CC BY 4.0, Daten
 geändert.
+
+Each layer is downloaded the first time it is requested and read from a local
+cache afterwards. The blends below start from two views of the terrain model,
+computed once:
+
+```{r metrics}
+hs  <- rvt_hillshade(dtm)
+svf <- rvt_svf(dtm, reach = 10)
+```
 
 ## How a blend is built
 
@@ -101,15 +94,13 @@ Order matters, because several modes treat their two inputs differently.
 `subtract` removes the layer from the background, so swapping the two gives a
 very different picture:
 
-```{r asymmetry, fig.height = 3.75}
-op <- par(mfrow = c(1, 2))
+```{r asymmetry, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
 hs |>
   rvt_blend(svf, "subtract", opacity = 0.5, range = c(0.7, 1)) |>
-  rvt_plot(main = "Hillshade minus SVF")
+  rvt_plot(main = "Hillshade minus SVF", max_dim = 400)
 rvt_stack(svf, range = c(0.7, 1)) |>
   rvt_blend(hs, "subtract", opacity = 0.5) |>
-  rvt_plot(main = "SVF minus hillshade")
-par(op)
+  rvt_plot(main = "SVF minus hillshade", max_dim = 400)
 ```
 
 Both are drawn at half opacity. At full strength the left image would be
@@ -171,16 +162,14 @@ no effect; at `1` the mode applies at full strength.
 Every mode below is applied to the same two layers: the hillshade as the
 background, and the sky-view factor over it at full opacity.
 
-```{r modes, fig.height = 5}
-op <- par(mfrow = c(3, 5))
-rvt_plot(hs,  main = "Background", max_dim = 400)
-rvt_plot(svf, main = "Layer", max_dim = 400)
+```{r modes, fig.width = fig_w(5, 240), fig.height = fig_h(3, 240), layout = c(3, 5)}
+rvt_plot(hs,  main = "Background", max_dim = 240)
+rvt_plot(svf, main = "Layer", max_dim = 240)
 for (mode in rvt_blend_modes) {
   hs |>
     rvt_blend(svf, mode, range = c(0.7, 1)) |>
-    rvt_plot(main = mode, max_dim = 400)
+    rvt_plot(main = mode, max_dim = 240)
 }
-par(op)
 ```
 
 | Mode | What it does | Use it for |
@@ -211,7 +200,7 @@ impression of relief, inverted slope sharpens breaks of slope, positive
 openness blended with `overlay` lifts convex features, and the sky-view factor
 multiplied in darkens enclosed ground.
 
-```{r relief, fig.height = 3.75}
+```{r relief, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
 slp  <- rvt_slope(dtm)
 opns <- rvt_openness(dtm, reach = 10)
 
@@ -222,10 +211,8 @@ relief <- function(slope_range, openness_range, svf_range) {
     rvt_blend(svf,  "multiply", opacity = 0.25, range = svf_range)
 }
 
-op <- par(mfrow = c(1, 2))
-relief(c(0, 50), c(68, 93), c(0.7, 1)) |> rvt_plot(main = "General ranges")
-relief(c(0, 15), c(85, 93), c(0.9, 1)) |> rvt_plot(main = "Narrow ranges")
-par(op)
+relief(c(0, 50), c(68, 93), c(0.7, 1)) |> rvt_plot(main = "General ranges", max_dim = 400)
+relief(c(0, 15), c(85, 93), c(0.9, 1)) |> rvt_plot(main = "Narrow ranges", max_dim = 400)
 ```
 
 The left image uses the layers, modes and ranges of the general-terrain half
@@ -242,16 +229,43 @@ darkens, so slopes facing away from the light become darker while sunlit ones
 keep the photo's own brightness. `soft_light` works in both directions,
 darkening shaded slopes and lightening sunlit ones.
 
-```{r ortho, fig.height = 3.75}
-op <- par(mfrow = c(1, 2))
-rgb |> rvt_blend(hs, "multiply", opacity = 0.6) |> rvt_plot(main = "Multiply at 60%")
-rgb |> rvt_blend(hs, "soft_light") |> rvt_plot(main = "Soft light")
-par(op)
+```{r ortho, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
+rgb |> rvt_blend(hs, "multiply", opacity = 0.6) |> rvt_plot(main = "Multiply at 60%", max_dim = 400)
+rgb |> rvt_blend(hs, "soft_light") |> rvt_plot(main = "Soft light", max_dim = 400)
 ```
 
 A single-band layer is applied to each of the orthophoto's three colour bands.
 The two can be blended directly because, fetched at 1 m, the orthophoto lies on
 exactly the terrain grid.
+
+### Terrain and surface together
+
+The terrain model shows the ground and the surface model what stands on it,
+and two blends show both at once.
+
+The first finds the height of everything above the ground. Stretching both
+elevation models over the same range, here 300 m, and subtracting the terrain
+from the surface leaves exactly that height, as a share of the range: 0.1 is
+30 m. Rendered to a raster, it shows the forest, the houses and the single
+trees along the field, while open ground stays black.
+
+The second uses that raster as a layer. Inverted and multiplied over the
+anisotropic sky-view factor of the terrain, it lays a grey tint wherever
+something stands, darker the taller it is. The shape of the ground stays sharp
+underneath, so the castle's spur, the slopes and the lines beneath the forest
+remain as readable as in the terrain model alone.
+
+```{r terrain-surface, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
+same <- c(120, 420)                             # one range for both models
+height <- rvt_stack(dsm, range = same) |>
+  rvt_blend(dtm, "subtract", range = same) |>
+  rvt_render()
+rvt_plot(height, main = "Height above ground", max_dim = 400, minmax_def = c(0, 0.1))
+
+rvt_stack(rvt_asvf(dtm, reach = 10), range = c(0.7, 1)) |>
+  rvt_blend(height, "multiply", opacity = 0.6, range = c(0, 0.1), invert = TRUE) |>
+  rvt_plot(main = "Ground tinted by what stands on it", max_dim = 400)
+```
 
 ## Ready-made composites
 
@@ -261,15 +275,13 @@ stack from the recipe above twice, once with settings for ordinary relief and
 once tuned for flat ground, and averages the two, so a single call works across
 mixed terrain. Passing the same preset twice renders one terrain type alone.
 
-```{r vat, fig.height = 2.55}
+```{r vat, fig.width = fig_w(3), fig.height = fig_h(1), layout = c(1, 3)}
 general <- list(rvt_preset_general, rvt_preset_general)
 flat    <- list(rvt_preset_flat, rvt_preset_flat)
 
-op <- par(mfrow = c(1, 3))
-rvt_vat(dtm) |> rvt_plot(main = "VAT combined")
-rvt_vat(dtm, presets = general) |> rvt_plot(main = "VAT general")
-rvt_vat(dtm, presets = flat) |> rvt_plot(main = "VAT flat")
-par(op)
+rvt_vat(dtm) |> rvt_plot(main = "VAT combined", max_dim = 400)
+rvt_vat(dtm, presets = general) |> rvt_plot(main = "VAT general", max_dim = 400)
+rvt_vat(dtm, presets = flat) |> rvt_plot(main = "VAT flat", max_dim = 400)
 ```
 
 The two presets differ in more than their stretch ranges. The flat-terrain
@@ -299,14 +311,11 @@ tile, where trees and buildings cover more than half the ground, the whole
 image comes out at about two thirds of the photo's brightness, while sunlit
 open ground keeps nearly all of it.
 
-```{r relight, fig.height = 3.75}
-dsm <- rvt_data_lgln(pt, "dsm")  # ground plus trees and buildings
+```{r relight, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
 true_colour <- c(0, 0, 0, 255, 255, 255)
 
-op <- par(mfrow = c(1, 2))
-rvt_plot(rgb, main = "Orthophoto", minmax_def = true_colour)
-rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", minmax_def = true_colour)
-par(op)
+rvt_plot(rgb, main = "Orthophoto", minmax_def = true_colour, max_dim = 400)
+rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", minmax_def = true_colour, max_dim = 400)
 ```
 
 The lighting comes in named styles, listed in `rvt_relight_styles`. Any
@@ -314,16 +323,14 @@ setting passed directly overrides the style, so
 `rvt_relight(rgb, dsm, style = "winter", sun_elevation = 10)` gives a winter
 light with an even lower sun.
 
-```{r relight-styles, fig.height = 5.2}
+```{r relight-styles, fig.width = fig_w(3), fig.height = fig_h(2), layout = c(2, 3)}
 styles <- c("verdant", "golden_hour", "winter",
             "twilight", "blue_hour", "vivid")
 
-op <- par(mfrow = c(2, 3))
 for (style in styles) {
   rvt_relight(rgb, dsm, style = style) |>
-    rvt_plot(main = style, minmax_def = true_colour, max_dim = 500)
+    rvt_plot(main = style, minmax_def = true_colour, max_dim = 400)
 }
-par(op)
 ```
 
 ## Choosing colours
@@ -332,6 +339,6 @@ par(op)
 `rvt_plot(svf, "Viridis")`. `rvt_palettes()` draws every available palette, so
 you can choose one by eye:
 
-```{r palettes, fig.height = 6.5, dev = "ragg_png", fig.ext = "png"}
+```{r palettes, fig.width = px(1212), fig.height = px(1125), dev = "ragg_png", fig.ext = "png"}
 rvt_palettes("sequential")
 ```

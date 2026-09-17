@@ -2,6 +2,13 @@ url: https://wiesehahn.github.io/rvtr/
 template:
   bootstrap: 5
 
+articles:
+- title: Guides
+  contents:
+  - data
+  - metrics
+  - blending
+
 reference:
 - title: Overview
   contents:

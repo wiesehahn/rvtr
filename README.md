@@ -61,7 +61,9 @@ dem |> rvt_vat() |> rvt_plot()        # ready-made composite for spotting earthw
 
 Every help page explains how the method works, how to tune it, and which
 settings suit flat, moderate and steep terrain. `?rvtr` gives an overview of
-which visualization to use where.
+which visualization to use where, and the
+[metrics vignette](https://wiesehahn.github.io/rvtr/articles/metrics.html)
+shows them all side by side on the same terrain.
 
 ## Good to know
 
@@ -115,8 +117,8 @@ report directly. `rvt_relight()` and `rvt_vat()` do the same, and
 dem |> rvt_svf() |> rvt_image("svf.webp", "Viridis", range = c(0.7, 1))
 ```
 
-The [blending vignette](vignettes/blending.Rmd) walks through all thirteen
-modes.
+The [blending vignette](https://wiesehahn.github.io/rvtr/articles/blending.html)
+walks through all thirteen modes.
 
 ## Getting terrain
 
@@ -141,6 +143,9 @@ see <https://mapterhorn.com/attribution>.
 For Lower Saxony, `rvt_data_lgln()` also provides the surface model and
 orthophotos, on the survey's native grid (CC BY 4.0: © GeoBasis-DE/LGLN, year
 of download, plus "Daten geändert" for derived products).
+
+The [data vignette](https://wiesehahn.github.io/rvtr/articles/data.html) covers
+both in detail, along with using your own terrain models.
 
 ## References
 
