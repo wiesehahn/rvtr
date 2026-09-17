@@ -73,9 +73,15 @@ Kokalj and Hesse suggest using it less as a standalone product than as
 an **overlay**: averaged into a sky-view factor or local dominance image
 it sharpens edges and, usefully, counteracts the saturation those
 metrics suffer on steep slopes when the stretch has been set for gentle
-ground. Values are centred on zero, so display it with a symmetric
-stretch and a diverging palette, or invert it - the guide notes an
-inverted greyscale reads best.
+ground. Values are centred on zero and **convex ground is positive**, as
+in
+[`rvt_curvature()`](https://wiesehahn.github.io/rvtr/reference/rvt_curvature.md)
+and the relief models: the lip of a bank or the top of an edge reads
+positive, a ditch bottom or the foot of a slope negative. That is the
+negative of the raw Laplacian, so where Kokalj and Hesse recommend an
+inverted greyscale for the Laplacian, a plain greyscale gives the same
+picture here. Display it with a symmetric stretch and a diverging
+palette.
 
 ## How it works
 

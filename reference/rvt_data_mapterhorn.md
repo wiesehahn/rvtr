@@ -145,9 +145,7 @@ rvt_data_mapterhorn(c(7.6586, 45.9763), res = 2, size = 3000) |>
 #>   Modello Digitale del Terreno (DTM) - Dati estratti dal Modello Digitale del Terreno (DTM) della Regione Autonoma Valle d'Aosta, CC BY 4.0
 #>   TINITALY, a digital elevation model of Italy with a 10 meters cell size (Version 1.1) - Istituto Nazionale di Geofisica e Vulcanologia (INGV), Creative Commons Namensnennung 4.0 International (CC BY 4.0)
 #>   COPERNICUS GLO-30 - DLR e.V. 2010-2014, Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA. All rights reserved. Accessed via OpenTopography and AWS Open Data., COPERNICUS full, free and open license
-#> Warning: GDAL Error 5: VRTDerivedRasterBand::IRasterIO:Derived band pixel function 'expression' not registered.
-#> Warning: GDAL Error 1: /tmp/RtmpXpCjHd/file218c221a3081.vrt, band 1: IReadBlock failed at X offset 0, Y offset 0: VRTDerivedRasterBand::IRasterIO:Derived band pixel function 'expression' not registered.
-#> Error: read raster failed
+
 
 rvt_data_mapterhorn_sources(c(7.6586, 45.9763))
 #>        source

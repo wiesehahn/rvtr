@@ -10,7 +10,8 @@
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Blending visualizations">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
+<script src="../extra.js"></script><meta property="og:title" content="Blending visualizations">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -30,12 +31,7 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/blending.html">Blending visualizations</a></li>
-  </ul>
-</li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -72,7 +68,7 @@ the ground beneath it. The usual answer is to lay several of them over
 one another, and <code><a href="../reference/rvt_blend.html">rvt_blend()</a></code> does that with the same blend
 modes a GIS offers.</p>
 <p>This vignette explains how a blend is built, shows all thirteen modes
-side by side, works through two composites, covers the ready-made
+side by side, works through three composites, covers the ready-made
 composite the package provides, and ends by relighting an orthophoto
 with its terrain.</p>
 <div class="section level2">
@@ -81,26 +77,35 @@ with its terrain.</p>
 <p><code><a href="../reference/rvt_data_lgln.html">rvt_data_lgln()</a></code> reads open data for any place in Lower
 Saxony, streamed from the state survey authority. A point returns the 1
 km tile it lies in; here, the tile beside Burg Hardenberg: farmland,
-woodland, a castle on its spur and a village. The orthophoto is fetched
-at 1 m, so it lies on the terrain grid.</p>
+woodland, a castle on its spur and a village. Three products are used:
+the orthophoto, fetched at 1 m so it lies on the terrain grid; the
+terrain model, the bare ground; and the surface model, the ground with
+trees and buildings on it. The <a href="data.html">data vignette</a>
+covers fetching data in detail.</p>
+<p>Below, both elevation models are shown with the anisotropic sky-view
+factor (<code><a href="../reference/rvt_asvf.html">rvt_asvf()</a></code>), which gives a sense of light from the
+north-west while hiding nothing in shadow. The terrain model reveals the
+castle’s spur, the slopes and straight lines running beneath the forest;
+the surface model shows the tree crowns and houses that cover them.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pt</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9.9464</span>, <span class="fl">51.6317</span><span class="op">)</span>                              <span class="co"># longitude, latitude</span></span>
-<span><span class="va">dtm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dtm"</span><span class="op">)</span>                        <span class="co"># terrain: the bare ground</span></span>
 <span><span class="va">rgb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"rgb"</span>, year <span class="op">=</span> <span class="fl">2025</span>, res <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>  <span class="co"># orthophoto at 1 m</span></span>
+<span><span class="va">dtm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dtm"</span><span class="op">)</span>                        <span class="co"># terrain: the bare ground</span></span>
+<span><span class="va">dsm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dsm"</span><span class="op">)</span>                        <span class="co"># surface: trees and buildings</span></span>
 <span></span>
-<span><span class="va">hs</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="va">dtm</span><span class="op">)</span></span>
-<span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dtm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">rgb</span>, main <span class="op">=</span> <span class="st">"Orthophoto"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">hs</span>,  main <span class="op">=</span> <span class="st">"Hillshade"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">svf</span>, main <span class="op">=</span> <span class="st">"Sky-view factor"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">rgb</span>, main <span class="op">=</span> <span class="st">"Orthophoto"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_asvf.html">rvt_asvf</a></span><span class="op">(</span><span class="va">dtm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Terrain model"</span>, max_dim <span class="op">=</span> <span class="fl">400</span>,</span>
+<span>                                      minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_asvf.html">rvt_asvf</a></span><span class="op">(</span><span class="va">dsm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Surface model"</span>, max_dim <span class="op">=</span> <span class="fl">400</span>,</span>
+<span>                                      minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.4</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/data-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
-<p>Each layer is downloaded the first time it is requested and read from
-a local cache afterwards.</p>
 <p>Data: © GeoBasis-DE/LGLN 2026, CC BY 4.0, Daten geändert.</p>
+<p>Each layer is downloaded the first time it is requested and read from
+a local cache afterwards. The blends below start from two views of the
+terrain model, computed once:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">hs</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="va">dtm</span><span class="op">)</span></span>
+<span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dtm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="how-a-blend-is-built">How a blend is built<a class="anchor" aria-label="anchor" href="#how-a-blend-is-built"></a>
@@ -118,16 +123,13 @@ bottom up, the way a GIS layer panel does:</p>
 differently. <code>subtract</code> removes the layer from the
 background, so swapping the two gives a very different picture:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">hs</span> <span class="op">|&gt;</span></span>
+<code class="sourceCode R"><span><span class="va">hs</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">svf</span>, <span class="st">"subtract"</span>, opacity <span class="op">=</span> <span class="fl">0.5</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Hillshade minus SVF"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Hillshade minus SVF"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/rvt_stack.html">rvt_stack</a></span><span class="op">(</span><span class="va">svf</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">hs</span>, <span class="st">"subtract"</span>, opacity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"SVF minus hillshade"</span><span class="op">)</span></span></code></pre></div>
+<span>  <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"SVF minus hillshade"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/asymmetry-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <p>Both are drawn at half opacity. At full strength the left image would
 be almost entirely black, because the stretched sky-view factor (SVF) is
 brighter than the hillshade over nearly the whole tile, and a
@@ -143,16 +145,16 @@ lighter.</p>
 </h3>
 <p><code><a href="../reference/rvt_blend.html">rvt_blend()</a></code> returns a recipe, not a raster. Printing it
 lists the layers from the bottom up:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">stack</span></span>
 <span><span class="co">#&gt; &lt;rvt_stack&gt; 2 layers, bottom to top</span></span>
-<span><span class="co">#&gt;   1. file2580805b5d3.tif          (background) opacity 1.00  range auto</span></span>
-<span><span class="co">#&gt;   2. file258010e6fda.tif          multiply    opacity 0.50  range 0.7-1</span></span>
+<span><span class="co">#&gt;   1. file25b31c47576a.tif         (background) opacity 1.00  range auto</span></span>
+<span><span class="co">#&gt;   2. file25b32d8c29a4.tif         multiply    opacity 0.50  range 0.7-1</span></span>
 <span><span class="co">#&gt; Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.</span></span></code></pre></div>
 <p>However long the chain, the layers are read and blended in a single
 pass when the result is needed. <code><a href="../reference/rvt_plot.html">rvt_plot()</a></code> draws a stack
 directly, and <code><a href="../reference/rvt_render.html">rvt_render()</a></code> writes it to a file:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/rvt_render.html">rvt_render</a></span><span class="op">(</span><span class="va">stack</span>, <span class="st">"relief.tif"</span><span class="op">)</span></span></code></pre></div>
 <p>Computing the metrics is the expensive part of any composite;
 blending them is cheap. Because each metric is computed once and kept,
@@ -168,7 +170,7 @@ value from 0 to 1, but on ordinary terrain almost all of it lies near
 the top. <code>range</code> focuses the stretch on the values that
 actually occur, and <code><a href="../reference/rvt_range.html">rvt_range()</a></code> reads a percentile range
 from the raster:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/rvt_range.html">rvt_range</a></span><span class="op">(</span><span class="va">svf</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0.3161525 1.0156794</span></span>
 <span><span class="fu"><a href="../reference/rvt_range.html">rvt_range</a></span><span class="op">(</span><span class="va">svf</span>, pct <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span>
@@ -192,18 +194,15 @@ the mode applies at full strength.</p>
 </h2>
 <p>Every mode below is applied to the same two layers: the hillshade as
 the background, and the sky-view factor over it at full opacity.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">hs</span>,  main <span class="op">=</span> <span class="st">"Background"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">svf</span>, main <span class="op">=</span> <span class="st">"Layer"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">hs</span>,  main <span class="op">=</span> <span class="st">"Background"</span>, max_dim <span class="op">=</span> <span class="fl">240</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">svf</span>, main <span class="op">=</span> <span class="st">"Layer"</span>, max_dim <span class="op">=</span> <span class="fl">240</span><span class="op">)</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">mode</span> <span class="kw">in</span> <span class="va">rvt_blend_modes</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">hs</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">svf</span>, <span class="va">mode</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="va">mode</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="va">mode</span>, max_dim <span class="op">=</span> <span class="fl">240</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/modes-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -300,7 +299,7 @@ the basic impression of relief, inverted slope sharpens breaks of slope,
 positive openness blended with <code>overlay</code> lifts convex
 features, and the sky-view factor multiplied in darkens enclosed
 ground.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">slp</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_slope.html">rvt_slope</a></span><span class="op">(</span><span class="va">dtm</span><span class="op">)</span></span>
 <span><span class="va">opns</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_openness.html">rvt_openness</a></span><span class="op">(</span><span class="va">dtm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span>
 <span></span>
@@ -311,12 +310,9 @@ ground.</p>
 <span>    <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">svf</span>,  <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span>, range <span class="op">=</span> <span class="va">svf_range</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">relief</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">50</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">68</span>, <span class="fl">93</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"General ranges"</span><span class="op">)</span></span>
-<span><span class="fu">relief</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">15</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">85</span>, <span class="fl">93</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.9</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Narrow ranges"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">relief</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">50</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">68</span>, <span class="fl">93</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"General ranges"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="fu">relief</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">15</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">85</span>, <span class="fl">93</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.9</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Narrow ranges"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/relief-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <p>The left image uses the layers, modes and ranges of the
 general-terrain half of <code><a href="../reference/rvt_vat.html">rvt_vat()</a></code>. Those ranges suit rugged
 ground, and on this gently rolling tile they leave the picture pale. The
@@ -332,16 +328,42 @@ stack, every layer, mode and range can be changed individually.</p>
 become darker while sunlit ones keep the photo’s own brightness.
 <code>soft_light</code> works in both directions, darkening shaded
 slopes and lightening sunlit ones.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">rgb</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">hs</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Multiply at 60%"</span><span class="op">)</span></span>
-<span><span class="va">rgb</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">hs</span>, <span class="st">"soft_light"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Soft light"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">rgb</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">hs</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Multiply at 60%"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="va">rgb</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">hs</span>, <span class="st">"soft_light"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Soft light"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/ortho-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <p>A single-band layer is applied to each of the orthophoto’s three
 colour bands. The two can be blended directly because, fetched at 1 m,
 the orthophoto lies on exactly the terrain grid.</p>
+</div>
+<div class="section level3">
+<h3 id="terrain-and-surface-together">Terrain and surface together<a class="anchor" aria-label="anchor" href="#terrain-and-surface-together"></a>
+</h3>
+<p>The terrain model shows the ground and the surface model what stands
+on it, and two blends show both at once.</p>
+<p>The first finds the height of everything above the ground. Stretching
+both elevation models over the same range, here 300 m, and subtracting
+the terrain from the surface leaves exactly that height, as a share of
+the range: 0.1 is 30 m. Rendered to a raster, it shows the forest, the
+houses and the single trees along the field, while open ground stays
+black.</p>
+<p>The second uses that raster as a layer. Inverted and multiplied over
+the anisotropic sky-view factor of the terrain, it lays a grey tint
+wherever something stands, darker the taller it is. The shape of the
+ground stays sharp underneath, so the castle’s spur, the slopes and the
+lines beneath the forest remain as readable as in the terrain model
+alone.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">same</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">120</span>, <span class="fl">420</span><span class="op">)</span>                             <span class="co"># one range for both models</span></span>
+<span><span class="va">height</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_stack.html">rvt_stack</a></span><span class="op">(</span><span class="va">dsm</span>, range <span class="op">=</span> <span class="va">same</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">dtm</span>, <span class="st">"subtract"</span>, range <span class="op">=</span> <span class="va">same</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/rvt_render.html">rvt_render</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">height</span>, main <span class="op">=</span> <span class="st">"Height above ground"</span>, max_dim <span class="op">=</span> <span class="fl">400</span>, minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.1</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/rvt_stack.html">rvt_stack</a></span><span class="op">(</span><span class="fu"><a href="../reference/rvt_asvf.html">rvt_asvf</a></span><span class="op">(</span><span class="va">dtm</span>, reach <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="va">height</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.6</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.1</span><span class="op">)</span>, invert <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Ground tinted by what stands on it"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
+<p><img src="blending_files/figure-html/terrain-surface-1.jpeg" class="r-plt" alt="" width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -353,23 +375,20 @@ builds the four-layer relief stack from the recipe above twice, once
 with settings for ordinary relief and once tuned for flat ground, and
 averages the two, so a single call works across mixed terrain. Passing
 the same preset twice renders one terrain type alone.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">general</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">rvt_preset_general</span>, <span class="va">rvt_preset_general</span><span class="op">)</span></span>
 <span><span class="va">flat</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">rvt_preset_flat</span>, <span class="va">rvt_preset_flat</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT combined"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span>, presets <span class="op">=</span> <span class="va">general</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT general"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span>, presets <span class="op">=</span> <span class="va">flat</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT flat"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT combined"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span>, presets <span class="op">=</span> <span class="va">general</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT general"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span>, presets <span class="op">=</span> <span class="va">flat</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"VAT flat"</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/vat-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <p>The two presets differ in more than their stretch ranges. The
 flat-terrain version also lowers the sun from 35 to 15 degrees, searches
 twice as far for openness and sky-view factor, and removes more noise.
 Both presets are ordinary lists, so a variant is one
 <code><a href="https://rdrr.io/r/utils/modifyList.html" class="external-link">modifyList()</a></code> away:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">wider</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/modifyList.html" class="external-link">modifyList</a></span><span class="op">(</span><span class="va">rvt_preset_general</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>reach <span class="op">=</span> <span class="fl">20</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/rvt_vat.html">rvt_vat</a></span><span class="op">(</span><span class="va">dtm</span>, presets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">wider</span>, <span class="va">rvt_preset_flat</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>A ready-made composite is the quick route. When a layer needs to
@@ -389,33 +408,26 @@ too.</p>
 shadow. On this tile, where trees and buildings cover more than half the
 ground, the whole image comes out at about two thirds of the photo’s
 brightness, while sunlit open ground keeps nearly all of it.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dsm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rvt_data_lgln.html">rvt_data_lgln</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dsm"</span><span class="op">)</span>  <span class="co"># ground plus trees and buildings</span></span>
-<span><span class="va">true_colour</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">255</span>, <span class="fl">255</span>, <span class="fl">255</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">true_colour</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">255</span>, <span class="fl">255</span>, <span class="fl">255</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">rgb</span>, main <span class="op">=</span> <span class="st">"Orthophoto"</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rvt_relight.html">rvt_relight</a></span><span class="op">(</span><span class="va">rgb</span>, <span class="va">dsm</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Relit"</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">rgb</span>, main <span class="op">=</span> <span class="st">"Orthophoto"</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rvt_relight.html">rvt_relight</a></span><span class="op">(</span><span class="va">rgb</span>, <span class="va">dsm</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="st">"Relit"</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/relight-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 <p>The lighting comes in named styles, listed in
 <code>rvt_relight_styles</code>. Any setting passed directly overrides
 the style, so
 <code>rvt_relight(rgb, dsm, style = "winter", sun_elevation = 10)</code>
 gives a winter light with an even lower sun.</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">styles</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"verdant"</span>, <span class="st">"golden_hour"</span>, <span class="st">"winter"</span>,</span>
 <span>            <span class="st">"twilight"</span>, <span class="st">"blue_hour"</span>, <span class="st">"vivid"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">style</span> <span class="kw">in</span> <span class="va">styles</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="../reference/rvt_relight.html">rvt_relight</a></span><span class="op">(</span><span class="va">rgb</span>, <span class="va">dsm</span>, style <span class="op">=</span> <span class="va">style</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="va">style</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span>, max_dim <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>main <span class="op">=</span> <span class="va">style</span>, minmax_def <span class="op">=</span> <span class="va">true_colour</span>, max_dim <span class="op">=</span> <span class="fl">400</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/relight-styles-1.jpeg" class="r-plt" alt="" width="100%"></p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="choosing-colours">Choosing colours<a class="anchor" aria-label="anchor" href="#choosing-colours"></a>
@@ -423,7 +435,7 @@ gives a winter light with an even lower sun.</p>
 <p><code><a href="../reference/rvt_plot.html">rvt_plot()</a></code> takes a palette name as its second argument,
 as in <code>rvt_plot(svf, "Viridis")</code>. <code><a href="../reference/rvt_palettes.html">rvt_palettes()</a></code>
 draws every available palette, so you can choose one by eye:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/rvt_palettes.html">rvt_palettes</a></span><span class="op">(</span><span class="st">"sequential"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="blending_files/figure-html/palettes-1.png" class="r-plt" alt="" width="100%"></p>
 </div>
