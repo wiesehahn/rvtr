@@ -28,5 +28,5 @@ VRT.
 }
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_mosaic(dem)  # single path passes through unchanged
+dem |> rvt_mosaic()  # single path passes through unchanged
 }

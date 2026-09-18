@@ -118,7 +118,7 @@
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' # small radius to keep the example quick
-#' rvt_sky_illumination(dem, reach = 10, num_directions = 8)
+#' dem |> rvt_sky_illumination(reach = 10, num_directions = 8)
 #' @export
 rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                   sky_model = c("overcast", "uniform"),
@@ -216,7 +216,7 @@ rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #'   orientation without casting shadows at all.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_shadow(dem, sun_elevation = 15, reach = 30)
+#' dem |> rvt_shadow(sun_elevation = 15, reach = 30)
 #' @export
 rvt_shadow <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         sun_azimuth = 315, sun_elevation = 35, reach = 100,

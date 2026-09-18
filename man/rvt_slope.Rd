@@ -101,7 +101,7 @@ values are signed by construction - before committing to an interpretation.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_slope(dem)
+dem |> rvt_slope()
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data

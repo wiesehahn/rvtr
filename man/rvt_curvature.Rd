@@ -193,9 +193,9 @@ a curvature: its \code{sigma} sets a scale too, but by smoothing first.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_curvature(dem)
-rvt_curvature(dem, type = "plan")
-rvt_curvature(dem, radius = 5)
+dem |> rvt_curvature()
+dem |> rvt_curvature(type = "plan")
+dem |> rvt_curvature(radius = 5)
 }
 \references{
 Zevenbergen, L. W. and Thorne, C. R. (1987) Quantitative analysis of land

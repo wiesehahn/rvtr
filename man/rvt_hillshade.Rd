@@ -109,7 +109,7 @@ correctly, and other azimuths invite the illusion.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_hillshade(dem)
+dem |> rvt_hillshade()
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data

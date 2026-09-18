@@ -96,7 +96,7 @@
 #'   terrain faces.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_slope(dem)
+#' dem |> rvt_slope()
 #' @export
 rvt_slope <- function(dem, out_path = fs::file_temp(ext = "tif"),
                        units = c("degree", "radian", "percent"),
@@ -192,7 +192,7 @@ rvt_slope <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #'   shadow, [rvt_slope()] for the underlying steepness.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_hillshade(dem)
+#' dem |> rvt_hillshade()
 #' @export
 rvt_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            sun_azimuth = 315, sun_elevation = 35,
@@ -252,7 +252,7 @@ rvt_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' @seealso [rvt_slope()], which shares the same derivative pass.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_aspect(dem)
+#' dem |> rvt_aspect()
 #' @export
 rvt_aspect <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         units = c("degree", "radian"),
@@ -348,7 +348,7 @@ rvt_aspect <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' @seealso [rvt_hillshade()] for a single, named light direction.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_multi_hillshade(dem)
+#' dem |> rvt_multi_hillshade()
 #' @export
 rvt_multi_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  sun_elevation = 45, z_factor = 1,

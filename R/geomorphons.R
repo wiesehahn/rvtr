@@ -103,7 +103,7 @@ rvt_geomorphon_classes <- c(
 #'   classifies.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_geomorphons(dem, reach = 10)
+#' dem |> rvt_geomorphons(reach = 10)
 #' @export
 rvt_geomorphons <- function(dem, out_path = fs::file_temp(ext = "tif"),
                              reach = 20, skip = 1, flat_threshold = 1,

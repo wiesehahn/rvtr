@@ -75,7 +75,7 @@ aspect being ill-defined when there is barely a gradient to point along.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_aspect(dem)
+dem |> rvt_aspect()
 }
 \seealso{
 \code{\link[=rvt_slope]{rvt_slope()}}, which shares the same derivative pass.

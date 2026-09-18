@@ -202,11 +202,11 @@ to the distance that actually shades the site.
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 
 # midsummer, kWh per square metre
-rvt_insolation(dem, dates = as.Date("2025-06-21"), reach = 40)
+dem |> rvt_insolation(dates = as.Date("2025-06-21"), reach = 40)
 
 # the growing season, beam and diffuse separately
-rvt_insolation(dem, start_day = 91, end_day = 273, component = "all",
-               reach = 40)
+dem |> rvt_insolation(start_day = 91, end_day = 273, component = "all",
+                      reach = 40)
 }
 \references{
 Hofierka, J. and Suri, M. (2002) The solar radiation model for Open source

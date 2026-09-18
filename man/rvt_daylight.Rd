@@ -215,15 +215,15 @@ hundred metres. Too short and deep valleys come out implausibly sunny.
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 
 # midsummer, in hours of direct sun
-rvt_daylight(dem, dates = as.Date("2025-06-21"), reach = 40)
+dem |> rvt_daylight(dates = as.Date("2025-06-21"), reach = 40)
 
 # the growing season, as a share of the daylight available
-rvt_daylight(dem, start_day = 91, end_day = 273, units = "fraction",
-             reach = 40)
+dem |> rvt_daylight(start_day = 91, end_day = 273, units = "fraction",
+                    reach = 40)
 
 # total hours of sun over the same season
-rvt_daylight(dem, start_day = 91, end_day = 273, units = "total_hours",
-             reach = 40)
+dem |> rvt_daylight(start_day = 91, end_day = 273, units = "total_hours",
+                    reach = 40)
 }
 \seealso{
 \code{\link[=rvt_insolation]{rvt_insolation()}} for the energy rather than the duration,

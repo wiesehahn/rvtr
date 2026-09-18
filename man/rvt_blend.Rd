@@ -89,9 +89,9 @@ what you want.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-hs <- rvt_hillshade(dem)
-svf <- rvt_svf(dem)
-rvt_blend(hs, svf, "multiply", opacity = 0.25)
+hs <- dem |> rvt_hillshade()
+svf <- dem |> rvt_svf()
+hs |> rvt_blend(svf, "multiply", opacity = 0.25)
 }
 \seealso{
 \code{\link[=rvt_render]{rvt_render()}}, \code{\link[=rvt_range]{rvt_range()}}, \link{rvt_blend_modes}; \code{\link[=rvt_vat]{rvt_vat()}} for a

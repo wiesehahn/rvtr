@@ -33,9 +33,9 @@ entirely.
 }
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-svf <- rvt_svf(dem)
-rvt_range(svf)
-rvt_range(svf, pct = c(2, 98))
+svf <- dem |> rvt_svf()
+svf |> rvt_range()
+svf |> rvt_range(pct = c(2, 98))
 }
 \seealso{
 \code{\link[=rvt_blend]{rvt_blend()}}

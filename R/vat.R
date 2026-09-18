@@ -192,7 +192,7 @@ rvt_preset_flat <- list(sun_elevation = 15, slope = c(0, 15), svf = c(0.9, 1),
 #' along the way and no georeferencing; see [rvt_image()] for the formats.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_vat(dem)
+#' dem |> rvt_vat()
 #' @export
 rvt_vat <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16,

@@ -187,9 +187,9 @@
 #' @seealso [rvt_log()] for an edge detector with a scale parameter.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_curvature(dem)
-#' rvt_curvature(dem, type = "plan")
-#' rvt_curvature(dem, radius = 5)
+#' dem |> rvt_curvature()
+#' dem |> rvt_curvature(type = "plan")
+#' dem |> rvt_curvature(radius = 5)
 #' @export
 rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            type = c("profile", "plan", "tangential", "mean",
@@ -291,7 +291,7 @@ rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' @seealso [rvt_curvature()] for the unsmoothed version.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_log(dem, sigma = 3)
+#' dem |> rvt_log(sigma = 3)
 #' @export
 rvt_log <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      sigma = 2, tile_size = NULL, threads = rvt_threads(),

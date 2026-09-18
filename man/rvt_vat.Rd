@@ -123,5 +123,5 @@ along the way and no georeferencing; see \code{\link[=rvt_image]{rvt_image()}} f
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_vat(dem)
+dem |> rvt_vat()
 }

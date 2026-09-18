@@ -181,9 +181,9 @@ rvt_blend_modes <- c("normal", "lighten", "darken", "multiply", "screen",
 #' @seealso [rvt_blend()]
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' svf <- rvt_svf(dem)
-#' rvt_range(svf)
-#' rvt_range(svf, pct = c(2, 98))
+#' svf <- dem |> rvt_svf()
+#' svf |> rvt_range()
+#' svf |> rvt_range(pct = c(2, 98))
 #' @export
 rvt_range <- function(path, pct = NULL, band = 1L, max_dim = 1000L) {
   path <- .as_path(path)
@@ -233,7 +233,7 @@ rvt_range <- function(path, pct = NULL, band = 1L, max_dim = 1000L) {
 #' @seealso [rvt_blend()] to add layers, [rvt_render()] to write the result
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_stack(rvt_hillshade(dem), range = c(0, 1))
+#' dem |> rvt_hillshade() |> rvt_stack(range = c(0, 1))
 #' @export
 rvt_stack <- function(base, range = NULL, invert = FALSE) {
   if (inherits(base, "rvt_stack")) return(base)
@@ -314,9 +314,9 @@ rvt_stack <- function(base, range = NULL, invert = FALSE) {
 #'   ready-made archaeological composite.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' hs <- rvt_hillshade(dem)
-#' svf <- rvt_svf(dem)
-#' rvt_blend(hs, svf, "multiply", opacity = 0.25)
+#' hs <- dem |> rvt_hillshade()
+#' svf <- dem |> rvt_svf()
+#' hs |> rvt_blend(svf, "multiply", opacity = 0.25)
 #' @export
 rvt_blend <- function(x, layer, mode = "normal", opacity = 1,
                        range = NULL, invert = FALSE) {
@@ -402,7 +402,7 @@ print.rvt_stack <- function(x, ...) {
 #' @seealso [rvt_blend()]
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_hillshade(dem) |>
+#' dem |> rvt_hillshade() |>
 #'   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
 #'   rvt_render()
 #' @export

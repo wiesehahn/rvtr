@@ -131,7 +131,7 @@ automated feature detection, not just to looking.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_openness(dem)
+dem |> rvt_openness()
 }
 \references{
 Yokoyama, R., Shirasawa, M. and Pike, R. J. (2002) Visualizing Topography

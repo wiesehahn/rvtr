@@ -159,7 +159,7 @@ the multi-resolution levels of \link{rvt_reach} mean the same thing in each.
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 # small radius to keep the example quick
-rvt_sky_illumination(dem, reach = 10, num_directions = 8)
+dem |> rvt_sky_illumination(reach = 10, num_directions = 8)
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data

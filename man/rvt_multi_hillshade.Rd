@@ -109,7 +109,7 @@ fraction of the time; if you specifically need the PCA treatment, call
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_multi_hillshade(dem)
+dem |> rvt_multi_hillshade()
 }
 \references{
 Mark, R.K. (1992) \emph{Multidirectional, oblique-weighted, shaded-relief image

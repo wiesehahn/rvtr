@@ -91,7 +91,7 @@ away the fine detail - it is a choice about scale, not quality.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_log(dem, sigma = 3)
+dem |> rvt_log(sigma = 3)
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data

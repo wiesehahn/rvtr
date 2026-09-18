@@ -132,7 +132,7 @@ orientation and shape, on most terrain.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_asvf(dem)
+dem |> rvt_asvf()
 }
 \references{
 Zakšek, K., Oštir, K., Pehani, P., Kokalj, Ž. and Polert, E. (2012) Hill

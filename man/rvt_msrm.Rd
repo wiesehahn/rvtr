@@ -110,5 +110,5 @@ regardless of resolution.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_msrm(dem)
+dem |> rvt_msrm()
 }

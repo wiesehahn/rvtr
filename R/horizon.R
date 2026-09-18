@@ -244,7 +244,7 @@
 #'   spreads convex and concave terrain over a wider range.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_svf(dem)
+#' dem |> rvt_svf()
 #' @export
 rvt_svf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
@@ -329,7 +329,7 @@ rvt_svf <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #'   conventional directional shading.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_asvf(dem)
+#' dem |> rvt_asvf()
 #' @export
 rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 num_directions = 16, reach = 10, noise_removal = 0,
@@ -425,7 +425,7 @@ rvt_asvf <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #'   [rvt_svf()] for the 0-1 sky-fraction version of the same horizon.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_openness(dem)
+#' dem |> rvt_openness()
 #' @export
 rvt_openness <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,
@@ -490,7 +490,7 @@ rvt_openness <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' @seealso [rvt_openness()] for the convex counterpart.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_openness_negative(dem)
+#' dem |> rvt_openness_negative()
 #' @export
 rvt_openness_negative <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      num_directions = 16, reach = 10, noise_removal = 0,

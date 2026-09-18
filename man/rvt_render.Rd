@@ -56,7 +56,7 @@ is written in grey; for a colour palette use
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_hillshade(dem) |>
+dem |> rvt_hillshade() |>
   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
   rvt_render()
 }

@@ -24,7 +24,7 @@ itself needs a \code{range} or \code{invert}; otherwise pipe the raster straight
 }
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_stack(rvt_hillshade(dem), range = c(0, 1))
+dem |> rvt_hillshade() |> rvt_stack(range = c(0, 1))
 }
 \seealso{
 \code{\link[=rvt_blend]{rvt_blend()}} to add layers, \code{\link[=rvt_render]{rvt_render()}} to write the result

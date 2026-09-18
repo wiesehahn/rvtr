@@ -87,7 +87,7 @@ keeps whichever is most pronounced.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_dev(dem)
+dem |> rvt_dev()
 }
 \seealso{
 \code{\link[=rvt_slrm]{rvt_slrm()}} for the same thing in elevation units, \code{\link[=rvt_mstp]{rvt_mstp()}}

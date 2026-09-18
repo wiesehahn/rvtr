@@ -135,7 +135,7 @@
 #'   through the horizon.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_local_dominance(dem)
+#' dem |> rvt_local_dominance()
 #' @export
 rvt_local_dominance <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  min_rad = 10, max_rad = 20, rad_inc = 1,

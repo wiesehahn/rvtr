@@ -78,8 +78,8 @@
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #' # scales cut down to suit a 1000 x 1000 sample tile
-#' rvt_mstp(dem, local = c(3, 21, 2), meso = c(23, 103, 18),
-#'          broad = c(123, 223, 50))
+#' dem |> rvt_mstp(local = c(3, 21, 2), meso = c(23, 103, 18),
+#'                 broad = c(123, 223, 50))
 #' @export
 rvt_mstp <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       local = c(3, 21, 2), meso = c(23, 203, 18),

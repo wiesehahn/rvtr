@@ -96,7 +96,7 @@
 #' @return `out_path`, invisibly
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_msrm(dem)
+#' dem |> rvt_msrm()
 #' @export
 rvt_msrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       feature_min = 0, feature_max = 20, scaling_factor = 2,
@@ -205,7 +205,7 @@ rvt_msrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #'   standardised one.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_slrm(dem)
+#' dem |> rvt_slrm()
 #' @export
 rvt_slrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       radius = 20, tile_size = NULL, threads = rvt_threads(),
@@ -288,7 +288,7 @@ rvt_tpi <- rvt_slrm
 #'   for the multi-scale version.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_dev(dem)
+#' dem |> rvt_dev()
 #' @export
 rvt_dev <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      radius = 20, tile_size = NULL, threads = rvt_threads(),

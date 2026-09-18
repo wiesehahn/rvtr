@@ -135,7 +135,7 @@ the multi-resolution levels of \link{rvt_reach} mean the same thing in each.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_shadow(dem, sun_elevation = 15, reach = 30)
+dem |> rvt_shadow(sun_elevation = 15, reach = 30)
 }
 \seealso{
 \code{\link[=rvt_daylight]{rvt_daylight()}}, which integrates this over many sun positions

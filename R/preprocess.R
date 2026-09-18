@@ -43,7 +43,7 @@
 #'   first, since smoothing cannot sensibly cross a hole.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_fill(dem)
+#' dem |> rvt_fill()
 #' @export
 rvt_fill <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       max_distance = 100, smooth_iterations = 0,

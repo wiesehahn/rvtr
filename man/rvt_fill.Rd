@@ -75,7 +75,7 @@ anything larger.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_fill(dem)
+dem |> rvt_fill()
 }
 \seealso{
 \code{\link[=rvt_smooth]{rvt_smooth()}}, which removes noise rather than gaps - run this

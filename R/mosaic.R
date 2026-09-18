@@ -24,7 +24,7 @@
 #'   [rvt_vat()]. Pipe-friendly: `tiles |> rvt_mosaic() |> rvt_vat()`.
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' rvt_mosaic(dem)  # single path passes through unchanged
+#' dem |> rvt_mosaic()  # single path passes through unchanged
 #' @export
 rvt_mosaic <- function(dem, vrt_path = fs::file_temp(ext = "vrt"), cl_arg = NULL) {
   dem <- .as_path(dem)

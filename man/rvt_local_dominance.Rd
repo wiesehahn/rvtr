@@ -138,7 +138,7 @@ why flat ground reading exactly 1 is a useful anchor.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_local_dominance(dem)
+dem |> rvt_local_dominance()
 }
 \references{
 Hesse, R. (2016) Visualisierung hochauflösender digitaler

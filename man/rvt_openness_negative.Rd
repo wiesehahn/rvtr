@@ -112,7 +112,7 @@ steep or complex ground. Radius and directions as for \code{\link[=rvt_svf]{rvt_
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_openness_negative(dem)
+dem |> rvt_openness_negative()
 }
 \references{
 Kokalj, Ž. and Hesse, R. (2017) \emph{Airborne Laser Scanning Raster Data

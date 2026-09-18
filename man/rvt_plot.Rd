@@ -58,10 +58,10 @@ interesting into the middle of the palette. Two arguments override it,
 both passed through to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# fixed values - anything outside is clipped to the end colours
-rvt_plot(p, minmax_def = c(-0.05, 0.05))
+p |> rvt_plot(minmax_def = c(-0.05, 0.05))
 
 # or cut percentiles, when you don't know the range in advance
-rvt_plot(p, minmax_pct_cut = c(2, 98))
+p |> rvt_plot(minmax_pct_cut = c(2, 98))
 }\if{html}{\out{</div>}}
 
 The difference is easy to underestimate. Minimal curvature on the bundled
@@ -114,8 +114,8 @@ device.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_plot(dem)
-rvt_plot(dem, legend = TRUE, axes = TRUE, main = basename(dem))
+dem |> rvt_plot()
+dem |> rvt_plot(legend = TRUE, axes = TRUE, main = basename(dem))
 
 # any palette by name; rvt_palettes() shows them all
 dem |> rvt_svf() |> rvt_plot("Viridis")
@@ -127,7 +127,7 @@ dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE
 dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
 
 # a blend stack draws directly, with no rvt_render() call
-rvt_hillshade(dem) |>
+dem |> rvt_hillshade() |>
   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
   rvt_plot()
 }

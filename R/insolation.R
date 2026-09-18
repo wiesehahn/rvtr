@@ -162,11 +162,11 @@
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 #'
 #' # midsummer, kWh per square metre
-#' rvt_insolation(dem, dates = as.Date("2025-06-21"), reach = 40)
+#' dem |> rvt_insolation(dates = as.Date("2025-06-21"), reach = 40)
 #'
 #' # the growing season, beam and diffuse separately
-#' rvt_insolation(dem, start_day = 91, end_day = 273, component = "all",
-#'                reach = 40)
+#' dem |> rvt_insolation(start_day = 91, end_day = 273, component = "all",
+#'                       reach = 40)
 #' @export
 rvt_insolation <- function(dem, out_path = fs::file_temp(ext = "tif"),
                             start_day = 1, end_day = 365, day_step = 5,

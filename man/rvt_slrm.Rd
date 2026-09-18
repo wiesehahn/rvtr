@@ -129,7 +129,7 @@ standardised version, dividing by the local standard deviation, see
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_slrm(dem)
+dem |> rvt_slrm()
 }
 \references{
 Hesse, R. (2010) LiDAR-derived Local Relief Models - a New Tool for

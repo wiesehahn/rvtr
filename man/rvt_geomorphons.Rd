@@ -116,7 +116,7 @@ height difference subtends. Worth setting when \code{reach} is large.
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_geomorphons(dem, reach = 10)
+dem |> rvt_geomorphons(reach = 10)
 }
 \references{
 Jasiewicz, J. and Stepinski, T. (2013) Geomorphons - a pattern recognition
