@@ -23,6 +23,11 @@
 #'   [rvt_mstp()]; or three band numbers to draw as red, green and blue.
 #'   Defaults to band 1, except for a 3-band raster, which is drawn as RGB
 #'   (which is what [rvt_mstp()] wants).
+#' @param range `c(lo, hi)` to stretch the colours over, or `NULL` (default)
+#'   for the data's own minimum and maximum. Three bands share one range; see
+#'   **Controlling the stretch**.
+#' @param pct `c(low, high)` percentages to cut from each tail instead, e.g.
+#'   `c(2, 98)`, measured with [rvt_range()]. Not with `range`.
 #' @param ... passed on to [gdalraster::plot_raster()] - see **Controlling the
 #'   stretch** and **Other display options** below
 #' @return `path`, invisibly. `path` is the first argument, so this is
@@ -31,15 +36,16 @@
 #' @section Controlling the stretch:
 #' By default the colours are stretched across the data's full range, which is
 #' often the wrong choice: a handful of extreme cells then compress everything
-#' interesting into the middle of the palette. Two arguments override it,
-#' both passed through to [gdalraster::plot_raster()]:
+#' interesting into the middle of the palette. Two arguments override it, and
+#' they are spelled as in [rvt_image()], so a stretch chosen on screen carries
+#' over to the written picture unchanged:
 #'
 #' ```r
 #' # fixed values - anything outside is clipped to the end colours
-#' p |> rvt_plot(minmax_def = c(-0.05, 0.05))
+#' p |> rvt_plot(range = c(-0.05, 0.05))
 #'
 #' # or cut percentiles, when you don't know the range in advance
-#' p |> rvt_plot(minmax_pct_cut = c(2, 98))
+#' p |> rvt_plot(pct = c(2, 98))
 #' ```
 #'
 #' The difference is easy to underestimate. Minimal curvature on the bundled
@@ -53,7 +59,7 @@
 #' and convex will stop reading as the opposite of concave:
 #'
 #' ```r
-#' p |> rvt_plot("Blue-Red 3", minmax_def = c(-0.3, 0.3), legend = TRUE)
+#' p |> rvt_plot("Blue-Red 3", range = c(-0.3, 0.3), legend = TRUE)
 #' ```
 #'
 #' Turning the `legend` on while choosing a stretch is worth the space - it is
@@ -65,6 +71,12 @@
 #' carries the stretches recommended in the literature - see the
 #' *Recommended settings* section of [rvt_svf()], [rvt_openness()] and the
 #' rest.
+#'
+#' Three bands drawn as RGB share one `range`, as in [rvt_image()], so the
+#' colour balance is not shifted band by band: `range = c(0, 255)` for an
+#' orthophoto. [gdalraster::plot_raster()]'s own `minmax_def` and
+#' `minmax_pct_cut` still work through `...` when you do want a separate
+#' stretch per band, but they cannot be combined with `range` or `pct`.
 #'
 #' @section Other display options:
 #' Anything [gdalraster::plot_raster()] accepts works here. The ones worth
@@ -96,10 +108,10 @@
 #' dem |> rvt_svf() |> rvt_plot("Viridis")
 #'
 #' # signed data: diverging palette, symmetric stretch
-#' dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE)
+#' dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", range = c(-1, 1), legend = TRUE)
 #'
 #' # percentile stretch when the range isn't known
-#' dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
+#' dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", pct = c(2, 98))
 #'
 #' # a blend stack draws directly, with no rvt_render() call
 #' dem |> rvt_hillshade() |>
@@ -107,7 +119,23 @@
 #'   rvt_plot()
 #' @export
 rvt_plot <- function(path, col = "Grays", max_dim = 1000, legend = FALSE,
-                      axes = FALSE, band = NULL, ...) {
+                      axes = FALSE, band = NULL, range = NULL, pct = NULL,
+                      ...) {
+  # `range`/`pct` are rvt_image()'s spelling of plot_raster()'s minmax_def and
+  # minmax_pct_cut, resolved here to one range shared by every band drawn -
+  # per-band stretching would shift an RGB image's colour balance. Passing
+  # gdalraster's own arguments through ... still gives per-band control.
+  dots <- list(...)
+  if ((!is.null(range) || !is.null(pct)) &&
+      any(c("minmax_def", "minmax_pct_cut") %in% names(dots)))
+    stop("Give either `range`/`pct` or `minmax_def`/`minmax_pct_cut`, not both.",
+         call. = FALSE)
+  if (!is.null(range) && !is.null(pct))
+    stop("Give either `range` or `pct`, not both.", call. = FALSE)
+  if (!is.null(range) && (length(range) != 2L || !all(is.finite(range)) ||
+                           range[1] >= range[2]))
+    stop("`range` must be `c(lo, hi)` with lo < hi, or NULL", call. = FALSE)
+
   # a blend stack is a recipe, not a file - render it to a temporary raster so
   # exploring a composite needs no rvt_render() call
   if (inherits(path, "rvt_stack")) path <- rvt_render(path)
@@ -121,18 +149,28 @@ rvt_plot <- function(path, col = "Grays", max_dim = 1000, legend = FALSE,
 
   if (is.null(band)) band <- if (ds$getRasterCount() == 3L) 1:3 else 1L
 
+  # one range across all bands drawn, measured the same way rvt_image() does
+  if (!is.null(pct)) {
+    rs <- vapply(band, function(b) rvt_range(path, pct = pct, band = b), numeric(2))
+    range <- c(min(rs[1, ]), max(rs[2, ]))
+  }
+  if (!is.null(range))
+    dots$minmax_def <- c(rep(range[1], length(band)), rep(range[2], length(band)))
+
   # read_ds() tags the values with the georeferencing plot_raster() needs, so
   # picking a band here still gives the same picture as handing over the whole
   # dataset would.
   v <- gdalraster::read_ds(ds, bands = band, out_xsize = out_nx,
                             out_ysize = out_ny)
 
-  gdalraster::plot_raster(v, xsize = out_nx, ysize = out_ny,
-                           nbands = length(band),
-                           # an RGB composite has no colour map, so a palette
-                           # name is only resolved when it will be used
-                           col_map_fn = if (length(band) == 1L) .resolve_col(col) else NULL,
-                           legend = legend && length(band) == 1L, axes = axes,
-                           xlab = "", ylab = "", ...)
+  do.call(gdalraster::plot_raster,
+          c(list(v, xsize = out_nx, ysize = out_ny,
+                 nbands = length(band),
+                 # an RGB composite has no colour map, so a palette name is
+                 # only resolved when it will be used
+                 col_map_fn = if (length(band) == 1L) .resolve_col(col) else NULL,
+                 legend = legend && length(band) == 1L, axes = axes,
+                 xlab = "", ylab = ""),
+            dots))
   invisible(path)
 }

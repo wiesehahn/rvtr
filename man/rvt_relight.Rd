@@ -138,9 +138,9 @@ and allows larger images. See \code{\link[=rvt_image]{rvt_image()}} for the comp
 pt <- c(9.9464, 51.6317)                      # Burg Hardenberg
 rgb <- rvt_data_lgln(pt, "rgb", res = 1)
 dsm <- rvt_data_lgln(pt, "dsm")
-rgb |> rvt_relight(dsm) |> rvt_plot(minmax_def = c(0, 0, 0, 255, 255, 255))
+rgb |> rvt_relight(dsm) |> rvt_plot(range = c(0, 255))
 rgb |> rvt_relight(dsm, style = "golden_hour") |>
-  rvt_plot(minmax_def = c(0, 0, 0, 255, 255, 255))
+  rvt_plot(range = c(0, 255))
 }
 }
 \seealso{

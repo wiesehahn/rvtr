@@ -84,10 +84,11 @@ transparency, so NoData is black.
 A single band is stretched across \code{range} and coloured with \code{col}, exactly
 as in \code{\link[=rvt_plot]{rvt_plot()}}. \code{range = NULL} uses the raster's own minimum and
 maximum, which a handful of extreme cells can easily spoil; \code{pct = c(2, 98)}
-cuts percentiles off each tail instead, measured on the raster being drawn -
-the same stretch \code{\link[=rvt_plot]{rvt_plot()}} spells \code{minmax_pct_cut}. Each metric's help
-page lists recommended ranges. The range is fixed before any tile is read,
-so the picture does not depend on \code{tile_size}.
+cuts percentiles off each tail instead, measured with \code{\link[=rvt_range]{rvt_range()}}. Both
+are spelled and measured exactly as in \code{\link[=rvt_plot]{rvt_plot()}}, so what you settled on
+while looking at the screen is what you write. Each metric's help page lists
+recommended ranges. The range is fixed before any tile is read, so the
+picture does not depend on \code{tile_size}.
 
 Three bands - an RGB result such as \code{\link[=rvt_mstp]{rvt_mstp()}}, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and \code{col} is

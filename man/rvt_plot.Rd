@@ -11,6 +11,8 @@ rvt_plot(
   legend = FALSE,
   axes = FALSE,
   band = NULL,
+  range = NULL,
+  pct = NULL,
   ...
 )
 }
@@ -35,6 +37,13 @@ first}
 Defaults to band 1, except for a 3-band raster, which is drawn as RGB
 (which is what \code{\link[=rvt_mstp]{rvt_mstp()}} wants).}
 
+\item{range}{\code{c(lo, hi)} to stretch the colours over, or \code{NULL} (default)
+for the data's own minimum and maximum. Three bands share one range; see
+\strong{Controlling the stretch}.}
+
+\item{pct}{\code{c(low, high)} percentages to cut from each tail instead, e.g.
+\code{c(2, 98)}, measured with \code{\link[=rvt_range]{rvt_range()}}. Not with \code{range}.}
+
 \item{...}{passed on to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}} - see \strong{Controlling the
 stretch} and \strong{Other display options} below}
 }
@@ -54,14 +63,15 @@ renders fast) and a path-in, path-out interface for piping.
 
 By default the colours are stretched across the data's full range, which is
 often the wrong choice: a handful of extreme cells then compress everything
-interesting into the middle of the palette. Two arguments override it,
-both passed through to \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}:
+interesting into the middle of the palette. Two arguments override it, and
+they are spelled as in \code{\link[=rvt_image]{rvt_image()}}, so a stretch chosen on screen carries
+over to the written picture unchanged:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{# fixed values - anything outside is clipped to the end colours
-p |> rvt_plot(minmax_def = c(-0.05, 0.05))
+p |> rvt_plot(range = c(-0.05, 0.05))
 
 # or cut percentiles, when you don't know the range in advance
-p |> rvt_plot(minmax_pct_cut = c(2, 98))
+p |> rvt_plot(pct = c(2, 98))
 }\if{html}{\out{</div>}}
 
 The difference is easy to underestimate. Minimal curvature on the bundled
@@ -74,7 +84,7 @@ For any \strong{signed} result - curvature, \code{\link[=rvt_log]{rvt_log()}}, \
 a diverging palette, or zero will not land on the palette's neutral centre
 and convex will stop reading as the opposite of concave:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{p |> rvt_plot("Blue-Red 3", minmax_def = c(-0.3, 0.3), legend = TRUE)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{p |> rvt_plot("Blue-Red 3", range = c(-0.3, 0.3), legend = TRUE)
 }\if{html}{\out{</div>}}
 
 Turning the \code{legend} on while choosing a stretch is worth the space - it is
@@ -86,6 +96,12 @@ Which numbers to use is metric-dependent, and each metric's own help page
 carries the stretches recommended in the literature - see the
 \emph{Recommended settings} section of \code{\link[=rvt_svf]{rvt_svf()}}, \code{\link[=rvt_openness]{rvt_openness()}} and the
 rest.
+
+Three bands drawn as RGB share one \code{range}, as in \code{\link[=rvt_image]{rvt_image()}}, so the
+colour balance is not shifted band by band: \code{range = c(0, 255)} for an
+orthophoto. \code{\link[gdalraster:plot_raster]{gdalraster::plot_raster()}}'s own \code{minmax_def} and
+\code{minmax_pct_cut} still work through \code{...} when you do want a separate
+stretch per band, but they cannot be combined with \code{range} or \code{pct}.
 }
 
 \section{Other display options}{
@@ -121,10 +137,10 @@ dem |> rvt_plot(legend = TRUE, axes = TRUE, main = basename(dem))
 dem |> rvt_svf() |> rvt_plot("Viridis")
 
 # signed data: diverging palette, symmetric stretch
-dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE)
+dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", range = c(-1, 1), legend = TRUE)
 
 # percentile stretch when the range isn't known
-dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
+dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", pct = c(2, 98))
 
 # a blend stack draws directly, with no rvt_render() call
 dem |> rvt_hillshade() |>

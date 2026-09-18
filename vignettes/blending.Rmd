@@ -60,9 +60,9 @@ dsm <- rvt_data_lgln(pt, "dsm")                        # surface: trees and buil
 
 rvt_plot(rgb, main = "Orthophoto", max_dim = 400)
 rvt_asvf(dtm, reach = 10) |> rvt_plot(main = "Terrain model", max_dim = 400,
-                                      minmax_def = c(0.7, 1))
+                                      range = c(0.7, 1))
 rvt_asvf(dsm, reach = 10) |> rvt_plot(main = "Surface model", max_dim = 400,
-                                      minmax_def = c(0.4, 1))
+                                      range = c(0.4, 1))
 ```
 
 Data: © GeoBasis-DE/LGLN `r format(Sys.Date(), "%Y")`, CC BY 4.0, Daten
@@ -260,7 +260,7 @@ same <- c(120, 420)                             # one range for both models
 height <- rvt_stack(dsm, range = same) |>
   rvt_blend(dtm, "subtract", range = same) |>
   rvt_render()
-rvt_plot(height, main = "Height above ground", max_dim = 400, minmax_def = c(0, 0.1))
+rvt_plot(height, main = "Height above ground", max_dim = 400, range = c(0, 0.1))
 
 rvt_stack(rvt_asvf(dtm, reach = 10), range = c(0.7, 1)) |>
   rvt_blend(height, "multiply", opacity = 0.6, range = c(0, 0.1), invert = TRUE) |>
@@ -312,10 +312,10 @@ image comes out at about two thirds of the photo's brightness, while sunlit
 open ground keeps nearly all of it.
 
 ```{r relight, fig.width = fig_w(2), fig.height = fig_h(1), layout = c(1, 2)}
-true_colour <- c(0, 0, 0, 255, 255, 255)
+true_colour <- c(0, 255)
 
-rvt_plot(rgb, main = "Orthophoto", minmax_def = true_colour, max_dim = 400)
-rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", minmax_def = true_colour, max_dim = 400)
+rvt_plot(rgb, main = "Orthophoto", range = true_colour, max_dim = 400)
+rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", range = true_colour, max_dim = 400)
 ```
 
 The lighting comes in named styles, listed in `rvt_relight_styles`. Any
@@ -329,7 +329,7 @@ styles <- c("verdant", "golden_hour", "winter",
 
 for (style in styles) {
   rvt_relight(rgb, dsm, style = style) |>
-    rvt_plot(main = style, minmax_def = true_colour, max_dim = 400)
+    rvt_plot(main = style, range = true_colour, max_dim = 400)
 }
 ```
 

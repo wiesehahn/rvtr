@@ -53,7 +53,7 @@ blind, and the dark side stays readable.
 The trade is contrast: averaging several lights fills the shadows in, so
 the image is more even but flatter than a single hillshade, and typically
 occupies a narrower range than 0-1. A percentile stretch when plotting
-(\code{rvt_plot(p, minmax_pct_cut = c(2, 98))}) gets that contrast back. Use the
+(\code{rvt_plot(p, pct = c(2, 98))}) gets that contrast back. Use the
 single-direction \code{\link[=rvt_hillshade]{rvt_hillshade()}} when you need a \emph{known} light direction
 \itemize{
 \item for a figure whose caption states it, or as the base layer of

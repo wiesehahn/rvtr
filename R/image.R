@@ -131,10 +131,11 @@
 #' A single band is stretched across `range` and coloured with `col`, exactly
 #' as in [rvt_plot()]. `range = NULL` uses the raster's own minimum and
 #' maximum, which a handful of extreme cells can easily spoil; `pct = c(2, 98)`
-#' cuts percentiles off each tail instead, measured on the raster being drawn -
-#' the same stretch [rvt_plot()] spells `minmax_pct_cut`. Each metric's help
-#' page lists recommended ranges. The range is fixed before any tile is read,
-#' so the picture does not depend on `tile_size`.
+#' cuts percentiles off each tail instead, measured with [rvt_range()]. Both
+#' are spelled and measured exactly as in [rvt_plot()], so what you settled on
+#' while looking at the screen is what you write. Each metric's help page lists
+#' recommended ranges. The range is fixed before any tile is read, so the
+#' picture does not depend on `tile_size`.
 #'
 #' Three bands - an RGB result such as [rvt_mstp()], or a blend stack over an
 #' orthophoto - are stretched over one range spanning all bands, and `col` is

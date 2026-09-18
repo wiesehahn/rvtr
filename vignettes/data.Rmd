@@ -151,7 +151,7 @@ rgb <- rvt_data_lgln(area, "rgb", year = 2025, res = 1)
 rvt_vat(dtm) |> rvt_plot(main = "Terrain model", max_dim = 400)
 rvt_vat(dsm) |> rvt_plot(main = "Surface model", max_dim = 400)
 rvt_plot(rgb, main = "Orthophoto", max_dim = 400,
-         minmax_def = c(0, 0, 0, 255, 255, 255))
+         range = c(0, 255))
 ```
 
 The terrain model shows the shape of the ground, even beneath the forest; the
@@ -178,7 +178,7 @@ detail <- sf::st_bbox(c(xmin = 565460, ymin = 5720460, xmax = 565540, ymax = 572
 
 for (year in c(2013, 2025)) {
   rvt_data_lgln(detail, "rgb", year = year) |>
-    rvt_plot(main = year, max_dim = 400, minmax_def = c(0, 0, 0, 255, 255, 255))
+    rvt_plot(main = year, max_dim = 400, range = c(0, 255))
 }
 ```
 
@@ -247,7 +247,7 @@ dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 part <- tempfile(fileext = ".tif")
 gdalraster::translate(dem, part, cl_arg = c("-srcwin", 300, 300, 400, 400), quiet = TRUE)
 
-rvt_vat(part) |> rvt_plot(main = "1 m", max_dim = 400, minmax_def = c(0, 1))
+rvt_vat(part) |> rvt_plot(main = "1 m", max_dim = 400, range = c(0, 1))
 rvt_resample(part, 4) |> rvt_vat() |>
-  rvt_plot(main = "Coarsened to 4 m", max_dim = 400, minmax_def = c(0, 1))
+  rvt_plot(main = "Coarsened to 4 m", max_dim = 400, range = c(0, 1))
 ```

@@ -286,7 +286,7 @@ rvt_aspect <- function(dem, out_path = fs::file_temp(ext = "tif"),
 #' The trade is contrast: averaging several lights fills the shadows in, so
 #' the image is more even but flatter than a single hillshade, and typically
 #' occupies a narrower range than 0-1. A percentile stretch when plotting
-#' (`rvt_plot(p, minmax_pct_cut = c(2, 98))`) gets that contrast back. Use the
+#' (`rvt_plot(p, pct = c(2, 98))`) gets that contrast back. Use the
 #' single-direction [rvt_hillshade()] when you need a *known* light direction
 #' - for a figure whose caption states it, or as the base layer of
 #' [rvt_vat()].

@@ -364,7 +364,7 @@
 #' rvt_data_lgln_years(pt, "rgb")
 #' rvt_data_lgln(pt, "dtm") |> rvt_hillshade() |> rvt_plot()
 #' rvt_data_lgln(pt, "rgb", year = 2013, res = 1) |>
-#'   rvt_plot(minmax_def = c(0, 0, 0, 255, 255, 255))
+#'   rvt_plot(range = c(0, 255))
 #' }
 #' @export
 rvt_data_lgln <- function(x, product = c("dtm", "dsm", "rgb"), year = NULL,
