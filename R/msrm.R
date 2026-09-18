@@ -102,7 +102,7 @@ rvt_msrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       feature_min = 0, feature_max = 20, scaling_factor = 2,
                       tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -210,7 +210,7 @@ rvt_msrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
 rvt_slrm <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       radius = 20, tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -293,7 +293,7 @@ rvt_tpi <- rvt_slrm
 rvt_dev <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      radius = 20, tile_size = NULL, threads = rvt_threads(),
                      overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

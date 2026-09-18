@@ -94,7 +94,7 @@ rvt_mstp <- function(dem, out_path = fs::file_temp(ext = "tif"),
     if (s[2] < s[1])
       stop("`", nm, "`: min_radius must not exceed max_radius", call. = FALSE)
   }
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

@@ -103,7 +103,7 @@ rvt_slope <- function(dem, out_path = fs::file_temp(ext = "tif"),
                        tile_size = NULL, threads = rvt_threads(),
                        overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -198,7 +198,7 @@ rvt_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            sun_azimuth = 315, sun_elevation = 35,
                            tile_size = NULL, threads = rvt_threads(),
                            overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -259,7 +259,7 @@ rvt_aspect <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -354,7 +354,7 @@ rvt_multi_hillshade <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  sun_elevation = 45, z_factor = 1,
                                  tile_size = NULL, threads = rvt_threads(),
                                  overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

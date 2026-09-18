@@ -22,7 +22,7 @@ rvt_image(
 \item{x}{a raster path, or an \code{rvt_stack} from \code{\link[=rvt_blend]{rvt_blend()}}}
 
 \item{out_path}{the image to write, ending in \code{.webp} or \code{.jpg}. Defaults to
-a temporary \code{.webp} file.}
+a temporary \code{.webp} file. A folder that does not exist yet is created.}
 
 \item{col}{palette name or colours for a single band, as in \code{\link[=rvt_plot]{rvt_plot()}}
 (default \code{"Grays"}); see \code{\link[=rvt_palettes]{rvt_palettes()}}}

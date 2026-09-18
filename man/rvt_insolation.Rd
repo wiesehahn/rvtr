@@ -36,7 +36,8 @@ produce seams. A terra \code{SpatRaster} works too: one read from a file is
 used as it lies, while one terra computed in memory is written to a
 temporary GeoTIFF first.}
 
-\item{out_path}{output GeoTIFF path (default: a temp file)}
+\item{out_path}{output GeoTIFF path (default: a temp file). A folder that
+does not exist yet is created.}
 
 \item{start_day, end_day}{first and last day of the year to integrate over
 (1-365, defaults 1 and 365 - the whole year). \code{end_day} before

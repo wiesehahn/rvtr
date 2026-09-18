@@ -184,7 +184,7 @@ rvt_insolation <- function(dem, out_path = fs::file_temp(ext = "tif"),
   component <- match.arg(component)
   sky_model <- match.arg(sky_model)
   units <- match.arg(units)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   if (!is.numeric(linke) || length(linke) != 1L || !is.finite(linke) || linke < 1)
     stop("`linke` must be a single number of at least 1", call. = FALSE)

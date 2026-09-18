@@ -22,7 +22,8 @@ produce seams. A terra \code{SpatRaster} works too: one read from a file is
 used as it lies, while one terra computed in memory is written to a
 temporary GeoTIFF first.}
 
-\item{out_path}{output GeoTIFF path (default: a temp file)}
+\item{out_path}{output GeoTIFF path (default: a temp file). A folder that
+does not exist yet is created.}
 
 \item{sun_elevation}{height of the light sources above the horizon, in
 degrees, shared by all four (default 45)}

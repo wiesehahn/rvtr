@@ -83,7 +83,7 @@
                           dir_weight = numeric(0),
                           pyramid_px = 100, pyramid_factor = 4,
                           pyramid_method = "max") {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -209,7 +209,8 @@
 #'   produce seams. A terra `SpatRaster` works too: one read from a file is
 #'   used as it lies, while one terra computed in memory is written to a
 #'   temporary GeoTIFF first.
-#' @param out_path output GeoTIFF path (default: a temp file)
+#' @param out_path output GeoTIFF path (default: a temp file). A folder that
+#'   does not exist yet is created.
 #' @param num_directions number of compass directions scanned (default 16)
 #' @param reach how far to look, in **map units** (metres, normally;
 #'   default 10). Scanned at full resolution for the first `pyramid_px`

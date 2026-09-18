@@ -201,7 +201,7 @@ rvt_vat <- function(dem, out_path = fs::file_temp(ext = "tif"),
                 rvt_compat = FALSE, quality = 90, overwrite = FALSE,
                 progress = FALSE) {
   .check_quality(quality)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
   format <- .image_format(out_path)

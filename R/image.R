@@ -144,7 +144,7 @@
 #'
 #' @param x a raster path, or an `rvt_stack` from [rvt_blend()]
 #' @param out_path the image to write, ending in `.webp` or `.jpg`. Defaults to
-#'   a temporary `.webp` file.
+#'   a temporary `.webp` file. A folder that does not exist yet is created.
 #' @param col palette name or colours for a single band, as in [rvt_plot()]
 #'   (default `"Grays"`); see [rvt_palettes()]
 #' @param range `c(lo, hi)` to stretch a single-band or RGB raster over, or
@@ -171,7 +171,7 @@ rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
                       col = "Grays", range = NULL, pct = NULL, band = NULL,
                       quality = 90, tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   format <- .image_format(out_path)
   if (is.null(format))
     stop("`out_path` must end in `.webp` or `.jpg`.", call. = FALSE)

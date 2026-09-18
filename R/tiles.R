@@ -69,6 +69,17 @@ rvt_threads <- function(n = NULL) {
   fs::path_expand(fs::path(p))
 }
 
+## The same, for a path being written to: the folder is created if it is not
+## there yet. GDAL fails to create a dataset in a missing directory, and
+## writing results into a fresh folder ("out/svf.tif") is ordinary enough that
+## erroring on it is just an errand for the caller. fs::dir_create() is
+## recursive and a no-op when the folder already exists.
+.out_path <- function(p) {
+  p <- .as_path(p)
+  fs::dir_create(fs::path_dir(p))
+  p
+}
+
 ## A terra SpatRaster is accepted anywhere a raster path is, because every
 ## entry point funnels through .as_path().
 ##

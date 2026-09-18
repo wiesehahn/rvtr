@@ -255,7 +255,7 @@ rvt_relight <- function(ortho, dem, out_path = fs::file_temp(ext = "tif"),
   if (!is.numeric(quality) || length(quality) != 1L || quality < 1 || quality > 100)
     stop("`quality` must be a number from 1 to 100.", call. = FALSE)
 
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   ortho <- .as_path(ortho)
   dem <- rvt_mosaic(dem)

@@ -28,7 +28,7 @@
 #' @export
 rvt_mosaic <- function(dem, vrt_path = fs::file_temp(ext = "vrt"), cl_arg = NULL) {
   dem <- .as_path(dem)
-  vrt_path <- .as_path(vrt_path)
+  vrt_path <- .out_path(vrt_path)
   if (length(dem) == 1L) return(dem)
   missing <- dem[!fs::file_exists(dem)]
   if (length(missing))

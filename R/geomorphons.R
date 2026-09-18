@@ -111,7 +111,7 @@ rvt_geomorphons <- function(dem, out_path = fs::file_temp(ext = "tif"),
                              tile_size = NULL, threads = rvt_threads(),
                              overwrite = FALSE, progress = FALSE) {
   if (flat_threshold < 0) stop("`flat_threshold` must not be negative", call. = FALSE)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

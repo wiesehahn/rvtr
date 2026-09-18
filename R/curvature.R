@@ -200,7 +200,7 @@ rvt_curvature <- function(dem, out_path = fs::file_temp(ext = "tif"),
                            tile_size = NULL, threads = rvt_threads(),
                            overwrite = FALSE, progress = FALSE) {
   type <- match.arg(type)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -298,7 +298,7 @@ rvt_log <- function(dem, out_path = fs::file_temp(ext = "tif"),
                      overwrite = FALSE, progress = FALSE) {
   if (!is.finite(sigma) || sigma <= 0)
     stop("`sigma` must be a positive distance in map units", call. = FALSE)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

@@ -128,7 +128,7 @@ rvt_sky_illumination <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                   tile_size = NULL, threads = rvt_threads(),
                                   overwrite = FALSE, progress = FALSE) {
   sky_model <- match.arg(sky_model)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -226,7 +226,7 @@ rvt_shadow <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         overwrite = FALSE, progress = FALSE) {
   if (length(sun_azimuth) != 1L)
     stop("`sun_azimuth` must be a single direction", call. = FALSE)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

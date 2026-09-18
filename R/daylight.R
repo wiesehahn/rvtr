@@ -274,7 +274,7 @@ rvt_daylight <- function(dem, out_path = fs::file_temp(ext = "tif"),
                           tile_size = NULL, threads = rvt_threads(),
                           overwrite = FALSE, progress = FALSE) {
   units <- match.arg(units)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

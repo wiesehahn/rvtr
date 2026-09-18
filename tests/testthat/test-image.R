@@ -129,3 +129,17 @@ test_that("relight writes a picture directly", {
   }
   expect_setequal(list.files(d), c("r.webp", "r.jpg"))
 })
+
+test_that("a missing output folder is created, not an error", {
+  # Writing into a fresh folder ("out/svf.webp") is ordinary; GDAL itself
+  # fails on a missing directory, so every output path goes through
+  # .out_path(). Checked on an image and on a metric, since both funnel there.
+  d <- file.path(tempdir(), paste0("newdir_", basename(tempfile())))
+  on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  expect_false(dir.exists(d))
+
+  img <- rvt_image(dem, file.path(d, "a", "svf.webp"), range = c(300, 400))
+  expect_true(file.exists(img))
+  tif <- rvt_slope(dem, file.path(d, "b", "c", "slope.tif"))
+  expect_true(file.exists(tif))
+})

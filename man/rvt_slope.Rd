@@ -21,7 +21,8 @@ produce seams. A terra \code{SpatRaster} works too: one read from a file is
 used as it lies, while one terra computed in memory is written to a
 temporary GeoTIFF first.}
 
-\item{out_path}{output GeoTIFF path (default: a temp file)}
+\item{out_path}{output GeoTIFF path (default: a temp file). A folder that
+does not exist yet is created.}
 
 \item{units}{\code{"degree"} (default), \code{"radian"}, or \code{"percent"} (100 times
 the rise over the run, so 45 degrees is 100 percent)}

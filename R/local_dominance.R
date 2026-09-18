@@ -142,7 +142,7 @@ rvt_local_dominance <- function(dem, out_path = fs::file_temp(ext = "tif"),
                                  angular_res = 15, observer_height = 1.7,
                                  tile_size = NULL, threads = rvt_threads(),
                                  overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 

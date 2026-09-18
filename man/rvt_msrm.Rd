@@ -23,7 +23,8 @@ produce seams. A terra \code{SpatRaster} works too: one read from a file is
 used as it lies, while one terra computed in memory is written to a
 temporary GeoTIFF first.}
 
-\item{out_path}{output GeoTIFF path (default: a temp file)}
+\item{out_path}{output GeoTIFF path (default: a temp file). A folder that
+does not exist yet is created.}
 
 \item{feature_min, feature_max}{smallest/largest feature size to keep, in
 the DEM's horizontal map units, typically metres; \code{feature_min} is

@@ -258,7 +258,7 @@
                                    format(res, scientific = FALSE),
                                    paste(format(extent, scientific = FALSE),
                                          collapse = "_")))
-    out_path <- .as_path(out_path)
+    out_path <- .out_path(out_path)
     if (!refresh && fs::file_exists(out_path)) return(out_path)
   }
 

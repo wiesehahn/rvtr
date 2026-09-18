@@ -412,7 +412,7 @@ rvt_render <- function(stack, out_path = fs::file_temp(ext = "tif"),
   if (!inherits(stack, "rvt_stack"))
     stop("`stack` must come from rvt_blend() or rvt_stack()", call. = FALSE)
   .check_quality(quality)
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   format <- .image_format(out_path)
 

@@ -121,7 +121,7 @@
 rvt_resample <- function(src, res, method = "cubic",
                           out_path = fs::file_temp(ext = "tif"),
                           threads = rvt_threads(), overwrite = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   src <- rvt_mosaic(src)
 

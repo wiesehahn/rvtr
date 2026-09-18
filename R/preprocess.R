@@ -48,7 +48,7 @@
 rvt_fill <- function(dem, out_path = fs::file_temp(ext = "tif"),
                       max_distance = 100, smooth_iterations = 0,
                       threads = rvt_threads(), overwrite = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   dem <- rvt_mosaic(dem)
 
@@ -154,7 +154,7 @@ rvt_smooth <- function(dem, out_path = fs::file_temp(ext = "tif"),
                         max_diff = 0.5,
                         tile_size = NULL, threads = rvt_threads(),
                         overwrite = FALSE, progress = FALSE) {
-  out_path <- .as_path(out_path)
+  out_path <- .out_path(out_path)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   if (norm_diff <= 0 || norm_diff >= 90)
     stop("`norm_diff` must be between 0 and 90 degrees", call. = FALSE)

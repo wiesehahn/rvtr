@@ -24,7 +24,8 @@ produce seams. A terra \code{SpatRaster} works too: one read from a file is
 used as it lies, while one terra computed in memory is written to a
 temporary GeoTIFF first.}
 
-\item{out_path}{output GeoTIFF path (default: a temp file)}
+\item{out_path}{output GeoTIFF path (default: a temp file). A folder that
+does not exist yet is created.}
 
 \item{radius}{how far the normal filter reaches, in \strong{map units} (metres,
 normally; default 5)}
