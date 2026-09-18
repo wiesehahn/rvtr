@@ -64,7 +64,49 @@ rvt_threads <- function(n = NULL) {
 ## a Windows path written with backslashes reaches GDAL as something it can
 ## open, and expands "~", which GDAL does not do at all - `rvt_svf(dem,
 ## "~/svf.tif")` would otherwise create a directory called "~".
-.as_path <- function(p) fs::path_expand(fs::path(p))
+.as_path <- function(p) {
+  if (inherits(p, "SpatRaster")) p <- .spat_path(p)
+  fs::path_expand(fs::path(p))
+}
+
+## A terra SpatRaster is accepted anywhere a raster path is, because every
+## entry point funnels through .as_path().
+##
+## A file-backed one hands over its own file: no copy, and the read stays lazy
+## and tiled exactly as for a path. Anything terra computed - crop, arithmetic,
+## a layer subset - has its values in memory and is written to a temporary
+## GeoTIFF once, which is what the caller would otherwise write themselves; the
+## kernels read through GDAL windows, so the data has to be a dataset somewhere.
+##
+## The check has to be stricter than "it has a source file". A band subset of a
+## multi-band file (`rast("rgb.tif")[[2]]`) can still name that file, and using
+## the path alone would silently compute on band 1. So the layer count, size and
+## extent must match the file too; anything else is materialised.
+.spat_path <- function(x) {
+  if (!requireNamespace("terra", quietly = TRUE))
+    stop("Install the terra package to pass a SpatRaster.", call. = FALSE)
+  src <- unique(terra::sources(x))
+  src <- src[nzchar(src)]
+  if (length(src) == 1L && !any(terra::inMemory(x)) && .spat_is_whole_file(x, src))
+    return(src)
+  out <- fs::file_temp(ext = "tif")
+  terra::writeRaster(x, out, gdal = c("TILED=YES", "COMPRESS=DEFLATE", "PREDICTOR=3"))
+  out
+}
+
+.spat_is_whole_file <- function(x, src) {
+  isTRUE(tryCatch({
+    ds <- methods::new(gdalraster::GDALRaster, src, read_only = TRUE)
+    on.exit(ds$close())
+    # xmin, xmax, ymin, ymax, and named - a SpatExtent has no as.numeric(),
+    # and all.equal() calls a named vector different from an unnamed one
+    e <- unname(as.vector(terra::ext(x)))
+    terra::nlyr(x) == ds$getRasterCount() &&
+      terra::nrow(x) == ds$getRasterYSize() &&
+      terra::ncol(x) == ds$getRasterXSize() &&
+      isTRUE(all.equal(e[c(1, 3, 2, 4)], as.numeric(ds$bbox())))
+  }, error = function(e) FALSE))
+}
 
 ## Delete if present. fs::file_delete() errors on a missing file, which is the
 ## wrong behaviour in an on.exit() handler that may run after a failure.

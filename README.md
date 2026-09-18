@@ -10,7 +10,7 @@ more, from a DEM straight to a Cloud-Optimized GeoTIFF.
   processing the same area as one raster, with no seams at file boundaries.
 - **Fast**: fused, multi-threaded C++ kernels.
 - **Pipeable**: every function takes a raster path first and returns the path
-  it wrote.
+  it wrote. A terra `SpatRaster` works as input too.
 
 The visualizations follow the
 [Relief Visualization Toolbox](https://github.com/EarthObservation/RVT_py)

@@ -207,6 +207,7 @@ rvt_range <- function(path, pct = NULL, band = 1L, max_dim = 1000L) {
 }
 
 .layer <- function(path, mode, opacity, range, invert) {
+  path <- .as_path(path)                     # also accepts a terra SpatRaster
   mode <- match.arg(mode, rvt_blend_modes)
   if (!is.numeric(opacity) || length(opacity) != 1L ||
       is.na(opacity) || opacity < 0 || opacity > 1)
@@ -214,7 +215,7 @@ rvt_range <- function(path, pct = NULL, band = 1L, max_dim = 1000L) {
   if (!is.null(range) && (length(range) != 2L || !all(is.finite(range)) ||
                            range[1] >= range[2]))
     stop("`range` must be `c(lo, hi)` with lo < hi, or NULL", call. = FALSE)
-  list(path = .as_path(path), mode = mode, opacity = opacity,
+  list(path = path, mode = mode, opacity = opacity,
        range = range, invert = isTRUE(invert), nbands = .nbands(path))
 }
 

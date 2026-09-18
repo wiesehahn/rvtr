@@ -206,7 +206,9 @@
 #'
 #' @param dem path to a DEM, or a vector of paths forming a mosaic (see
 #'   [rvt_mosaic()]); mosaics are read across file boundaries, so tiles do not
-#'   produce seams
+#'   produce seams. A terra `SpatRaster` works too: one read from a file is
+#'   used as it lies, while one terra computed in memory is written to a
+#'   temporary GeoTIFF first.
 #' @param out_path output GeoTIFF path (default: a temp file)
 #' @param num_directions number of compass directions scanned (default 16)
 #' @param reach how far to look, in **map units** (metres, normally;

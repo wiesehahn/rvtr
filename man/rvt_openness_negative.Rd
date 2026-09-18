@@ -22,7 +22,9 @@ rvt_openness_negative(
 \arguments{
 \item{dem}{path to a DEM, or a vector of paths forming a mosaic (see
 \code{\link[=rvt_mosaic]{rvt_mosaic()}}); mosaics are read across file boundaries, so tiles do not
-produce seams}
+produce seams. A terra \code{SpatRaster} works too: one read from a file is
+used as it lies, while one terra computed in memory is written to a
+temporary GeoTIFF first.}
 
 \item{out_path}{output GeoTIFF path (default: a temp file)}
 
