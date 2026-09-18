@@ -6,9 +6,10 @@
 \usage{
 rvt_image(
   x,
-  out_path,
+  out_path = fs::file_temp(ext = "webp"),
   col = "Grays",
   range = NULL,
+  pct = NULL,
   band = NULL,
   quality = 90,
   tile_size = NULL,
@@ -20,13 +21,17 @@ rvt_image(
 \arguments{
 \item{x}{a raster path, or an \code{rvt_stack} from \code{\link[=rvt_blend]{rvt_blend()}}}
 
-\item{out_path}{the image to write, ending in \code{.webp} or \code{.jpg}}
+\item{out_path}{the image to write, ending in \code{.webp} or \code{.jpg}. Defaults to
+a temporary \code{.webp} file.}
 
 \item{col}{palette name or colours for a single band, as in \code{\link[=rvt_plot]{rvt_plot()}}
 (default \code{"Grays"}); see \code{\link[=rvt_palettes]{rvt_palettes()}}}
 
 \item{range}{\code{c(lo, hi)} to stretch a single-band or RGB raster over, or
 \code{NULL} (default) for its own minimum and maximum}
+
+\item{pct}{\code{c(low, high)} percentages to cut from each tail instead, e.g.
+\code{c(2, 98)}, measured with \code{\link[=rvt_range]{rvt_range()}}. Not with \code{range}.}
 
 \item{band}{which band to draw, or three band numbers for red, green and
 blue. Defaults to band 1, or 1-3 for a three-band raster.}
@@ -78,24 +83,27 @@ transparency, so NoData is black.
 
 A single band is stretched across \code{range} and coloured with \code{col}, exactly
 as in \code{\link[=rvt_plot]{rvt_plot()}}. \code{range = NULL} uses the raster's own minimum and
-maximum; \code{\link[=rvt_range]{rvt_range()}} gives a percentile stretch, and each metric's help
+maximum, which a handful of extreme cells can easily spoil; \code{pct = c(2, 98)}
+cuts percentiles off each tail instead, measured on the raster being drawn -
+the same stretch \code{\link[=rvt_plot]{rvt_plot()}} spells \code{minmax_pct_cut}. Each metric's help
 page lists recommended ranges. The range is fixed before any tile is read,
 so the picture does not depend on \code{tile_size}.
 
 Three bands - an RGB result such as \code{\link[=rvt_mstp]{rvt_mstp()}}, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and \code{col} is
 not used. A blend stack is stretched layer by layer when it is blended (see
-\code{\link[=rvt_blend]{rvt_blend()}}), so \code{range} does not apply to it either.
+\code{\link[=rvt_blend]{rvt_blend()}}), so neither \code{range} nor \code{pct} applies to it.
 }
 
 \examples{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-svf <- rvt_svf(dem)
-rvt_image(svf, tempfile(fileext = ".webp"), range = c(0.7, 1))
+dem |> rvt_svf() |> rvt_image(range = c(0.7, 1))
+
+# a percentile stretch, when the range isn't known in advance
+dem |> rvt_svf() |> rvt_image(pct = c(2, 98))
 
 # signed data: a diverging palette with a symmetric range
-dem |> rvt_slrm() |>
-  rvt_image(tempfile(fileext = ".webp"), "Blue-Red 3", range = c(-1, 1))
+dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
 }
 \seealso{
 \code{\link[=rvt_plot]{rvt_plot()}} for a quick look on screen, \code{\link[=rvt_render]{rvt_render()}} for blends

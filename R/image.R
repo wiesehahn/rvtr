@@ -130,21 +130,26 @@
 #' @section Stretch and colours:
 #' A single band is stretched across `range` and coloured with `col`, exactly
 #' as in [rvt_plot()]. `range = NULL` uses the raster's own minimum and
-#' maximum; [rvt_range()] gives a percentile stretch, and each metric's help
+#' maximum, which a handful of extreme cells can easily spoil; `pct = c(2, 98)`
+#' cuts percentiles off each tail instead, measured on the raster being drawn -
+#' the same stretch [rvt_plot()] spells `minmax_pct_cut`. Each metric's help
 #' page lists recommended ranges. The range is fixed before any tile is read,
 #' so the picture does not depend on `tile_size`.
 #'
 #' Three bands - an RGB result such as [rvt_mstp()], or a blend stack over an
 #' orthophoto - are stretched over one range spanning all bands, and `col` is
 #' not used. A blend stack is stretched layer by layer when it is blended (see
-#' [rvt_blend()]), so `range` does not apply to it either.
+#' [rvt_blend()]), so neither `range` nor `pct` applies to it.
 #'
 #' @param x a raster path, or an `rvt_stack` from [rvt_blend()]
-#' @param out_path the image to write, ending in `.webp` or `.jpg`
+#' @param out_path the image to write, ending in `.webp` or `.jpg`. Defaults to
+#'   a temporary `.webp` file.
 #' @param col palette name or colours for a single band, as in [rvt_plot()]
 #'   (default `"Grays"`); see [rvt_palettes()]
 #' @param range `c(lo, hi)` to stretch a single-band or RGB raster over, or
 #'   `NULL` (default) for its own minimum and maximum
+#' @param pct `c(low, high)` percentages to cut from each tail instead, e.g.
+#'   `c(2, 98)`, measured with [rvt_range()]. Not with `range`.
 #' @param band which band to draw, or three band numbers for red, green and
 #'   blue. Defaults to band 1, or 1-3 for a three-band raster.
 #' @param quality compression quality, 1-100 (default 90)
@@ -153,14 +158,16 @@
 #' @seealso [rvt_plot()] for a quick look on screen, [rvt_render()] for blends
 #' @examples
 #' dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-#' svf <- rvt_svf(dem)
-#' rvt_image(svf, tempfile(fileext = ".webp"), range = c(0.7, 1))
+#' dem |> rvt_svf() |> rvt_image(range = c(0.7, 1))
+#'
+#' # a percentile stretch, when the range isn't known in advance
+#' dem |> rvt_svf() |> rvt_image(pct = c(2, 98))
 #'
 #' # signed data: a diverging palette with a symmetric range
-#' dem |> rvt_slrm() |>
-#'   rvt_image(tempfile(fileext = ".webp"), "Blue-Red 3", range = c(-1, 1))
+#' dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
 #' @export
-rvt_image <- function(x, out_path, col = "Grays", range = NULL, band = NULL,
+rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
+                      col = "Grays", range = NULL, pct = NULL, band = NULL,
                       quality = 90, tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
   out_path <- .as_path(out_path)
@@ -171,6 +178,8 @@ rvt_image <- function(x, out_path, col = "Grays", range = NULL, band = NULL,
   if (!is.null(range) && (length(range) != 2L || !all(is.finite(range)) ||
                            range[1] >= range[2]))
     stop("`range` must be `c(lo, hi)` with lo < hi, or NULL", call. = FALSE)
+  if (!is.null(range) && !is.null(pct))
+    stop("Give either `range` or `pct`, not both.", call. = FALSE)
   if (!overwrite && fs::file_exists(out_path)) return(invisible(out_path))
   table <- .col_table(col)
 
@@ -198,7 +207,7 @@ rvt_image <- function(x, out_path, col = "Grays", range = NULL, band = NULL,
     stop(sprintf("`band` must be one or three band numbers from 1 to %d.", nb_src),
          call. = FALSE)
   if (is.null(range)) {
-    rs <- vapply(band, function(b) rvt_range(x, band = b), numeric(2))
+    rs <- vapply(band, function(b) rvt_range(x, pct = pct, band = b), numeric(2))
     range <- c(min(rs[1, ]), max(rs[2, ]))
     if (!all(is.finite(range)) || range[1] >= range[2]) range <- c(range[1], range[1] + 1)
   }
