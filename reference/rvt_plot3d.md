@@ -81,10 +81,10 @@ units are metres, so heights and distances are already comparable and
     dem |> rvt_plot3d("Terrain 2")
 
     # an orthophoto, a relit image, or any other finished raster
-    rvt_plot3d(dem, drape = ortho)
+    dem |> rvt_plot3d(drape = ortho)
 
     # for a page or a vignette rather than a window
-    rvt_plot3d(dem, drape = ortho, widget = TRUE)
+    dem |> rvt_plot3d(drape = ortho, widget = TRUE)
 
 ## Size
 
@@ -110,8 +110,8 @@ if (FALSE) { # \dontrun{
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 
 # a composite draped over the terrain, with the relief exaggerated
-stack <- rvt_hillshade(dem) |>
+stack <- dem |> rvt_hillshade() |>
   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25)
-rvt_plot3d(dem, drape = stack, exaggeration = 2)
+dem |> rvt_plot3d(drape = stack, exaggeration = 2)
 } # }
 ```

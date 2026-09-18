@@ -81,7 +81,7 @@ for a colour palette use `rvt_image(stack, "out.webp", col = ...)`.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_hillshade(dem) |>
+dem |> rvt_hillshade() |>
   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
   rvt_render()
 ```

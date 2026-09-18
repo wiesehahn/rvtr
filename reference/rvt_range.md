@@ -49,9 +49,9 @@ the question entirely.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-svf <- rvt_svf(dem)
-rvt_range(svf)
+svf <- dem |> rvt_svf()
+svf |> rvt_range()
 #> [1] 0.5444252 1.0020018
-rvt_range(svf, pct = c(2, 98))
+svf |> rvt_range(pct = c(2, 98))
 #> [1] 0.8334779 0.9884582
 ```

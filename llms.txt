@@ -11,7 +11,7 @@ geomorphons and more, from a DEM straight to a Cloud-Optimized GeoTIFF.
   file boundaries.
 - **Fast**: fused, multi-threaded C++ kernels.
 - **Pipeable**: every function takes a raster path first and returns the
-  path it wrote.
+  path it wrote. A terra `SpatRaster` works as input too.
 
 The visualizations follow the [Relief Visualization
 Toolbox](https://github.com/EarthObservation/RVT_py) (Kokalj & Somrak

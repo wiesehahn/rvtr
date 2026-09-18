@@ -61,7 +61,9 @@ where slopes face the light and dark where they turn away, from 0 to 1.</p>
 <dl><dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
 <dd><p>path to a DEM, or a vector of paths forming a mosaic (see
 <code><a href="rvt_mosaic.html">rvt_mosaic()</a></code>); mosaics are read across file boundaries, so tiles do not
-produce seams</p></dd>
+produce seams. A terra <code>SpatRaster</code> works too: one read from a file is
+used as it lies, while one terra computed in memory is written to a
+temporary GeoTIFF first.</p></dd>
 
 
 <dt id="arg-out-path">out_path<a class="anchor" aria-label="anchor" href="#arg-out-path"></a></dt>
@@ -172,7 +174,7 @@ shadow, <code><a href="rvt_slope.html">rvt_slope()</a></code> for the underlying
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dem</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"dtm1.tif"</span>, package <span class="op">=</span> <span class="st">"rvtr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">rvt_hillshade</span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu">rvt_hillshade</span><span class="op">(</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

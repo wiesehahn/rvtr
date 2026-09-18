@@ -148,12 +148,12 @@ ready-made archaeological composite.</p></div>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dem</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"dtm1.tif"</span>, package <span class="op">=</span> <span class="st">"rvtr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">hs</span> <span class="op">&lt;-</span> <span class="fu"><a href="rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">rvt_blend</span><span class="op">(</span><span class="va">hs</span>, <span class="va">svf</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">hs</span> <span class="op">&lt;-</span> <span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">hs</span> <span class="op">|&gt;</span> <span class="fu">rvt_blend</span><span class="op">(</span><span class="va">svf</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;rvt_stack&gt; 2 layers, bottom to top</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   1. file2274243d1a07.tif         (background) opacity 1.00  range auto</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   2. file22741b6ee839.tif         multiply    opacity 0.25  range auto</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   1. file21662b1fa9a0.tif         (background) opacity 1.00  range auto</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   2. file2166383bea81.tif         multiply    opacity 0.25  range auto</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.</span>
 </code></pre></div>
     </div>

@@ -231,7 +231,10 @@ rvt_data_mapterhorn(c(8.5, 48.2, 9.5, 48.6))             # 75 x 45 km at 0.25 m
 ## Your own data
 
 Any raster GDAL can read works, as long as its coordinate system is
-measured in metres. Reproject one in degrees first:
+measured in metres. A terra `SpatRaster` can be passed instead of a
+path: one read from a file is used as it lies, and one terra computed in
+memory is written to a temporary GeoTIFF first. Reproject a raster in
+degrees before using it:
 
 ``` r
 

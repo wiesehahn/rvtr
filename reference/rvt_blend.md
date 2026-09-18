@@ -123,11 +123,11 @@ a ready-made archaeological composite.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-hs <- rvt_hillshade(dem)
-svf <- rvt_svf(dem)
-rvt_blend(hs, svf, "multiply", opacity = 0.25)
+hs <- dem |> rvt_hillshade()
+svf <- dem |> rvt_svf()
+hs |> rvt_blend(svf, "multiply", opacity = 0.25)
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file2274243d1a07.tif         (background) opacity 1.00  range auto
-#>   2. file22741b6ee839.tif         multiply    opacity 0.25  range auto
+#>   1. file21662b1fa9a0.tif         (background) opacity 1.00  range auto
+#>   2. file2166383bea81.tif         multiply    opacity 0.25  range auto
 #> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```

@@ -40,6 +40,6 @@ Pipe-friendly: `tiles |> rvt_mosaic() |> rvt_vat()`.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_mosaic(dem)  # single path passes through unchanged
+dem |> rvt_mosaic()  # single path passes through unchanged
 #> /home/runner/work/_temp/Library/rvtr/extdata/dtm1.tif
 ```

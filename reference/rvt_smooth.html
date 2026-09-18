@@ -69,7 +69,9 @@ are what most of these metrics exist to find.</p>
 <dl><dt id="arg-dem">dem<a class="anchor" aria-label="anchor" href="#arg-dem"></a></dt>
 <dd><p>path to a DEM, or a vector of paths forming a mosaic (see
 <code><a href="rvt_mosaic.html">rvt_mosaic()</a></code>); mosaics are read across file boundaries, so tiles do not
-produce seams</p></dd>
+produce seams. A terra <code>SpatRaster</code> works too: one read from a file is
+used as it lies, while one terra computed in memory is written to a
+temporary GeoTIFF first.</p></dd>
 
 
 <dt id="arg-out-path">out_path<a class="anchor" aria-label="anchor" href="#arg-out-path"></a></dt>

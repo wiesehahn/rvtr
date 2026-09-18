@@ -35,7 +35,10 @@ rvt_tpi(
 
   path to a DEM, or a vector of paths forming a mosaic (see
   [`rvt_mosaic()`](https://wiesehahn.github.io/rvtr/reference/rvt_mosaic.md));
-  mosaics are read across file boundaries, so tiles do not produce seams
+  mosaics are read across file boundaries, so tiles do not produce
+  seams. A terra `SpatRaster` works too: one read from a file is used as
+  it lies, while one terra computed in memory is written to a temporary
+  GeoTIFF first.
 
 - out_path:
 
@@ -159,5 +162,5 @@ the standardised one.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_slrm(dem)
+dem |> rvt_slrm()
 ```

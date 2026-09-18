@@ -84,10 +84,10 @@ override it, both passed through to
 [`gdalraster::plot_raster()`](https://firelab.github.io/gdalraster/reference/plot_raster.html):
 
     # fixed values - anything outside is clipped to the end colours
-    rvt_plot(p, minmax_def = c(-0.05, 0.05))
+    p |> rvt_plot(minmax_def = c(-0.05, 0.05))
 
     # or cut percentiles, when you don't know the range in advance
-    rvt_plot(p, minmax_pct_cut = c(2, 98))
+    p |> rvt_plot(minmax_pct_cut = c(2, 98))
 
 The difference is easy to underestimate. Minimal curvature on the
 bundled sample tile spans -1.41 to 0.87, but its 2nd-98th percentile
@@ -153,9 +153,9 @@ each panel to its own device.
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-rvt_plot(dem)
+dem |> rvt_plot()
 
-rvt_plot(dem, legend = TRUE, axes = TRUE, main = basename(dem))
+dem |> rvt_plot(legend = TRUE, axes = TRUE, main = basename(dem))
 
 
 # any palette by name; rvt_palettes() shows them all
@@ -171,7 +171,7 @@ dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
 
 
 # a blend stack draws directly, with no rvt_render() call
-rvt_hillshade(dem) |>
+dem |> rvt_hillshade() |>
   rvt_blend(rvt_svf(dem), "multiply", opacity = 0.25) |>
   rvt_plot()
 ```

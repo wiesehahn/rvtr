@@ -120,10 +120,10 @@ often the wrong choice: a handful of extreme cells then compress everything
 interesting into the middle of the palette. Two arguments override it,
 both passed through to <code><a href="https://firelab.github.io/gdalraster/reference/plot_raster.html" class="external-link">gdalraster::plot_raster()</a></code>:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># fixed values - anything outside is clipped to the end colours</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">p</span>, minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.05</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.05</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># or cut percentiles, when you don't know the range in advance</span></span>
-<span><span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="va">p</span>, minmax_pct_cut <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>minmax_pct_cut <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The difference is easy to underestimate. Minimal curvature on the bundled
 sample tile spans -1.41 to 0.87, but its 2nd-98th percentile range is only
 -0.20 to 0.12 - so the default stretch spends most of the palette on
@@ -167,9 +167,9 @@ device.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dem</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"dtm1.tif"</span>, package <span class="op">=</span> <span class="st">"rvtr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">rvt_plot</span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="rvt_plot-1.png" alt="" width="700" height="433"></span>
-<span class="r-in"><span><span class="fu">rvt_plot</span><span class="op">(</span><span class="va">dem</span>, legend <span class="op">=</span> <span class="cn">TRUE</span>, axes <span class="op">=</span> <span class="cn">TRUE</span>, main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/basename.html" class="external-link">basename</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span>legend <span class="op">=</span> <span class="cn">TRUE</span>, axes <span class="op">=</span> <span class="cn">TRUE</span>, main <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/basename.html" class="external-link">basename</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="rvt_plot-2.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># any palette by name; rvt_palettes() shows them all</span></span></span>
@@ -185,7 +185,7 @@ device.</p>
 <span class="r-plt img"><img src="rvt_plot-5.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># a blend stack draws directly, with no rvt_render() call</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="rvt_blend.html">rvt_blend</a></span><span class="op">(</span><span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span>, <span class="st">"multiply"</span>, opacity <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
 <span class="r-in"><span>  <span class="fu">rvt_plot</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="rvt_plot-6.png" alt="" width="700" height="433"></span>
