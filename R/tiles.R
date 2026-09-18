@@ -83,13 +83,21 @@ rvt_threads <- function(n = NULL) {
        nodata = ds$getNoDataValue(band))
 }
 
-.read_window <- function(path, x0, y0, ncols, nrows, nodata, band = 1L) {
-  ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
-  on.exit(ds$close())
+## Read a window from an already-open dataset. The tiling loop opens each
+## source, pyramid level and output once and keeps the handle: reopening per
+## window costs ~8 ms, which is nothing beside four big tiles but 0.5 s over
+## 64 small ones, per input and per output.
+.read_window_ds <- function(ds, x0, y0, ncols, nrows, nodata, band = 1L) {
   vals <- ds$read(band, x0, y0, ncols, nrows, ncols, nrows)
   m <- matrix(as.numeric(vals), nrow = nrows, ncol = ncols, byrow = TRUE)
   if (!is.na(nodata)) m[m == nodata] <- NA
   m
+}
+
+.read_window <- function(path, x0, y0, ncols, nrows, nodata, band = 1L) {
+  ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
+  on.exit(ds$close())
+  .read_window_ds(ds, x0, y0, ncols, nrows, nodata, band)
 }
 
 ## Replicate the edge cell outwards (numpy's mode="edge"), the standard edge
@@ -183,16 +191,27 @@ rvt_threads <- function(n = NULL) {
 ## Plain tiled GeoTIFF used as scratch space while tiles are written one
 ## window at a time (see .process_tiled()) - not the final output, see
 ## .finalize_cog().
+## `dtype` is Float32 for data and Byte for display images, which are already
+## 0-255 by the time they arrive: a Float32 scratch there pushes four times the
+## bytes through disk for nothing.
+##
+## **Uncompressed on purpose.** This file is written once, read once by the
+## finalizer and deleted. Compressing it cost more than it saved: measured on
+## 4000x4000 Float32, DEFLATE+predictor at ZLEVEL 9 took 0.24 s to create and
+## 1.10 s to write against 0.05 s and 0.33 s uncompressed, and the COG step
+## then read it slightly faster too (0.65 s against 0.71 s) - about 1 s of the
+## ~3.3 s a cheap metric costs end to end. ZLEVEL 1 was no faster than 9, so
+## the cost is the predictor plus deflate itself, not the level. The trade is
+## a larger temporary file, 4 bytes per cell rather than ~3.
 .create_scratch <- function(src, path, tile_size, nx, ny, nbands = 1L,
-                             nodata_value = -9999) {
-  # Internal block size is aligned to the write tiles: if blocks straddle tile
-  # boundaries GDAL decompresses and recompresses the same block once per
-  # touching tile, which inflates the file several-fold.
+                             nodata_value = -9999, dtype = "Float32") {
+  # Blocks stay aligned to the write tiles: it no longer matters for
+  # compression, but a window that straddles blocks still costs extra I/O.
   bs <- max(16, (min(tile_size, nx, ny) %/% 16) * 16)
   gdalraster::rasterFromRaster(
-    srcfile = src, dstfile = path, nbands = nbands, dtName = "Float32",
-    init = nodata_value,
-    options = c("COMPRESS=DEFLATE", "PREDICTOR=3", "ZLEVEL=9", "TILED=YES",
+    srcfile = src, dstfile = path, nbands = nbands, dtName = dtype,
+    init = if (is.null(nodata_value)) 0 else nodata_value,
+    options = c("COMPRESS=NONE", "TILED=YES",
                  paste0("BLOCKXSIZE=", bs), paste0("BLOCKYSIZE=", bs)),
     quiet = TRUE)
   invisible(path)
@@ -227,15 +246,15 @@ rvt_threads <- function(n = NULL) {
   invisible(out_path)
 }
 
-## `bands` is a list of equally sized matrices, one per output band.
-.write_window <- function(path, bands, x0, y0, nodata_value = -9999) {
-  ds <- methods::new(gdalraster::GDALRaster, path, read_only = FALSE)
-  on.exit(ds$close())
+## `bands` is a list of equally sized matrices, one per output band. The
+## dataset is opened by the caller and stays open across tiles; NoData is set
+## once when it is opened, not on every window.
+.write_window_ds <- function(ds, bands, x0, y0, nodata_value = -9999) {
+  fill <- if (is.null(nodata_value)) 0 else nodata_value
   for (b in seq_along(bands)) {
     mat <- bands[[b]]
-    mat[is.na(mat)] <- nodata_value
+    mat[is.na(mat)] <- fill
     ds$write(b, x0, y0, ncol(mat), nrow(mat), as.vector(t(mat)))
-    ds$setNoDataValue(b, nodata_value)
   }
   invisible(NULL)
 }
@@ -298,9 +317,31 @@ rvt_threads <- function(n = NULL) {
   nb <- stats::setNames(rep(1L, length(out_paths)), names(out_paths))
   if (!is.null(nbands)) nb[names(nbands)] <- as.integer(nbands)
 
+  # A display image is already 0-255 when it arrives, so its scratch is Byte
+  # and carries no NoData: holes are handled by the alpha band (WebP) or come
+  # out black (JPEG).
   scratch_paths <- lapply(out_paths, function(p) fs::file_temp(ext = "tif"))
+  nodata_values <- lapply(formats, function(f) if (is.null(f)) -9999 else NULL)
   for (nm in names(out_paths))
-    .create_scratch(src, scratch_paths[[nm]], tile_size, nx, ny, nb[[nm]])
+    .create_scratch(src, scratch_paths[[nm]], tile_size, nx, ny, nb[[nm]],
+                    nodata_value = nodata_values[[nm]],
+                    dtype = if (is.null(formats[[nm]])) "Float32" else "Byte")
+
+  # One open handle per source, pyramid level and output for the whole loop
+  src_ds <- methods::new(gdalraster::GDALRaster, src, read_only = TRUE)
+  aux_ds <- lapply(aux, function(a)
+    methods::new(gdalraster::GDALRaster, a$path, read_only = TRUE))
+  out_ds <- lapply(scratch_paths, function(p)
+    methods::new(gdalraster::GDALRaster, p, read_only = FALSE))
+  on.exit({
+    try(src_ds$close(), silent = TRUE)
+    for (d in aux_ds) try(d$close(), silent = TRUE)
+    for (d in out_ds) try(d$close(), silent = TRUE)
+  }, add = TRUE)
+  for (nm in names(out_paths)) {
+    nd <- nodata_values[[nm]]
+    if (!is.null(nd)) for (b in seq_len(nb[[nm]])) out_ds[[nm]]$setNoDataValue(b, nd)
+  }
 
   x0s <- seq(0, nx - 1, by = tile_size)
   y0s <- seq(0, ny - 1, by = tile_size)
@@ -318,9 +359,9 @@ rvt_threads <- function(n = NULL) {
       right  <- min(overlap, nx - x0 - cols)
       bottom <- min(overlap, ny - y0 - rows)
 
-      tile <- .read_window(src, x0 - left, y0 - top,
-                            cols + left + right, rows + top + bottom,
-                            info$nodata, band)
+      tile <- .read_window_ds(src_ds, x0 - left, y0 - top,
+                               cols + left + right, rows + top + bottom,
+                               info$nodata, band)
 
       res <- if (is.null(aux)) {
         fun(tile, info$xres, info$yres)
@@ -331,14 +372,15 @@ rvt_threads <- function(n = NULL) {
         gx0 <- x0 - left; gy0 <- y0 - top
         gx1 <- gx0 + (cols + left + right) - 1L
         gy1 <- gy0 + (rows + top + bottom) - 1L
-        wins <- lapply(aux, function(a) {
+        wins <- lapply(seq_along(aux), function(i) {
+          a <- aux[[i]]
           cx0 <- max(0L, (gx0 %/% a$fac) - a$overlap)
           cy0 <- max(0L, (gy0 %/% a$fac) - a$overlap)
           cx1 <- min(a$nx - 1L, (gx1 %/% a$fac) + a$overlap)
           cy1 <- min(a$ny - 1L, (gy1 %/% a$fac) + a$overlap)
-          list(m = .read_window(a$path, cx0, cy0, cx1 - cx0 + 1L, cy1 - cy0 + 1L,
-                                 a$nodata,
-                                 if (is.null(a$band)) 1L else a$band),
+          list(m = .read_window_ds(aux_ds[[i]], cx0, cy0,
+                                    cx1 - cx0 + 1L, cy1 - cy0 + 1L, a$nodata,
+                                    if (is.null(a$band)) 1L else a$band),
                 cx0 = as.integer(cx0), cy0 = as.integer(cy0),
                 fac = as.integer(a$fac))
         })
@@ -349,15 +391,20 @@ rvt_threads <- function(n = NULL) {
       for (nm in names(out_paths)) {
         m <- res[[nm]]
         if (!is.list(m)) m <- list(m)
-        .write_window(scratch_paths[[nm]],
-                       lapply(m, function(b)
-                         b[(top + 1):(top + rows), (left + 1):(left + cols), drop = FALSE]),
-                       x0, y0)
+        .write_window_ds(out_ds[[nm]],
+                          lapply(m, function(b)
+                            b[(top + 1):(top + rows), (left + 1):(left + cols), drop = FALSE]),
+                          x0, y0, nodata_values[[nm]])
       }
 
       if (progress) message(sprintf("  tile %d/%d", k, n_tiles))
     }
   }
+
+  # close every handle before the finalizers read the scratch files back
+  src_ds$close()
+  for (d in aux_ds) d$close()
+  for (d in out_ds) d$close()
 
   for (nm in names(out_paths)) {
     if (is.null(formats[[nm]]))
