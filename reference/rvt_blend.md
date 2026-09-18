@@ -127,7 +127,7 @@ hs <- rvt_hillshade(dem)
 svf <- rvt_svf(dem)
 rvt_blend(hs, svf, "multiply", opacity = 0.25)
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file21894394bf67.tif         (background) opacity 1.00  range auto
-#>   2. file21897d96209f.tif         multiply    opacity 0.25  range auto
+#>   1. file2274243d1a07.tif         (background) opacity 1.00  range auto
+#>   2. file22741b6ee839.tif         multiply    opacity 0.25  range auto
 #> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```

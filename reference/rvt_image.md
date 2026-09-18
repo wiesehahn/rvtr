@@ -12,9 +12,10 @@ or in a report.
 ``` r
 rvt_image(
   x,
-  out_path,
+  out_path = fs::file_temp(ext = "webp"),
   col = "Grays",
   range = NULL,
+  pct = NULL,
   band = NULL,
   quality = 90,
   tile_size = NULL,
@@ -33,7 +34,8 @@ rvt_image(
 
 - out_path:
 
-  the image to write, ending in `.webp` or `.jpg`
+  the image to write, ending in `.webp` or `.jpg`. Defaults to a
+  temporary `.webp` file.
 
 - col:
 
@@ -46,6 +48,13 @@ rvt_image(
 
   `c(lo, hi)` to stretch a single-band or RGB raster over, or `NULL`
   (default) for its own minimum and maximum
+
+- pct:
+
+  `c(low, high)` percentages to cut from each tail instead, e.g.
+  `c(2, 98)`, measured with
+  [`rvt_range()`](https://wiesehahn.github.io/rvtr/reference/rvt_range.md).
+  Not with `range`.
 
 - band:
 
@@ -109,11 +118,14 @@ has no transparency, so NoData is black.
 A single band is stretched across `range` and coloured with `col`,
 exactly as in
 [`rvt_plot()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot.md).
-`range = NULL` uses the raster's own minimum and maximum;
-[`rvt_range()`](https://wiesehahn.github.io/rvtr/reference/rvt_range.md)
-gives a percentile stretch, and each metric's help page lists
-recommended ranges. The range is fixed before any tile is read, so the
-picture does not depend on `tile_size`.
+`range = NULL` uses the raster's own minimum and maximum, which a
+handful of extreme cells can easily spoil; `pct = c(2, 98)` cuts
+percentiles off each tail instead, measured on the raster being drawn -
+the same stretch
+[`rvt_plot()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot.md)
+spells `minmax_pct_cut`. Each metric's help page lists recommended
+ranges. The range is fixed before any tile is read, so the picture does
+not depend on `tile_size`.
 
 Three bands - an RGB result such as
 [`rvt_mstp()`](https://wiesehahn.github.io/rvtr/reference/rvt_mstp.md),
@@ -121,7 +133,7 @@ or a blend stack over an orthophoto - are stretched over one range
 spanning all bands, and `col` is not used. A blend stack is stretched
 layer by layer when it is blended (see
 [`rvt_blend()`](https://wiesehahn.github.io/rvtr/reference/rvt_blend.md)),
-so `range` does not apply to it either.
+so neither `range` nor `pct` applies to it.
 
 ## See also
 
@@ -134,10 +146,11 @@ for blends
 
 ``` r
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-svf <- rvt_svf(dem)
-rvt_image(svf, tempfile(fileext = ".webp"), range = c(0.7, 1))
+dem |> rvt_svf() |> rvt_image(range = c(0.7, 1))
+
+# a percentile stretch, when the range isn't known in advance
+dem |> rvt_svf() |> rvt_image(pct = c(2, 98))
 
 # signed data: a diverging palette with a symmetric range
-dem |> rvt_slrm() |>
-  rvt_image(tempfile(fileext = ".webp"), "Blue-Red 3", range = c(-1, 1))
+dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
 ```

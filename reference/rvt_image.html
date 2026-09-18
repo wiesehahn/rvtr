@@ -50,9 +50,10 @@ this makes the file you put on a web page or in a report.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rvt_image</span><span class="op">(</span></span>
 <span>  <span class="va">x</span>,</span>
-<span>  <span class="va">out_path</span>,</span>
+<span>  out_path <span class="op">=</span> <span class="fu">fs</span><span class="fu">::</span><span class="fu"><a href="https://fs.r-lib.org/reference/file_temp.html" class="external-link">file_temp</a></span><span class="op">(</span>ext <span class="op">=</span> <span class="st">"webp"</span><span class="op">)</span>,</span>
 <span>  col <span class="op">=</span> <span class="st">"Grays"</span>,</span>
 <span>  range <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pct <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  band <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  quality <span class="op">=</span> <span class="fl">90</span>,</span>
 <span>  tile_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -71,7 +72,8 @@ this makes the file you put on a web page or in a report.</p>
 
 
 <dt id="arg-out-path">out_path<a class="anchor" aria-label="anchor" href="#arg-out-path"></a></dt>
-<dd><p>the image to write, ending in <code>.webp</code> or <code>.jpg</code></p></dd>
+<dd><p>the image to write, ending in <code>.webp</code> or <code>.jpg</code>. Defaults to
+a temporary <code>.webp</code> file.</p></dd>
 
 
 <dt id="arg-col">col<a class="anchor" aria-label="anchor" href="#arg-col"></a></dt>
@@ -82,6 +84,11 @@ this makes the file you put on a web page or in a report.</p>
 <dt id="arg-range">range<a class="anchor" aria-label="anchor" href="#arg-range"></a></dt>
 <dd><p><code>c(lo, hi)</code> to stretch a single-band or RGB raster over, or
 <code>NULL</code> (default) for its own minimum and maximum</p></dd>
+
+
+<dt id="arg-pct">pct<a class="anchor" aria-label="anchor" href="#arg-pct"></a></dt>
+<dd><p><code>c(low, high)</code> percentages to cut from each tail instead, e.g.
+<code>c(2, 98)</code>, measured with <code><a href="rvt_range.html">rvt_range()</a></code>. Not with <code>range</code>.</p></dd>
 
 
 <dt id="arg-band">band<a class="anchor" aria-label="anchor" href="#arg-band"></a></dt>
@@ -142,13 +149,15 @@ transparency, so NoData is black.</p>
 
 <p>A single band is stretched across <code>range</code> and coloured with <code>col</code>, exactly
 as in <code><a href="rvt_plot.html">rvt_plot()</a></code>. <code>range = NULL</code> uses the raster's own minimum and
-maximum; <code><a href="rvt_range.html">rvt_range()</a></code> gives a percentile stretch, and each metric's help
+maximum, which a handful of extreme cells can easily spoil; <code>pct = c(2, 98)</code>
+cuts percentiles off each tail instead, measured on the raster being drawn -
+the same stretch <code><a href="rvt_plot.html">rvt_plot()</a></code> spells <code>minmax_pct_cut</code>. Each metric's help
 page lists recommended ranges. The range is fixed before any tile is read,
 so the picture does not depend on <code>tile_size</code>.</p>
 <p>Three bands - an RGB result such as <code><a href="rvt_mstp.html">rvt_mstp()</a></code>, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and <code>col</code> is
 not used. A blend stack is stretched layer by layer when it is blended (see
-<code><a href="rvt_blend.html">rvt_blend()</a></code>), so <code>range</code> does not apply to it either.</p>
+<code><a href="rvt_blend.html">rvt_blend()</a></code>), so neither <code>range</code> nor <code>pct</code> applies to it.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -158,12 +167,13 @@ not used. A blend stack is stretched layer by layer when it is blended (see
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dem</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"dtm1.tif"</span>, package <span class="op">=</span> <span class="st">"rvtr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">svf</span> <span class="op">&lt;-</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="va">dem</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">rvt_image</span><span class="op">(</span><span class="va">svf</span>, <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".webp"</span><span class="op">)</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.7</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># a percentile stretch, when the range isn't known in advance</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_svf.html">rvt_svf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>pct <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># signed data: a diverging palette with a symmetric range</span></span></span>
-<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_slrm.html">rvt_slrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu">rvt_image</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".webp"</span><span class="op">)</span>, <span class="st">"Blue-Red 3"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_slrm.html">rvt_slrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"Blue-Red 3"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
