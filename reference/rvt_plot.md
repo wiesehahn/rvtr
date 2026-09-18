@@ -22,6 +22,8 @@ rvt_plot(
   legend = FALSE,
   axes = FALSE,
   band = NULL,
+  range = NULL,
+  pct = NULL,
   ...
 )
 ```
@@ -64,6 +66,19 @@ rvt_plot(
   [`rvt_mstp()`](https://wiesehahn.github.io/rvtr/reference/rvt_mstp.md)
   wants).
 
+- range:
+
+  `c(lo, hi)` to stretch the colours over, or `NULL` (default) for the
+  data's own minimum and maximum. Three bands share one range; see
+  **Controlling the stretch**.
+
+- pct:
+
+  `c(low, high)` percentages to cut from each tail instead, e.g.
+  `c(2, 98)`, measured with
+  [`rvt_range()`](https://wiesehahn.github.io/rvtr/reference/rvt_range.md).
+  Not with `range`.
+
 - ...:
 
   passed on to
@@ -80,14 +95,16 @@ pipe-friendly: `path |> rvt_plot()`.
 By default the colours are stretched across the data's full range, which
 is often the wrong choice: a handful of extreme cells then compress
 everything interesting into the middle of the palette. Two arguments
-override it, both passed through to
-[`gdalraster::plot_raster()`](https://firelab.github.io/gdalraster/reference/plot_raster.html):
+override it, and they are spelled as in
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md),
+so a stretch chosen on screen carries over to the written picture
+unchanged:
 
     # fixed values - anything outside is clipped to the end colours
-    p |> rvt_plot(minmax_def = c(-0.05, 0.05))
+    p |> rvt_plot(range = c(-0.05, 0.05))
 
     # or cut percentiles, when you don't know the range in advance
-    p |> rvt_plot(minmax_pct_cut = c(2, 98))
+    p |> rvt_plot(pct = c(2, 98))
 
 The difference is easy to underestimate. Minimal curvature on the
 bundled sample tile spans -1.41 to 0.87, but its 2nd-98th percentile
@@ -103,7 +120,7 @@ keep the range **symmetric about zero** and use a diverging palette, or
 zero will not land on the palette's neutral centre and convex will stop
 reading as the opposite of concave:
 
-    p |> rvt_plot("Blue-Red 3", minmax_def = c(-0.3, 0.3), legend = TRUE)
+    p |> rvt_plot("Blue-Red 3", range = c(-0.3, 0.3), legend = TRUE)
 
 Turning the `legend` on while choosing a stretch is worth the space - it
 is the only way to see what the range you picked actually was. Note the
@@ -116,6 +133,15 @@ page carries the stretches recommended in the literature - see the
 [`rvt_svf()`](https://wiesehahn.github.io/rvtr/reference/rvt_svf.md),
 [`rvt_openness()`](https://wiesehahn.github.io/rvtr/reference/rvt_openness.md)
 and the rest.
+
+Three bands drawn as RGB share one `range`, as in
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md),
+so the colour balance is not shifted band by band: `range = c(0, 255)`
+for an orthophoto.
+[`gdalraster::plot_raster()`](https://firelab.github.io/gdalraster/reference/plot_raster.html)'s
+own `minmax_def` and `minmax_pct_cut` still work through `...` when you
+do want a separate stretch per band, but they cannot be combined with
+`range` or `pct`.
 
 ## Other display options
 
@@ -163,11 +189,11 @@ dem |> rvt_svf() |> rvt_plot("Viridis")
 
 
 # signed data: diverging palette, symmetric stretch
-dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", minmax_def = c(-1, 1), legend = TRUE)
+dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", range = c(-1, 1), legend = TRUE)
 
 
 # percentile stretch when the range isn't known
-dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", minmax_pct_cut = c(2, 98))
+dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", pct = c(2, 98))
 
 
 # a blend stack draws directly, with no rvt_render() call

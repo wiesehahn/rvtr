@@ -61,6 +61,8 @@ renders fast) and a path-in, path-out interface for piping.</p>
 <span>  legend <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  axes <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  band <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  range <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pct <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -101,6 +103,17 @@ Defaults to band 1, except for a 3-band raster, which is drawn as RGB
 (which is what <code><a href="rvt_mstp.html">rvt_mstp()</a></code> wants).</p></dd>
 
 
+<dt id="arg-range">range<a class="anchor" aria-label="anchor" href="#arg-range"></a></dt>
+<dd><p><code>c(lo, hi)</code> to stretch the colours over, or <code>NULL</code> (default)
+for the data's own minimum and maximum. Three bands share one range; see
+<strong>Controlling the stretch</strong>.</p></dd>
+
+
+<dt id="arg-pct">pct<a class="anchor" aria-label="anchor" href="#arg-pct"></a></dt>
+<dd><p><code>c(low, high)</code> percentages to cut from each tail instead, e.g.
+<code>c(2, 98)</code>, measured with <code><a href="rvt_range.html">rvt_range()</a></code>. Not with <code>range</code>.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>passed on to <code><a href="https://firelab.github.io/gdalraster/reference/plot_raster.html" class="external-link">gdalraster::plot_raster()</a></code> - see <strong>Controlling the
 stretch</strong> and <strong>Other display options</strong> below</p></dd>
@@ -117,13 +130,14 @@ pipe-friendly: <code>path |&gt; rvt_plot()</code>.</p>
 
 <p>By default the colours are stretched across the data's full range, which is
 often the wrong choice: a handful of extreme cells then compress everything
-interesting into the middle of the palette. Two arguments override it,
-both passed through to <code><a href="https://firelab.github.io/gdalraster/reference/plot_raster.html" class="external-link">gdalraster::plot_raster()</a></code>:</p>
+interesting into the middle of the palette. Two arguments override it, and
+they are spelled as in <code><a href="rvt_image.html">rvt_image()</a></code>, so a stretch chosen on screen carries
+over to the written picture unchanged:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="co"># fixed values - anything outside is clipped to the end colours</span></span>
-<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.05</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.05</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># or cut percentiles, when you don't know the range in advance</span></span>
-<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>minmax_pct_cut <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
+<span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span>pct <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>The difference is easy to underestimate. Minimal curvature on the bundled
 sample tile spans -1.41 to 0.87, but its 2nd-98th percentile range is only
 -0.20 to 0.12 - so the default stretch spends most of the palette on
@@ -132,7 +146,7 @@ outliers.</p>
 <code><a href="rvt_msrm.html">rvt_msrm()</a></code>, <code><a href="rvt_dev.html">rvt_dev()</a></code> - keep the range <strong>symmetric about zero</strong> and use
 a diverging palette, or zero will not land on the palette's neutral centre
 and convex will stop reading as the opposite of concave:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.3</span><span class="op">)</span>, legend <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre><p></p></div>
+<p></p><div class="sourceCode r"><pre><code><span><span class="va">p</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.3</span><span class="op">)</span>, legend <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre><p></p></div>
 <p>Turning the <code>legend</code> on while choosing a stretch is worth the space - it is
 the only way to see what the range you picked actually was. Note the legend
 is drawn for single-band images only; an RGB composite has no one scale to
@@ -141,6 +155,11 @@ show.</p>
 carries the stretches recommended in the literature - see the
 <em>Recommended settings</em> section of <code><a href="rvt_svf.html">rvt_svf()</a></code>, <code><a href="rvt_openness.html">rvt_openness()</a></code> and the
 rest.</p>
+<p>Three bands drawn as RGB share one <code>range</code>, as in <code><a href="rvt_image.html">rvt_image()</a></code>, so the
+colour balance is not shifted band by band: <code>range = c(0, 255)</code> for an
+orthophoto. <code><a href="https://firelab.github.io/gdalraster/reference/plot_raster.html" class="external-link">gdalraster::plot_raster()</a></code>'s own <code>minmax_def</code> and
+<code>minmax_pct_cut</code> still work through <code>...</code> when you do want a separate
+stretch per band, but they cannot be combined with <code>range</code> or <code>pct</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="other-display-options">Other display options<a class="anchor" aria-label="anchor" href="#other-display-options"></a></h2>
@@ -177,11 +196,11 @@ device.</p>
 <span class="r-plt img"><img src="rvt_plot-3.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># signed data: diverging palette, symmetric stretch</span></span></span>
-<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_slrm.html">rvt_slrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, minmax_def <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>, legend <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_slrm.html">rvt_slrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>, legend <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="rvt_plot-4.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># percentile stretch when the range isn't known</span></span></span>
-<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_curvature.html">rvt_curvature</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, minmax_pct_cut <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_curvature.html">rvt_curvature</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_plot</span><span class="op">(</span><span class="st">"Blue-Red 3"</span>, pct <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="rvt_plot-5.png" alt="" width="700" height="433"></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># a blend stack draws directly, with no rvt_render() call</span></span></span>

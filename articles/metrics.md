@@ -85,9 +85,9 @@ treetops, use a surface model instead.
 ``` r
 
 rvt_daylight(dem) |>
-  rvt_plot("Inferno", main = "rvt_daylight()", max_dim = 400, minmax_def = c(5, 12))
+  rvt_plot("Inferno", main = "rvt_daylight()", max_dim = 400, range = c(5, 12))
 rvt_insolation(dem) |>
-  rvt_plot("Inferno", main = "rvt_insolation()", max_dim = 400, minmax_def = c(600, 2000))
+  rvt_plot("Inferno", main = "rvt_insolation()", max_dim = 400, range = c(600, 2000))
 ```
 
 ![](metrics_files/figure-html/sun-1.jpeg)
@@ -111,10 +111,10 @@ slope faces as well as the horizon.
 
 ``` r
 
-rvt_svf(dem) |> rvt_plot(main = "rvt_svf()", max_dim = 400, minmax_def = c(0.65, 1))
-rvt_asvf(dem) |> rvt_plot(main = "rvt_asvf()", max_dim = 400, minmax_def = c(0.65, 1))
+rvt_svf(dem) |> rvt_plot(main = "rvt_svf()", max_dim = 400, range = c(0.65, 1))
+rvt_asvf(dem) |> rvt_plot(main = "rvt_asvf()", max_dim = 400, range = c(0.65, 1))
 rvt_sky_illumination(dem) |>
-  rvt_plot(main = "rvt_sky_illumination()", max_dim = 400, minmax_def = c(0.6, 1))
+  rvt_plot(main = "rvt_sky_illumination()", max_dim = 400, range = c(0.6, 1))
 ```
 
 ![](metrics_files/figure-html/sky-1.jpeg)
@@ -130,9 +130,9 @@ hollows come out bright instead.
 ``` r
 
 rvt_openness(dem) |>
-  rvt_plot(main = "rvt_openness()", max_dim = 400, minmax_def = c(75, 92))
+  rvt_plot(main = "rvt_openness()", max_dim = 400, range = c(75, 92))
 rvt_openness_negative(dem) |>
-  rvt_plot(main = "rvt_openness_negative()", max_dim = 400, minmax_def = c(75, 92))
+  rvt_plot(main = "rvt_openness_negative()", max_dim = 400, range = c(75, 92))
 ```
 
 ![](metrics_files/figure-html/openness-1.jpeg)
@@ -161,11 +161,11 @@ bank on smooth ground and a larger one on rough ground read alike.
 ``` r
 
 rvt_slrm(dem) |>
-  rvt_plot("Blue-Red 3", main = "rvt_slrm()", max_dim = 400, minmax_def = c(-2, 2))
+  rvt_plot("Blue-Red 3", main = "rvt_slrm()", max_dim = 400, range = c(-2, 2))
 rvt_msrm(dem) |>
-  rvt_plot("Blue-Red 3", main = "rvt_msrm()", max_dim = 400, minmax_def = c(-0.5, 0.5))
+  rvt_plot("Blue-Red 3", main = "rvt_msrm()", max_dim = 400, range = c(-0.5, 0.5))
 rvt_dev(dem) |>
-  rvt_plot("Blue-Red 3", main = "rvt_dev()", max_dim = 400, minmax_def = c(-1, 1))
+  rvt_plot("Blue-Red 3", main = "rvt_dev()", max_dim = 400, range = c(-1, 1))
 ```
 
 ![](metrics_files/figure-html/relief-1.jpeg)
@@ -182,7 +182,7 @@ down to fit.
 ``` r
 
 rvt_local_dominance(dem) |>
-  rvt_plot(main = "rvt_local_dominance()", max_dim = 400, minmax_def = c(0.5, 2.5))
+  rvt_plot(main = "rvt_local_dominance()", max_dim = 400, range = c(0.5, 2.5))
 rvt_mstp(dem, local = c(3, 21, 2), meso = c(23, 103, 18), broad = c(123, 223, 50)) |>
   rvt_plot(main = "rvt_mstp()", max_dim = 400)
 ```
@@ -214,14 +214,14 @@ and edges and negative in ditches and hollows.
 
 rvt_slope(dem) |>
   rvt_plot(rev(hcl.colors(256, "Grays")), main = "rvt_slope()", max_dim = 400,
-           minmax_def = c(0, 45))
+           range = c(0, 45))
 rvt_aspect(dem) |>
-  rvt_plot(rainbow(256), main = "rvt_aspect()", max_dim = 400, minmax_def = c(0, 360))
+  rvt_plot(rainbow(256), main = "rvt_aspect()", max_dim = 400, range = c(0, 360))
 rvt_curvature(dem) |>
   rvt_plot("Blue-Red 3", main = "rvt_curvature()", max_dim = 400,
-           minmax_def = c(-0.2, 0.2))
+           range = c(-0.2, 0.2))
 rvt_log(dem, sigma = 3) |>
-  rvt_plot("Blue-Red 3", main = "rvt_log()", max_dim = 400, minmax_def = c(-0.1, 0.1))
+  rvt_plot("Blue-Red 3", main = "rvt_log()", max_dim = 400, range = c(-0.1, 0.1))
 ```
 
 ![](metrics_files/figure-html/shape-1.jpeg)
@@ -250,9 +250,9 @@ classes <- c("#dcdcdc", "#380000", "#c80000", "#ff5014", "#fad23c",
              "#ffff3c", "#b4e614", "#3cfa96", "#0000ff", "#000038")
 
 rvt_geomorphons(dem, reach = 20) |>
-  rvt_plot(classes, main = "1 m, reach = 20", max_dim = 400, minmax_def = c(1, 10))
+  rvt_plot(classes, main = "1 m, reach = 20", max_dim = 400, range = c(1, 10))
 rvt_geomorphons(landscape, reach = 500, skip = 20, flat_threshold = 3) |>
-  rvt_plot(classes, main = "10 m, reach = 500", max_dim = 400, minmax_def = c(1, 10))
+  rvt_plot(classes, main = "10 m, reach = 500", max_dim = 400, range = c(1, 10))
 outline()
 
 plot.new()
@@ -297,7 +297,7 @@ types <- c(profile = 0.1, tangential = 0.05, mean = 0.05,
 for (type in names(types)) {
   rvt_curvature(dem, type = type, radius = 3) |>
     rvt_plot("Blue-Red 3", main = type, max_dim = 400,
-             minmax_def = c(-types[[type]], types[[type]]))
+             range = c(-types[[type]], types[[type]]))
 }
 ```
 
@@ -329,10 +329,10 @@ since curvature is measured per metre, so the stretch differs too.
 
 rvt_curvature(dem, radius = 3) |>
   rvt_plot("Blue-Red 3", main = "1 m cells, radius = 3", max_dim = 400,
-           minmax_def = c(-0.1, 0.1))
+           range = c(-0.1, 0.1))
 rvt_curvature(landscape, radius = 30) |>
   rvt_plot("Blue-Red 3", main = "10 m cells, radius = 30", max_dim = 400,
-           minmax_def = c(-0.008, 0.008))
+           range = c(-0.008, 0.008))
 outline()
 ```
 
@@ -355,10 +355,10 @@ whole slopes and edges:
 
 rvt_slrm(dem, radius = 5) |>
   rvt_plot("Blue-Red 3", main = "rvt_slrm(radius = 5)", max_dim = 400,
-           minmax_def = c(-0.5, 0.5))
+           range = c(-0.5, 0.5))
 rvt_slrm(dem, radius = 30) |>
   rvt_plot("Blue-Red 3", main = "rvt_slrm(radius = 30)", max_dim = 400,
-           minmax_def = c(-4, 4))
+           range = c(-4, 4))
 ```
 
 ![](metrics_files/figure-html/radius-1.jpeg)
@@ -378,9 +378,9 @@ explains how.
 ``` r
 
 rvt_openness(dem, reach = 10) |>
-  rvt_plot(main = "rvt_openness(reach = 10)", max_dim = 400, minmax_def = c(75, 92))
+  rvt_plot(main = "rvt_openness(reach = 10)", max_dim = 400, range = c(75, 92))
 rvt_openness(dem, reach = 100) |>
-  rvt_plot(main = "rvt_openness(reach = 100)", max_dim = 400, minmax_def = c(70, 90))
+  rvt_plot(main = "rvt_openness(reach = 100)", max_dim = 400, range = c(70, 90))
 ```
 
 ![](metrics_files/figure-html/reach-1.jpeg)

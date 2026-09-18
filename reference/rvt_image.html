@@ -150,10 +150,11 @@ transparency, so NoData is black.</p>
 <p>A single band is stretched across <code>range</code> and coloured with <code>col</code>, exactly
 as in <code><a href="rvt_plot.html">rvt_plot()</a></code>. <code>range = NULL</code> uses the raster's own minimum and
 maximum, which a handful of extreme cells can easily spoil; <code>pct = c(2, 98)</code>
-cuts percentiles off each tail instead, measured on the raster being drawn -
-the same stretch <code><a href="rvt_plot.html">rvt_plot()</a></code> spells <code>minmax_pct_cut</code>. Each metric's help
-page lists recommended ranges. The range is fixed before any tile is read,
-so the picture does not depend on <code>tile_size</code>.</p>
+cuts percentiles off each tail instead, measured with <code><a href="rvt_range.html">rvt_range()</a></code>. Both
+are spelled and measured exactly as in <code><a href="rvt_plot.html">rvt_plot()</a></code>, so what you settled on
+while looking at the screen is what you write. Each metric's help page lists
+recommended ranges. The range is fixed before any tile is read, so the
+picture does not depend on <code>tile_size</code>.</p>
 <p>Three bands - an RGB result such as <code><a href="rvt_mstp.html">rvt_mstp()</a></code>, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and <code>col</code> is
 not used. A blend stack is stretched layer by layer when it is blended (see

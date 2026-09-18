@@ -43,9 +43,9 @@ dsm <- rvt_data_lgln(pt, "dsm")                        # surface: trees and buil
 
 rvt_plot(rgb, main = "Orthophoto", max_dim = 400)
 rvt_asvf(dtm, reach = 10) |> rvt_plot(main = "Terrain model", max_dim = 400,
-                                      minmax_def = c(0.7, 1))
+                                      range = c(0.7, 1))
 rvt_asvf(dsm, reach = 10) |> rvt_plot(main = "Surface model", max_dim = 400,
-                                      minmax_def = c(0.4, 1))
+                                      range = c(0.4, 1))
 ```
 
 ![](blending_files/figure-html/data-1.jpeg)
@@ -113,8 +113,8 @@ bottom up:
 
 stack
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file2576c7911e0.tif          (background) opacity 1.00  range auto
-#>   2. file2576263bc4e5.tif         multiply    opacity 0.50  range 0.7-1
+#>   1. file2659ab022d3.tif          (background) opacity 1.00  range auto
+#>   2. file2659426fa186.tif         multiply    opacity 0.50  range 0.7-1
 #> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```
 
@@ -279,7 +279,7 @@ same <- c(120, 420)                             # one range for both models
 height <- rvt_stack(dsm, range = same) |>
   rvt_blend(dtm, "subtract", range = same) |>
   rvt_render()
-rvt_plot(height, main = "Height above ground", max_dim = 400, minmax_def = c(0, 0.1))
+rvt_plot(height, main = "Height above ground", max_dim = 400, range = c(0, 0.1))
 
 rvt_stack(rvt_asvf(dtm, reach = 10), range = c(0.7, 1)) |>
   rvt_blend(height, "multiply", opacity = 0.6, range = c(0, 0.1), invert = TRUE) |>
@@ -344,10 +344,10 @@ while sunlit open ground keeps nearly all of it.
 
 ``` r
 
-true_colour <- c(0, 0, 0, 255, 255, 255)
+true_colour <- c(0, 255)
 
-rvt_plot(rgb, main = "Orthophoto", minmax_def = true_colour, max_dim = 400)
-rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", minmax_def = true_colour, max_dim = 400)
+rvt_plot(rgb, main = "Orthophoto", range = true_colour, max_dim = 400)
+rvt_relight(rgb, dsm) |> rvt_plot(main = "Relit", range = true_colour, max_dim = 400)
 ```
 
 ![](blending_files/figure-html/relight-1.jpeg)
@@ -364,7 +364,7 @@ styles <- c("verdant", "golden_hour", "winter",
 
 for (style in styles) {
   rvt_relight(rgb, dsm, style = style) |>
-    rvt_plot(main = style, minmax_def = true_colour, max_dim = 400)
+    rvt_plot(main = style, range = true_colour, max_dim = 400)
 }
 ```
 

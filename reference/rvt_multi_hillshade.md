@@ -75,8 +75,8 @@ rvt_multi_hillshade(
 The trade is contrast: averaging several lights fills the shadows in, so
 the image is more even but flatter than a single hillshade, and
 typically occupies a narrower range than 0-1. A percentile stretch when
-plotting (`rvt_plot(p, minmax_pct_cut = c(2, 98))`) gets that contrast
-back. Use the single-direction
+plotting (`rvt_plot(p, pct = c(2, 98))`) gets that contrast back. Use
+the single-direction
 [`rvt_hillshade()`](https://wiesehahn.github.io/rvtr/reference/rvt_hillshade.md)
 when you need a *known* light direction
 
