@@ -50,10 +50,11 @@ a raster to get data on its grid.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">rvt_data_lgln</span><span class="op">(</span></span>
 <span>  <span class="va">x</span>,</span>
-<span>  product <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dtm"</span>, <span class="st">"dsm"</span>, <span class="st">"rgb"</span><span class="op">)</span>,</span>
+<span>  product <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dtm"</span>, <span class="st">"dsm"</span>, <span class="st">"bdom"</span>, <span class="st">"rgb"</span><span class="op">)</span>,</span>
 <span>  year <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  res <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  download <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  partial <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  max_mb <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  refresh <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  threads <span class="op">=</span> <span class="fu"><a href="rvt_threads.html">rvt_threads</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -70,21 +71,29 @@ EPSG:25832 raster</p></dd>
 
 
 <dt id="arg-product">product<a class="anchor" aria-label="anchor" href="#arg-product"></a></dt>
-<dd><p><code>"dtm"</code> (default), <code>"dsm"</code> or <code>"rgb"</code></p></dd>
+<dd><p><code>"dtm"</code> (default), <code>"dsm"</code>, <code>"bdom"</code> or <code>"rgb"</code></p></dd>
 
 
 <dt id="arg-year">year<a class="anchor" aria-label="anchor" href="#arg-year"></a></dt>
-<dd><p>flight year, or <code>NULL</code> (default) for the most recent that covers
-the whole area</p></dd>
+<dd><p>one flight year, giving a single survey throughout, or <code>NULL</code>
+(default) to give each tile its own latest flight - see the Years
+section, and <code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code> for what exists</p></dd>
 
 
 <dt id="arg-res">res<a class="anchor" aria-label="anchor" href="#arg-res"></a></dt>
-<dd><p>output resolution in metres, or <code>NULL</code> (default) for native</p></dd>
+<dd><p>output resolution in metres, or <code>NULL</code> (default) for native -
+or, when <code>x</code> is a raster, for that raster's own resolution</p></dd>
 
 
 <dt id="arg-download">download<a class="anchor" aria-label="anchor" href="#arg-download"></a></dt>
 <dd><p><code>FALSE</code> (default) returns a virtual raster reading the
 remote files on demand; <code>TRUE</code> stores a local copy in the user cache</p></dd>
+
+
+<dt id="arg-partial">partial<a class="anchor" aria-label="anchor" href="#arg-partial"></a></dt>
+<dd><p><code>TRUE</code> (default) returns data wherever the chosen tiles
+reach and leaves the rest NoData; <code>FALSE</code> errors instead of returning a
+hole</p></dd>
 
 
 <dt id="arg-max-mb">max_mb<a class="anchor" aria-label="anchor" href="#arg-max-mb"></a></dt>
@@ -111,10 +120,38 @@ many megabytes (default 500)</p></dd>
 points at LGLN's published Cloud-Optimized GeoTIFFs, and data moves only when
 something reads it - and only the parts that read needs. Pass it to any
 function in this package. <code>download = TRUE</code> stores a local copy instead, for
-offline work or repeated sessions.</p><table class="table table"><tr><td>product</td><td>what</td><td>native grid</td><td>years</td></tr><tr><td><code>"dtm"</code></td><td>DGM1 terrain model, the bare ground</td><td>1 m, 1 km tiles</td><td>usually one</td></tr><tr><td><code>"dsm"</code></td><td>DOM1 surface model, ground plus trees and buildings</td><td>1 m, 1 km tiles</td><td>usually one</td></tr><tr><td><code>"rgb"</code></td><td>DOP20 orthophoto</td><td>0.2 m, 2 km tiles</td><td>several, e.g. 2013-2025</td></tr></table><p>Everything comes in ETRS89 / UTM zone 32N (EPSG:25832), the data's own
+offline work or repeated sessions.</p><table class="table table"><tr><td>product</td><td>what</td><td>native grid</td><td>years</td></tr><tr><td><code>"dtm"</code></td><td>DGM1 terrain model, the bare ground</td><td>1 m, 1 km tiles</td><td>usually one</td></tr><tr><td><code>"dsm"</code></td><td>DOM1 surface model, from lidar: ground plus trees and buildings</td><td>1 m, 1 km tiles</td><td>usually one</td></tr><tr><td><code>"bdom"</code></td><td>bDOM20 surface model, matched from the aerial photos</td><td>0.2 m, 1 km tiles</td><td>2021 onwards</td></tr><tr><td><code>"rgb"</code></td><td>DOP20 orthophoto</td><td>0.2 m, 2 km tiles</td><td>several, e.g. 2013-2025</td></tr></table><p>Everything comes in ETRS89 / UTM zone 32N (EPSG:25832), the data's own
 coordinate system; locations are transformed to find the data, but the data
 is never reprojected. <code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code> lists which years exist for a
 place without fetching any data.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="two-surface-models-and-why-the-flight-date-matters">Two surface models, and why the flight date matters<a class="anchor" aria-label="anchor" href="#two-surface-models-and-why-the-flight-date-matters"></a></h2>
+
+
+<p><code>"dsm"</code> is measured by lidar; <code>"bdom"</code> is computed by matching features
+between overlapping aerial photographs. bDOM is five times finer - 0.2 m
+against 1 m - and renders roofs, walls, hedges and open ground more crisply,
+which is what <code><a href="rvt_relight.html">rvt_relight()</a></code> and the surface metrics want in a town.</p>
+<p><strong>Matching only works where the photographs show matchable texture, so over
+woodland the result depends on when the photographs were taken.</strong> A canopy
+in leaf gives plenty of texture and is captured well. A bare broadleaf
+canopy gives almost none, and the match then falls through to whatever does
+match, usually the forest floor - so bDOM can report <em>no trees where trees
+stand</em>. That failure does not announce itself: the wooded ground comes back
+smooth and plausible, and a hillshade of it shows forest tracks and gullies
+as though the canopy were not there.</p>
+<p>So check the season before trusting bDOM under trees.
+<code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code> gives the flight dates of every year available, and
+<code>year</code> picks one: a summer flight may describe the canopy well, while the
+early-spring flights that aerial survey usually favours will not. Where
+canopy matters regardless - canopy height, forestry, relighting a wooded
+scene - <code>"dsm"</code> is measured rather than inferred, and does not depend on the
+season.</p>
+<p>bDOM is also the heaviest product here by a distance: uncompressed 0.2 m
+Float32, about 100 MB per km² at native resolution against the orthophoto's
+4.6 MB. Pass <code>res</code> unless you need every pixel; the cost guard stops the call
+before it starts if you forget.</p>
     </div>
     <div class="section level2">
     <h2 id="location">Location<a class="anchor" aria-label="anchor" href="#location"></a></h2>
@@ -148,9 +185,27 @@ source instead.</p>
     <h2 id="years">Years<a class="anchor" aria-label="anchor" href="#years"></a></h2>
 
 
-<p><code>year = NULL</code> uses the most recent year that covers the whole area. Flights
-in one year can be spread over several dates between neighbouring tiles, so
-years are chosen, not dates; within a year each tile uses its latest flight.</p>
+<p>Any one year is flown over only part of Lower Saxony, so a single year's
+tiles may fill your area or stop partway across it.</p>
+<p><strong><code>year = NULL</code> (the default) gives every tile its own latest flight</strong>, so
+you get the newest picture of the ground <em>and</em> the widest coverage: where
+2024 reaches you get 2024, and where it does not you get whatever year last
+covered that tile. The cost is that neighbouring tiles can be surveys years
+apart - trees grown, buildings put up - which can show as a seam. A message
+names the years whenever more than one is used.</p>
+<p><strong>Naming a <code>year</code> means that year and no other</strong>, one survey throughout.
+Where it was not flown you get NoData, and a message names the share
+covered; <code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code> reports the same share up front, in its
+<code>coverage</code> column.</p>
+<p><code>partial = FALSE</code> refuses a hole rather than returning one: it errors on a
+named year that does not reach everywhere, and on ground that no year has
+ever covered. Within a year, each tile still takes its latest flight -
+one year's flights are spread over several dates between neighbouring
+tiles, so years are chosen, not dates.</p>
+<p>Orthophotos are the exception to the NoData rule. DOP20 declares no NoData
+value, so the uncovered part of an <code>"rgb"</code> result comes back <strong>black</strong>
+rather than flagged, which no downstream function can tell from a very dark
+pixel. Use <code>partial = FALSE</code> there, or mask the result yourself.</p>
     </div>
     <div class="section level2">
     <h2 id="licence">Licence<a class="anchor" aria-label="anchor" href="#licence"></a></h2>
@@ -171,12 +226,12 @@ anything derived from them.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="va">pt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">9.9464</span>, <span class="fl">51.6317</span><span class="op">)</span>                      <span class="co"># Burg Hardenberg</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="rvt_data_lgln_years.html">rvt_data_lgln_years</a></span><span class="op">(</span><span class="va">pt</span>, <span class="st">"rgb"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   product year first_date  last_date tiles covers</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1     rgb 2013 2013-06-18 2013-06-18     1   TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2     rgb 2016 2016-03-17 2016-03-17     1   TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3     rgb 2019 2019-04-01 2019-04-01     1   TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4     rgb 2022 2022-03-13 2022-03-13     1   TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5     rgb 2025 2025-03-08 2025-03-08     1   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   product year first_date  last_date tiles coverage covers</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1     rgb 2013 2013-06-18 2013-06-18     1        1   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2     rgb 2016 2016-03-17 2016-03-17     1        1   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3     rgb 2019 2019-04-01 2019-04-01     1        1   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4     rgb 2022 2022-03-13 2022-03-13     1        1   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5     rgb 2025 2025-03-08 2025-03-08     1        1   TRUE</span>
 <span class="r-in"><span><span class="fu">rvt_data_lgln</span><span class="op">(</span><span class="va">pt</span>, <span class="st">"dtm"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_hillshade.html">rvt_hillshade</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_plot.html">rvt_plot</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> LGLN open data: © GeoBasis-DE/LGLN 2026, CC BY 4.0. Add ", Daten geändert" when you publish anything derived from it.</span>
 <span class="r-plt img"><img src="rvt_data_lgln-1.png" alt="" width="700" height="433"></span>

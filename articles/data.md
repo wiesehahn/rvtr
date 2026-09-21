@@ -116,16 +116,28 @@ and <https://mapterhorn.com/attribution> lists the full terms.
 
 ## Lower Saxony in detail: `rvt_data_lgln()`
 
-The state survey authority of Lower Saxony (LGLN) publishes three
+The state survey authority of Lower Saxony (LGLN) publishes four
 products for the whole state, and
 [`rvt_data_lgln()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln.md)
 reads all of them:
 
-| product | what                                           | native grid |
-|---------|------------------------------------------------|-------------|
-| `"dtm"` | terrain model, the bare ground                 | 1 m         |
-| `"dsm"` | surface model, ground plus trees and buildings | 1 m         |
-| `"rgb"` | orthophoto                                     | 0.2 m       |
+| product | what | native grid |
+|----|----|----|
+| `"dtm"` | terrain model, the bare ground | 1 m |
+| `"dsm"` | surface model from lidar, ground plus trees and buildings | 1 m |
+| `"bdom"` | surface model matched from the aerial photos | 0.2 m |
+| `"rgb"` | orthophoto | 0.2 m |
+
+The two surface models are not interchangeable. `"bdom"` is five times
+finer and draws roofs, walls and open ground far more crisply, but it is
+computed by matching texture between overlapping photographs, so over
+woodland it depends on when the photographs were taken. A canopy in leaf
+is captured well; a bare broadleaf canopy offers little to match, and
+the result can settle on the forest floor instead — smoothly and
+plausibly, so it looks like a terrain model rather than like an error.
+Check the flight dates with
+[`rvt_data_lgln_years()`](https://wiesehahn.github.io/rvtr/reference/rvt_data_lgln_years.md),
+and use the lidar `"dsm"` where canopy matters regardless of season.
 
 The data comes in the survey’s own coordinate system, ETRS89 / UTM zone
 32N (EPSG:25832), and is never reprojected. A point returns the 1 km
@@ -164,19 +176,23 @@ lists them without fetching any data:
 ``` r
 
 rvt_data_lgln_years(area, "rgb")
-#>   product year first_date  last_date tiles covers
-#> 1     rgb 2013 2013-06-18 2013-06-18     1   TRUE
-#> 2     rgb 2016 2016-03-17 2016-03-17     1   TRUE
-#> 3     rgb 2019 2019-04-01 2019-04-01     1   TRUE
-#> 4     rgb 2022 2022-03-13 2022-03-13     1   TRUE
-#> 5     rgb 2025 2025-03-08 2025-03-08     1   TRUE
+#>   product year first_date  last_date tiles coverage covers
+#> 1     rgb 2013 2013-06-18 2013-06-18     1        1   TRUE
+#> 2     rgb 2016 2016-03-17 2016-03-17     1        1   TRUE
+#> 3     rgb 2019 2019-04-01 2019-04-01     1        1   TRUE
+#> 4     rgb 2022 2022-03-13 2022-03-13     1        1   TRUE
+#> 5     rgb 2025 2025-03-08 2025-03-08     1        1   TRUE
 ```
 
-Without `year`, the most recent year covering the whole area is used.
-The comparison below is an 80 m square at the orthophoto’s native 0.2 m,
-so each panel shows its own 400 × 400 pixels. Flights happen in
-different seasons: 2013 was flown in June, with the trees in leaf, and
-2025 in March, without.
+A year is flown over only part of the state, so `coverage` says how much
+of your area each one reaches. Without `year`, every tile takes its own
+latest flight, which gives both the newest data and the widest coverage
+— several years at once where that is what it takes to fill the area.
+Naming a `year` uses that one survey throughout, with NoData wherever it
+was not flown. The comparison below is an 80 m square at the
+orthophoto’s native 0.2 m, so each panel shows its own 400 × 400 pixels.
+Flights happen in different seasons: 2013 was flown in June, with the
+trees in leaf, and 2025 in March, without.
 
 ``` r
 

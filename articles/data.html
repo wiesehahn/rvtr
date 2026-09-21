@@ -161,10 +161,15 @@ terms.</p>
 <div class="section level2">
 <h2 id="lower-saxony-in-detail-rvt_data_lgln">Lower Saxony in detail: <code>rvt_data_lgln()</code><a class="anchor" aria-label="anchor" href="#lower-saxony-in-detail-rvt_data_lgln"></a>
 </h2>
-<p>The state survey authority of Lower Saxony (LGLN) publishes three
+<p>The state survey authority of Lower Saxony (LGLN) publishes four
 products for the whole state, and <code><a href="../reference/rvt_data_lgln.html">rvt_data_lgln()</a></code> reads all
 of them:</p>
 <table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
 <thead><tr class="header">
 <th>product</th>
 <th>what</th>
@@ -178,16 +183,31 @@ of them:</p>
 </tr>
 <tr class="even">
 <td><code>"dsm"</code></td>
-<td>surface model, ground plus trees and buildings</td>
+<td>surface model from lidar, ground plus trees and buildings</td>
 <td>1 m</td>
 </tr>
 <tr class="odd">
+<td><code>"bdom"</code></td>
+<td>surface model matched from the aerial photos</td>
+<td>0.2 m</td>
+</tr>
+<tr class="even">
 <td><code>"rgb"</code></td>
 <td>orthophoto</td>
 <td>0.2 m</td>
 </tr>
 </tbody>
 </table>
+<p>The two surface models are not interchangeable. <code>"bdom"</code>
+is five times finer and draws roofs, walls and open ground far more
+crisply, but it is computed by matching texture between overlapping
+photographs, so over woodland it depends on when the photographs were
+taken. A canopy in leaf is captured well; a bare broadleaf canopy offers
+little to match, and the result can settle on the forest floor instead —
+smoothly and plausibly, so it looks like a terrain model rather than
+like an error. Check the flight dates with
+<code><a href="../reference/rvt_data_lgln_years.html">rvt_data_lgln_years()</a></code>, and use the lidar <code>"dsm"</code>
+where canopy matters regardless of season.</p>
 <p>The data comes in the survey’s own coordinate system, ETRS89 / UTM
 zone 32N (EPSG:25832), and is never reprojected. A point returns the 1
 km tile it lies in; an extent, here a 400 m square in EPSG:25832,
@@ -219,17 +239,21 @@ orthophotos are flown every few years.
 data:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/rvt_data_lgln_years.html">rvt_data_lgln_years</a></span><span class="op">(</span><span class="va">area</span>, <span class="st">"rgb"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   product year first_date  last_date tiles covers</span></span>
-<span><span class="co">#&gt; 1     rgb 2013 2013-06-18 2013-06-18     1   TRUE</span></span>
-<span><span class="co">#&gt; 2     rgb 2016 2016-03-17 2016-03-17     1   TRUE</span></span>
-<span><span class="co">#&gt; 3     rgb 2019 2019-04-01 2019-04-01     1   TRUE</span></span>
-<span><span class="co">#&gt; 4     rgb 2022 2022-03-13 2022-03-13     1   TRUE</span></span>
-<span><span class="co">#&gt; 5     rgb 2025 2025-03-08 2025-03-08     1   TRUE</span></span></code></pre></div>
-<p>Without <code>year</code>, the most recent year covering the whole
-area is used. The comparison below is an 80 m square at the orthophoto’s
-native 0.2 m, so each panel shows its own 400 × 400 pixels. Flights
-happen in different seasons: 2013 was flown in June, with the trees in
-leaf, and 2025 in March, without.</p>
+<span><span class="co">#&gt;   product year first_date  last_date tiles coverage covers</span></span>
+<span><span class="co">#&gt; 1     rgb 2013 2013-06-18 2013-06-18     1        1   TRUE</span></span>
+<span><span class="co">#&gt; 2     rgb 2016 2016-03-17 2016-03-17     1        1   TRUE</span></span>
+<span><span class="co">#&gt; 3     rgb 2019 2019-04-01 2019-04-01     1        1   TRUE</span></span>
+<span><span class="co">#&gt; 4     rgb 2022 2022-03-13 2022-03-13     1        1   TRUE</span></span>
+<span><span class="co">#&gt; 5     rgb 2025 2025-03-08 2025-03-08     1        1   TRUE</span></span></code></pre></div>
+<p>A year is flown over only part of the state, so <code>coverage</code>
+says how much of your area each one reaches. Without <code>year</code>,
+every tile takes its own latest flight, which gives both the newest data
+and the widest coverage — several years at once where that is what it
+takes to fill the area. Naming a <code>year</code> uses that one survey
+throughout, with NoData wherever it was not flown. The comparison below
+is an 80 m square at the orthophoto’s native 0.2 m, so each panel shows
+its own 400 × 400 pixels. Flights happen in different seasons: 2013 was
+flown in June, with the trees in leaf, and 2025 in March, without.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">detail</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_bbox.html" class="external-link">st_bbox</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>xmin <span class="op">=</span> <span class="fl">565460</span>, ymin <span class="op">=</span> <span class="fl">5720460</span>, xmax <span class="op">=</span> <span class="fl">565540</span>, ymax <span class="op">=</span> <span class="fl">5720540</span><span class="op">)</span>,</span>
 <span>                      crs <span class="op">=</span> <span class="fl">25832</span><span class="op">)</span></span>
