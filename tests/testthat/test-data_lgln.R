@@ -98,8 +98,10 @@ test_that("products fetched for one place at one res share a grid", {
   dtm <- rvt_data_lgln(pt, "dtm", res = 1)
   dsm <- rvt_data_lgln(pt, "dsm", res = 1)
   rgb <- rvt_data_lgln(pt, "rgb", res = 1)
+  bdom <- rvt_data_lgln(pt, "bdom", res = 1)
   a <- lgln_info(dtm); b <- lgln_info(dsm); c <- lgln_info(rgb)
-  expect_equal(b$gt, a$gt); expect_equal(c$gt, a$gt)
+  d <- lgln_info(bdom)
+  expect_equal(b$gt, a$gt); expect_equal(c$gt, a$gt); expect_equal(d$gt, a$gt)
   expect_equal(c(c$nx, c$ny, c$nb), c(a$nx, a$ny, 3))
   hs <- rvt_hillshade(dtm)
   on.exit(unlink(hs), add = TRUE)
@@ -148,4 +150,53 @@ test_that("a raster `x` sets the grid, and the product default doesn't fight it"
 
   # and the default still applies where the location brings no grid
   expect_equal(rvtr:::.lgln_area(c(9.9464, 51.6317), NULL, 0.2)$res, 0.2)
+})
+
+test_that("bdom is costed from its overview ladder, and the guard says so", {
+  # bDOM is uncompressed 0.2 m Float32, so a read costs exactly the pixels GDAL
+  # takes from one level times four bytes: 100 MB per km² at native, and one
+  # step down per overview. Nothing else here is remotely this heavy.
+  expect_equal(rvtr:::.lgln_mb_per_km2("bdom", 0.2), 100)
+  expect_equal(rvtr:::.lgln_mb_per_km2("bdom", 0.4), 25)
+  expect_equal(rvtr:::.lgln_mb_per_km2("bdom", 1), 6.25)
+  expect_equal(rvtr:::.lgln_mb_per_km2("bdom", 2), 1.56)
+  expect_equal(rvtr:::.lgln_mb_per_km2("bdom", 50), 0.39)
+  # never cheaper for a finer request
+  mb <- vapply(c(0.1, 0.2, 0.3, 0.5, 1, 3, 10), function(r)
+    rvtr:::.lgln_mb_per_km2("bdom", r), numeric(1))
+  expect_false(is.unsorted(rev(mb)))
+
+  # the guard fires before any network use, naming `res` rather than the
+  # terrain hint, which belongs to dtm/dsm
+  expect_error(rvt_data_lgln(c(9.90, 51.60, 9.96, 51.64), "bdom"),
+               "20 times the orthophoto")
+  expect_error(rvt_data_lgln(c(6.6, 51.3, 11.6, 53.9), "dtm", res = 100),
+               "no overview coarser than 2 m")
+})
+
+test_that("bdom item ids parse as 1 km tiles and the product is accepted", {
+  expect_equal(rvtr:::.lgln_tile_extent("bdom20_32_565_5720_1_ni_2025-03-08"),
+               c(565000, 5720000, 566000, 5721000))
+  expect_error(rvt_data_lgln(c(9.9, 51.6), "lidar"), '"bdom"')
+  expect_error(rvt_data_lgln_years(c(9.9, 51.6), "lidar"), '"bdom"')
+})
+
+test_that("the image-based surface model comes back on the shared grid", {
+  skip_if_offline()
+  pt <- c(9.9464, 51.6317)
+  # res = 1 on purpose: native 0.2 m would pull 100 MB for this one tile
+  b <- lgln_info(rvt_data_lgln(pt, "bdom", res = 1))
+  d <- lgln_info(rvt_data_lgln(pt, "dtm"))
+  expect_equal(c(b$nx, b$ny), c(d$nx, d$ny))
+  expect_equal(b$gt, d$gt)
+  expect_equal(b$epsg, "EPSG:25832")
+  # a surface model, so it stands above the terrain somewhere
+  expect_gt(max(b$v - d$v, na.rm = TRUE), 5)
+
+  y <- rvt_data_lgln_years(pt, "bdom")
+  expect_true(all(c(2022, 2025) %in% y$year))
+  expect_true(all(y$covers))
+  expect_true(all(y$year >= 2021))            # bDOM starts in 2021
+  # how well it describes a canopy depends on the flight season, so nothing
+  # here pins that - see ?rvt_data_lgln and the measurements in CLAUDE.md
 })

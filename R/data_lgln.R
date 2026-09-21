@@ -9,13 +9,19 @@
 ## 0.2 m but 0.41 MB at 1 m, from overviews; terrain 3.40 MB at 1 m and 1.03 MB
 ## at 2 m *or any coarser resolution*, because the DGM1/DOM1 COGs have a single
 ## 2 m overview. That floor is why the cost guard exists: Lower Saxony at 100 m
-## would still be ~49 GB.
+## would still be ~49 GB. bDOM is heavier again - uncompressed Float32 at 0.2 m,
+## 146 MB for one 1 km tile.
 
+## `product` names index this list, and .lgln_product() below detects "the
+## caller passed nothing" by comparing against names(), so the formal default
+## of rvt_data_lgln() must list these in exactly this order.
 .lgln_products <- list(
   dtm = list(host = "dgm", collection = "dgm1", asset = "dgm1-tif", res = 1,
              type = "Float32", label = "DGM1 digital terrain model"),
   dsm = list(host = "dom", collection = "dom1", asset = "dom1-tif", res = 1,
              type = "Float32", label = "DOM1 digital surface model"),
+  bdom = list(host = "bdom", collection = "BDOM", asset = "bdom20", res = 0.2,
+              type = "Float32", label = "bDOM20 image-based surface model"),
   rgb = list(host = "dop", collection = "DOP", asset = "dop20_rgb", res = 0.2,
              type = "Byte", label = "DOP20 RGB orthophoto")
 )
@@ -31,13 +37,20 @@
   # our own message: match.arg()'s arrives translated into the session language
   if (!is.character(product) || length(product) != 1L ||
       !product %in% names(.lgln_products))
-    stop('`product` must be one of "dtm", "dsm" or "rgb".', call. = FALSE)
+    stop('`product` must be one of "dtm", "dsm", "bdom" or "rgb".', call. = FALSE)
   product
 }
 
 ## Download estimate in MB per km² - the measured figures above. Terrain never
 ## drops below ~1 MB/km², because there is no overview coarser than 2 m.
 .lgln_mb_per_km2 <- function(product, res) {
+  if (product == "bdom") {
+    # uncompressed Float32, so the cost is exactly the pixels GDAL reads times
+    # four bytes, at whichever level it picks: native plus four overviews
+    lev <- c(0.2, 0.4, 0.8, 1.6, 3.2)
+    mb <- c(100, 25, 6.25, 1.56, 0.39)
+    return(mb[max(1L, sum(lev <= res))])
+  }
   if (product == "rgb") {
     if (res <= 0.2) 4.61
     else if (res < 1) max(0.41, 4.61 * (0.2 / res)^2)
@@ -222,7 +235,11 @@
   km2 <- (extent[3] - extent[1]) * (extent[4] - extent[2]) / 1e6
   mb <- km2 * .lgln_mb_per_km2(product, res)
   if (mb <= max_mb) return(invisible(mb))
-  why <- if (product != "rgb" && res > 2)
+  why <- if (product == "bdom" && res < 0.4)
+    paste(" The image-based surface model is uncompressed 0.2 m Float32 - 100 MB",
+          "per km² at native resolution, about 20 times the orthophoto - so pass",
+          "`res` unless you really need every pixel.")
+  else if (product %in% c("dtm", "dsm") && res > 2)
     paste(" The terrain and surface files have no overview coarser than 2 m, so",
           "a coarse `res` still reads about 1 MB per km²; use a coarse elevation",
           "source for large areas.")
@@ -309,13 +326,42 @@
 #' | product | what | native grid | years |
 #' |---|---|---|---|
 #' | `"dtm"` | DGM1 terrain model, the bare ground | 1 m, 1 km tiles | usually one |
-#' | `"dsm"` | DOM1 surface model, ground plus trees and buildings | 1 m, 1 km tiles | usually one |
+#' | `"dsm"` | DOM1 surface model, from lidar: ground plus trees and buildings | 1 m, 1 km tiles | usually one |
+#' | `"bdom"` | bDOM20 surface model, matched from the aerial photos | 0.2 m, 1 km tiles | 2021 onwards |
 #' | `"rgb"` | DOP20 orthophoto | 0.2 m, 2 km tiles | several, e.g. 2013-2025 |
 #'
 #' Everything comes in ETRS89 / UTM zone 32N (EPSG:25832), the data's own
 #' coordinate system; locations are transformed to find the data, but the data
 #' is never reprojected. `rvt_data_lgln_years()` lists which years exist for a
 #' place without fetching any data.
+#'
+#' @section Two surface models, and why the flight date matters:
+#' `"dsm"` is measured by lidar; `"bdom"` is computed by matching features
+#' between overlapping aerial photographs. bDOM is five times finer - 0.2 m
+#' against 1 m - and renders roofs, walls, hedges and open ground more crisply,
+#' which is what [rvt_relight()] and the surface metrics want in a town.
+#'
+#' **Matching only works where the photographs show matchable texture, so over
+#' woodland the result depends on when the photographs were taken.** A canopy
+#' in leaf gives plenty of texture and is captured well. A bare broadleaf
+#' canopy gives almost none, and the match then falls through to whatever does
+#' match, usually the forest floor - so bDOM can report *no trees where trees
+#' stand*. That failure does not announce itself: the wooded ground comes back
+#' smooth and plausible, and a hillshade of it shows forest tracks and gullies
+#' as though the canopy were not there.
+#'
+#' So check the season before trusting bDOM under trees.
+#' `rvt_data_lgln_years()` gives the flight dates of every year available, and
+#' `year` picks one: a summer flight may describe the canopy well, while the
+#' early-spring flights that aerial survey usually favours will not. Where
+#' canopy matters regardless - canopy height, forestry, relighting a wooded
+#' scene - `"dsm"` is measured rather than inferred, and does not depend on the
+#' season.
+#'
+#' bDOM is also the heaviest product here by a distance: uncompressed 0.2 m
+#' Float32, about 100 MB per km² at native resolution against the orthophoto's
+#' 4.6 MB. Pass `res` unless you need every pixel; the cost guard stops the call
+#' before it starts if you forget.
 #'
 #' @section Location:
 #' * **A point** returns the 1 x 1 km tile containing it. Plain numbers
@@ -341,9 +387,16 @@
 #' source instead.
 #'
 #' @section Years:
-#' `year = NULL` uses the most recent year that covers the whole area. Flights
-#' in one year can be spread over several dates between neighbouring tiles, so
-#' years are chosen, not dates; within a year each tile uses its latest flight.
+#' Only one year is ever used, so neighbouring tiles come from the same survey
+#' rather than from surfaces flown years apart. `year = NULL` uses the most
+#' recent year whose tiles fill the whole area; a year that leaves a gap is
+#' refused rather than returning a raster with a hole in it.
+#' [rvt_data_lgln_years()] lists which years those are, in its `covers`
+#' column.
+#'
+#' Flights in one year can be spread over several dates between neighbouring
+#' tiles, so years are chosen, not dates; within a year each tile uses its
+#' latest flight.
 #'
 #' @section Licence:
 #' LGLN open geodata, licensed CC BY 4.0 under section 7 of LGLN's terms of
@@ -354,9 +407,10 @@
 #' @param x location: a WGS84 `c(lon, lat)` point or `c(xmin, ymin, xmax,
 #'   ymax)` extent, an sf point, geometry or bbox, or the path to an
 #'   EPSG:25832 raster
-#' @param product `"dtm"` (default), `"dsm"` or `"rgb"`
-#' @param year flight year, or `NULL` (default) for the most recent that covers
-#'   the whole area
+#' @param product `"dtm"` (default), `"dsm"`, `"bdom"` or `"rgb"`
+#' @param year flight year, or `NULL` (default) for the most recent one whose
+#'   tiles fill the whole area - the years with `covers = TRUE` in
+#'   [rvt_data_lgln_years()]
 #' @param res output resolution in metres, or `NULL` (default) for native -
 #'   or, when `x` is a raster, for that raster's own resolution
 #' @param download `FALSE` (default) returns a virtual raster reading the
@@ -377,7 +431,7 @@
 #'   rvt_plot(range = c(0, 255))
 #' }
 #' @export
-rvt_data_lgln <- function(x, product = c("dtm", "dsm", "rgb"), year = NULL,
+rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NULL,
                       res = NULL, download = FALSE, max_mb = 500,
                       refresh = FALSE, threads = rvt_threads()) {
   product <- .lgln_product(product)
@@ -395,22 +449,53 @@ rvt_data_lgln <- function(x, product = c("dtm", "dsm", "rgb"), year = NULL,
 #'
 #' Lists the flight years LGLN holds for a location, without fetching any
 #' data: one row per product and year, with the flight dates, the number of
-#' tiles involved, and whether that year covers the whole area.
+#' tiles involved, and whether that year's tiles fill the whole area asked
+#' for.
+#'
+#' @section What `covers` means:
+#' The catalogue is a patchwork of 1 km and 2 km tiles, and any one year is
+#' flown over only part of Lower Saxony. `covers` is `TRUE` when the tiles
+#' from that single year fill the whole requested area, and `FALSE` when they
+#' leave a gap - typically an extent lying across the boundary between two
+#' flight campaigns, where one year's tiles stop partway over it.
+#'
+#' It matters because [rvt_data_lgln()] never mixes years: it picks one year
+#' first and then one tile per place from it, so neighbouring tiles come from
+#' the same survey rather than from surfaces flown years apart. `covers` is
+#' therefore exactly the set of years that call can use. `year = NULL` takes
+#' the most recent year with `covers = TRUE`, and naming a year with
+#' `covers = FALSE` is an error rather than a raster with a hole in it. If no
+#' year covers the area, shrink the extent or move it off the seam.
+#'
+#' A point is always answered with the single 1 km tile containing it, so
+#' `covers` is `TRUE` for every year listed. Only an extent, an sf bbox or a
+#' raster grid can lie across a seam and produce `FALSE`.
 #'
 #' @inheritParams rvt_data_lgln
-#' @param product one or more of `"dtm"`, `"dsm"`, `"rgb"` (default all)
-#' @return a data frame with columns `product`, `year`, `first_date`,
-#'   `last_date`, `tiles` and `covers`
+#' @param product one or more of `"dtm"`, `"dsm"`, `"bdom"`, `"rgb"` (default all)
+#' @return a data frame, one row per product and year:
+#'   \describe{
+#'     \item{`product`}{`"dtm"`, `"dsm"`, `"bdom"` or `"rgb"`}
+#'     \item{`year`}{the flight year}
+#'     \item{`first_date`, `last_date`}{earliest and latest flight date among
+#'       that year's tiles, as `"YYYY-MM-DD"`. They differ when neighbouring
+#'       tiles were flown on different days of the same campaign}
+#'     \item{`tiles`}{how many distinct tiles that year contributes to the
+#'       area}
+#'     \item{`covers`}{whether those tiles fill the whole area - see above.
+#'       Only years with `TRUE` can be passed as `year` to
+#'       [rvt_data_lgln()]}
+#'   }
 #' @seealso [rvt_data_lgln()]
 #' @examples
 #' \donttest{
 #' rvt_data_lgln_years(c(9.9464, 51.6317))
 #' }
 #' @export
-rvt_data_lgln_years <- function(x, product = c("dtm", "dsm", "rgb")) {
+rvt_data_lgln_years <- function(x, product = c("dtm", "dsm", "bdom", "rgb")) {
   if (!is.character(product) || !length(product) ||
       !all(product %in% names(.lgln_products)))
-    stop('`product` must be any of "dtm", "dsm" and "rgb".', call. = FALSE)
+    stop('`product` must be any of "dtm", "dsm", "bdom" and "rgb".', call. = FALSE)
   out <- lapply(product, function(pr) {
     area <- .lgln_area(x, NULL, .lgln_products[[pr]]$res)
     items <- .lgln_search(pr, area$extent)

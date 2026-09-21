@@ -4,23 +4,56 @@
 \alias{rvt_data_lgln_years}
 \title{Years of Lower Saxony data available for a place}
 \usage{
-rvt_data_lgln_years(x, product = c("dtm", "dsm", "rgb"))
+rvt_data_lgln_years(x, product = c("dtm", "dsm", "bdom", "rgb"))
 }
 \arguments{
 \item{x}{location: a WGS84 \code{c(lon, lat)} point or \code{c(xmin, ymin, xmax, ymax)} extent, an sf point, geometry or bbox, or the path to an
 EPSG:25832 raster}
 
-\item{product}{one or more of \code{"dtm"}, \code{"dsm"}, \code{"rgb"} (default all)}
+\item{product}{one or more of \code{"dtm"}, \code{"dsm"}, \code{"bdom"}, \code{"rgb"} (default all)}
 }
 \value{
-a data frame with columns \code{product}, \code{year}, \code{first_date},
-\code{last_date}, \code{tiles} and \code{covers}
+a data frame, one row per product and year:
+\describe{
+\item{\code{product}}{\code{"dtm"}, \code{"dsm"}, \code{"bdom"} or \code{"rgb"}}
+\item{\code{year}}{the flight year}
+\item{\code{first_date}, \code{last_date}}{earliest and latest flight date among
+that year's tiles, as \code{"YYYY-MM-DD"}. They differ when neighbouring
+tiles were flown on different days of the same campaign}
+\item{\code{tiles}}{how many distinct tiles that year contributes to the
+area}
+\item{\code{covers}}{whether those tiles fill the whole area - see above.
+Only years with \code{TRUE} can be passed as \code{year} to
+\code{\link[=rvt_data_lgln]{rvt_data_lgln()}}}
+}
 }
 \description{
 Lists the flight years LGLN holds for a location, without fetching any
 data: one row per product and year, with the flight dates, the number of
-tiles involved, and whether that year covers the whole area.
+tiles involved, and whether that year's tiles fill the whole area asked
+for.
 }
+\section{What \code{covers} means}{
+
+The catalogue is a patchwork of 1 km and 2 km tiles, and any one year is
+flown over only part of Lower Saxony. \code{covers} is \code{TRUE} when the tiles
+from that single year fill the whole requested area, and \code{FALSE} when they
+leave a gap - typically an extent lying across the boundary between two
+flight campaigns, where one year's tiles stop partway over it.
+
+It matters because \code{\link[=rvt_data_lgln]{rvt_data_lgln()}} never mixes years: it picks one year
+first and then one tile per place from it, so neighbouring tiles come from
+the same survey rather than from surfaces flown years apart. \code{covers} is
+therefore exactly the set of years that call can use. \code{year = NULL} takes
+the most recent year with \code{covers = TRUE}, and naming a year with
+\code{covers = FALSE} is an error rather than a raster with a hole in it. If no
+year covers the area, shrink the extent or move it off the seam.
+
+A point is always answered with the single 1 km tile containing it, so
+\code{covers} is \code{TRUE} for every year listed. Only an extent, an sf bbox or a
+raster grid can lie across a seam and produce \code{FALSE}.
+}
+
 \examples{
 \donttest{
 rvt_data_lgln_years(c(9.9464, 51.6317))

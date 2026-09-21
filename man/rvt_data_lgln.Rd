@@ -6,7 +6,7 @@
 \usage{
 rvt_data_lgln(
   x,
-  product = c("dtm", "dsm", "rgb"),
+  product = c("dtm", "dsm", "bdom", "rgb"),
   year = NULL,
   res = NULL,
   download = FALSE,
@@ -19,10 +19,11 @@ rvt_data_lgln(
 \item{x}{location: a WGS84 \code{c(lon, lat)} point or \code{c(xmin, ymin, xmax, ymax)} extent, an sf point, geometry or bbox, or the path to an
 EPSG:25832 raster}
 
-\item{product}{\code{"dtm"} (default), \code{"dsm"} or \code{"rgb"}}
+\item{product}{\code{"dtm"} (default), \code{"dsm"}, \code{"bdom"} or \code{"rgb"}}
 
-\item{year}{flight year, or \code{NULL} (default) for the most recent that covers
-the whole area}
+\item{year}{flight year, or \code{NULL} (default) for the most recent one whose
+tiles fill the whole area - the years with \code{covers = TRUE} in
+\code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}}}
 
 \item{res}{output resolution in metres, or \code{NULL} (default) for native -
 or, when \code{x} is a raster, for that raster's own resolution}
@@ -55,7 +56,8 @@ function in this package. \code{download = TRUE} stores a local copy instead, fo
 offline work or repeated sessions.\tabular{llll}{
    product \tab what \tab native grid \tab years \cr
    \code{"dtm"} \tab DGM1 terrain model, the bare ground \tab 1 m, 1 km tiles \tab usually one \cr
-   \code{"dsm"} \tab DOM1 surface model, ground plus trees and buildings \tab 1 m, 1 km tiles \tab usually one \cr
+   \code{"dsm"} \tab DOM1 surface model, from lidar: ground plus trees and buildings \tab 1 m, 1 km tiles \tab usually one \cr
+   \code{"bdom"} \tab bDOM20 surface model, matched from the aerial photos \tab 0.2 m, 1 km tiles \tab 2021 onwards \cr
    \code{"rgb"} \tab DOP20 orthophoto \tab 0.2 m, 2 km tiles \tab several, e.g. 2013-2025 \cr
 }
 
@@ -65,6 +67,36 @@ coordinate system; locations are transformed to find the data, but the data
 is never reprojected. \code{rvt_data_lgln_years()} lists which years exist for a
 place without fetching any data.
 }
+\section{Two surface models, and why the flight date matters}{
+
+\code{"dsm"} is measured by lidar; \code{"bdom"} is computed by matching features
+between overlapping aerial photographs. bDOM is five times finer - 0.2 m
+against 1 m - and renders roofs, walls, hedges and open ground more crisply,
+which is what \code{\link[=rvt_relight]{rvt_relight()}} and the surface metrics want in a town.
+
+\strong{Matching only works where the photographs show matchable texture, so over
+woodland the result depends on when the photographs were taken.} A canopy
+in leaf gives plenty of texture and is captured well. A bare broadleaf
+canopy gives almost none, and the match then falls through to whatever does
+match, usually the forest floor - so bDOM can report \emph{no trees where trees
+stand}. That failure does not announce itself: the wooded ground comes back
+smooth and plausible, and a hillshade of it shows forest tracks and gullies
+as though the canopy were not there.
+
+So check the season before trusting bDOM under trees.
+\code{rvt_data_lgln_years()} gives the flight dates of every year available, and
+\code{year} picks one: a summer flight may describe the canopy well, while the
+early-spring flights that aerial survey usually favours will not. Where
+canopy matters regardless - canopy height, forestry, relighting a wooded
+scene - \code{"dsm"} is measured rather than inferred, and does not depend on the
+season.
+
+bDOM is also the heaviest product here by a distance: uncompressed 0.2 m
+Float32, about 100 MB per km² at native resolution against the orthophoto's
+4.6 MB. Pass \code{res} unless you need every pixel; the cost guard stops the call
+before it starts if you forget.
+}
+
 \section{Location}{
 
 \itemize{
@@ -96,9 +128,16 @@ source instead.
 
 \section{Years}{
 
-\code{year = NULL} uses the most recent year that covers the whole area. Flights
-in one year can be spread over several dates between neighbouring tiles, so
-years are chosen, not dates; within a year each tile uses its latest flight.
+Only one year is ever used, so neighbouring tiles come from the same survey
+rather than from surfaces flown years apart. \code{year = NULL} uses the most
+recent year whose tiles fill the whole area; a year that leaves a gap is
+refused rather than returning a raster with a hole in it.
+\code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} lists which years those are, in its \code{covers}
+column.
+
+Flights in one year can be spread over several dates between neighbouring
+tiles, so years are chosen, not dates; within a year each tile uses its
+latest flight.
 }
 
 \section{Licence}{
