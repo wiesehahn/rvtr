@@ -101,7 +101,14 @@ rvt_threads <- function(n = NULL) {
   if (length(src) == 1L && !any(terra::inMemory(x)) && .spat_is_whole_file(x, src))
     return(src)
   out <- fs::file_temp(ext = "tif")
-  terra::writeRaster(x, out, gdal = c("TILED=YES", "COMPRESS=DEFLATE", "PREDICTOR=3"))
+  # Uncompressed, like .create_scratch(): this is a scratch file, written once
+  # and read once through windows, so DEFLATE only costs time (1.7 s against
+  # 0.1 s for a 2000 x 2000 RGB). It also sidesteps the data type entirely -
+  # PREDICTOR=3 is Float32/64 only and GDAL refuses it on a Byte or integer
+  # raster, which is what an orthophoto masked in terra is, and
+  # terra::datatype() returns "" for an in-memory raster so the type cannot be
+  # known before writing.
+  terra::writeRaster(x, out, gdal = c("TILED=YES", "COMPRESS=NONE"))
   out
 }
 

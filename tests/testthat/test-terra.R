@@ -77,3 +77,24 @@ test_that("SpatRasters work through the blending and plotting entry points", {
   expect_identical(read_all(out),
                    read_all(rvt_render(rvt_blend(hs, svf, "multiply", opacity = 0.5))))
 })
+
+test_that("a SpatRaster of any data type can be materialised", {
+  skip_if_not_installed("terra")
+  # A masked orthophoto - terra writes it as an integer type, and the scratch
+  # copy used to ask GDAL for PREDICTOR=3, which is Float32/64 only:
+  # "[writeRaster] failed writing GTiff file". terra::datatype() is "" for an
+  # in-memory raster, so the type cannot be checked before writing; the scratch
+  # is uncompressed instead.
+  d <- terra::rast(dem)
+  rgb <- terra::rast(terra::ext(d), nrows = 50, ncols = 50, nlyrs = 3,
+                     crs = terra::crs(d), vals = rep(0:255, length.out = 7500))
+  masked <- terra::mask(rgb, rgb[[1]] > 10, maskvalue = FALSE)
+
+  p <- rvtr:::.as_path(masked)
+  on.exit(unlink(p), add = TRUE)
+  expect_true(file.exists(p))
+  expect_equal(rvtr:::.nbands(p), 3L)
+
+  img <- rvt_image(masked, fs::file_temp(ext = "webp"), range = c(0, 255))
+  expect_true(file.exists(img))
+})
