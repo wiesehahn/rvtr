@@ -35,7 +35,7 @@ rvt_image(
 - out_path:
 
   the image to write, ending in `.webp` or `.jpg`. Defaults to a
-  temporary `.webp` file.
+  temporary `.webp` file. A folder that does not exist yet is created.
 
 - col:
 

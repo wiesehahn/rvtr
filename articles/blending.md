@@ -113,8 +113,8 @@ bottom up:
 
 stack
 #> <rvt_stack> 2 layers, bottom to top
-#>   1. file2659ab022d3.tif          (background) opacity 1.00  range auto
-#>   2. file2659426fa186.tif         multiply    opacity 0.50  range 0.7-1
+#>   1. file26732a4bccba.tif         (background) opacity 1.00  range auto
+#>   2. file2673221b2ab5.tif         multiply    opacity 0.50  range 0.7-1
 #> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```
 

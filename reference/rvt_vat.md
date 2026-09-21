@@ -35,7 +35,8 @@ rvt_vat(
 
 - out_path:
 
-  output GeoTIFF path (default: a temp file)
+  output GeoTIFF path (default: a temp file). A folder that does not
+  exist yet is created.
 
 - num_directions:
 
