@@ -178,7 +178,11 @@ data:
 rvt_data_lgln_years(area, "rgb")
 ```
 
-Without `year`, the most recent year covering the whole area is used. The
+A year is flown over only part of the state, so `coverage` says how much of
+your area each one reaches. Without `year`, every tile takes its own latest
+flight, which gives both the newest data and the widest coverage — several
+years at once where that is what it takes to fill the area. Naming a `year`
+uses that one survey throughout, with NoData wherever it was not flown. The
 comparison below is an 80 m square at the orthophoto's native 0.2 m, so each
 panel shows its own 400 × 400 pixels. Flights happen in different seasons:
 2013 was flown in June, with the trees in leaf, and 2025 in March, without.

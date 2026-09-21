@@ -22,36 +22,37 @@ that year's tiles, as \code{"YYYY-MM-DD"}. They differ when neighbouring
 tiles were flown on different days of the same campaign}
 \item{\code{tiles}}{how many distinct tiles that year contributes to the
 area}
-\item{\code{covers}}{whether those tiles fill the whole area - see above.
-Only years with \code{TRUE} can be passed as \code{year} to
-\code{\link[=rvt_data_lgln]{rvt_data_lgln()}}}
+\item{\code{coverage}}{the fraction of the area those tiles fill, 0 to 1 -
+see above. Below 1, naming that year in \code{\link[=rvt_data_lgln]{rvt_data_lgln()}} returns
+that share and leaves the rest NoData}
+\item{\code{covers}}{\code{coverage == 1}, as a convenience: the years that can
+be named on their own and still fill the whole area}
 }
 }
 \description{
 Lists the flight years LGLN holds for a location, without fetching any
 data: one row per product and year, with the flight dates, the number of
-tiles involved, and whether that year's tiles fill the whole area asked
-for.
+tiles involved, and how much of the area asked for that year's tiles fill.
 }
-\section{What \code{covers} means}{
+\section{What \code{coverage} and \code{covers} mean}{
 
 The catalogue is a patchwork of 1 km and 2 km tiles, and any one year is
-flown over only part of Lower Saxony. \code{covers} is \code{TRUE} when the tiles
-from that single year fill the whole requested area, and \code{FALSE} when they
-leave a gap - typically an extent lying across the boundary between two
-flight campaigns, where one year's tiles stop partway over it.
+flown over only part of Lower Saxony. \code{coverage} is the exact fraction of
+your area that year's tiles fill, and \code{covers} is the same thing as a
+yes-or-no (\code{coverage} of 1). Anything below 1 means an area lying across
+the boundary between two flight campaigns, where that year's tiles stop
+partway across it.
 
-It matters because \code{\link[=rvt_data_lgln]{rvt_data_lgln()}} never mixes years: it picks one year
-first and then one tile per place from it, so neighbouring tiles come from
-the same survey rather than from surfaces flown years apart. \code{covers} is
-therefore exactly the set of years that call can use. \code{year = NULL} takes
-the most recent year with \code{covers = TRUE}, and naming a year with
-\code{covers = FALSE} is an error rather than a raster with a hole in it. If no
-year covers the area, shrink the extent or move it off the seam.
+It is what to read before naming a \code{year} in \code{\link[=rvt_data_lgln]{rvt_data_lgln()}}, because a
+named year is used on its own: a year at 0.43 gives you that 43\% and
+NoData for the rest (or, under \code{partial = FALSE}, an error). Leaving \code{year}
+unset instead gives each tile its own latest flight, which covers as much
+ground as all these rows together - so a set of rows that are each partial
+can still add up to a complete raster, assembled from several years.
 
 A point is always answered with the single 1 km tile containing it, so
-\code{covers} is \code{TRUE} for every year listed. Only an extent, an sf bbox or a
-raster grid can lie across a seam and produce \code{FALSE}.
+\code{coverage} is 1 for every year listed. Only an extent, an sf bbox or a
+raster grid can lie across a seam.
 }
 
 \examples{

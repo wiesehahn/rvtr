@@ -35,6 +35,58 @@ test_that("tile extents are read from item ids", {
                c(565000, 5720000, 566000, 5721000))
 })
 
+test_that("coverage is the exact area a year's tiles fill", {
+  # tiles as .lgln_search() returns them, on the whole-kilometre grid
+  tiles <- function(...) {
+    e <- do.call(rbind, list(...))
+    data.frame(xmin = e[, 1], ymin = e[, 2], xmax = e[, 3], ymax = e[, 4])
+  }
+  one <- tiles(c(565000, 5720000, 566000, 5721000))
+  ext <- c(565000, 5720000, 566000, 5721000)
+
+  expect_equal(rvtr:::.lgln_coverage(one, ext), 1)
+  expect_true(rvtr:::.lgln_covers(one, ext))
+
+  # an extent reaching one tile east: half of it has data
+  expect_equal(rvtr:::.lgln_coverage(one, c(565000, 5720000, 567000, 5721000)), 0.5)
+  expect_false(rvtr:::.lgln_covers(one, c(565000, 5720000, 567000, 5721000)))
+
+  # a quarter, reaching east and north
+  expect_equal(rvtr:::.lgln_coverage(one, c(565000, 5720000, 567000, 5722000)), 0.25)
+
+  # two tiles side by side fill the pair
+  two <- tiles(c(565000, 5720000, 566000, 5721000),
+               c(566000, 5720000, 567000, 5721000))
+  expect_equal(rvtr:::.lgln_coverage(two, c(565000, 5720000, 567000, 5721000)), 1)
+
+  # an L leaves the fourth quadrant empty
+  ell <- tiles(c(565000, 5720000, 566000, 5721000),
+               c(566000, 5720000, 567000, 5721000),
+               c(565000, 5721000, 566000, 5722000))
+  expect_equal(rvtr:::.lgln_coverage(ell, c(565000, 5720000, 567000, 5722000)), 0.75)
+
+  # overlapping tiles are counted once, not summed - the probe-free sweep is
+  # what makes that free
+  ovl <- tiles(c(565000, 5720000, 566000, 5721000),
+               c(565500, 5720000, 566500, 5721000))
+  expect_equal(rvtr:::.lgln_coverage(ovl, c(565000, 5720000, 566500, 5721000)), 1)
+
+  # an extent well inside one tile, and one entirely outside
+  expect_equal(rvtr:::.lgln_coverage(one, c(565100, 5720100, 565200, 5720200)), 1)
+  expect_equal(rvtr:::.lgln_coverage(one, c(570000, 5730000, 571000, 5731000)), 0)
+  expect_equal(rvtr:::.lgln_coverage(NULL, ext), 0)
+
+  # a gap narrower than the old 500 m probe step, which used to read as full
+  gap <- tiles(c(565000, 5720000, 565400, 5721000),
+               c(565500, 5720000, 566000, 5721000))
+  expect_equal(rvtr:::.lgln_coverage(gap, ext), 0.9)
+
+  # the same tile under two flight dates is one tile
+  dup <- tiles(c(565000, 5720000, 566000, 5721000),
+               c(565000, 5720000, 566000, 5721000))
+  expect_equal(rvtr:::.lgln_coverage(dup, c(565000, 5720000, 567000, 5721000)), 0.5)
+})
+
 test_that("bad arguments and oversized requests stop before any network use", {
   expect_error(rvt_data_lgln(c(9.9, 51.6), "lidar"), "must be one of")
   expect_error(rvt_data_lgln(c(565400, 5720700)), "sf point")
@@ -118,7 +170,74 @@ test_that("years are listed and selectable", {
   new <- lgln_info(rvt_data_lgln(pt, "rgb", year = 2025, res = 10))
   expect_equal(old$gt, new$gt)
   expect_false(identical(old$v, new$v))
-  expect_error(rvt_data_lgln(pt, "rgb", year = 2001), "Years that do: 2013")
+  expect_error(rvt_data_lgln(pt, "rgb", year = 2001), "Years present: 2013")
+  expect_true(all(y$coverage == 1))
+})
+
+test_that("a named year is used on its own, hole and all", {
+  skip_if_offline()
+  skip_if_not_installed("sf")
+  # A real seam between flight campaigns, west of Celle: *no* single year
+  # covers this 2 x 1 km box - three surface-model years each reach half of
+  # it - which is exactly the case the old code refused outright.
+  bb <- sf::st_bbox(c(xmin = 583000, ymin = 5808000, xmax = 585000,
+                      ymax = 5809000), crs = 25832)
+  y <- rvt_data_lgln_years(bb, "dsm")
+  skip_if(all(y$covers), "this location is no longer a seam")
+  yr <- y$year[y$coverage > 0.05 & y$coverage < 0.95][1]
+
+  expect_message(got <- rvt_data_lgln(bb, "dsm", year = yr, res = 10), "covers")
+  v <- lgln_info(got)$v
+  expect_true(anyNA(v) && any(!is.na(v)))
+  # the hole is exactly the share the catalogue promised
+  expect_equal(mean(!is.na(v)), y$coverage[y$year == yr], tolerance = 0.02)
+
+  # and partial = FALSE refuses it, naming both ways out
+  expect_error(rvt_data_lgln(bb, "dsm", year = yr, res = 10, partial = FALSE),
+               "partial = TRUE")
+})
+
+test_that("year = NULL gives each tile its latest flight, across years", {
+  skip_if_offline()
+  skip_if_not_installed("sf")
+  # The same seam. No year covers it alone, but together they do, so the
+  # default must return a complete raster assembled from several years -
+  # newest where each tile was last flown.
+  bb <- sf::st_bbox(c(xmin = 583000, ymin = 5808000, xmax = 585000,
+                      ymax = 5809000), crs = 25832)
+  y <- rvt_data_lgln_years(bb, "dsm")
+  skip_if(all(y$covers), "this location is no longer a seam")
+
+  expect_message(got <- rvt_data_lgln(bb, "dsm", res = 10), "combines 2 years")
+  expect_false(anyNA(lgln_info(got)$v))
+  # complete, so partial = FALSE must accept it even though no single year does
+  expect_no_error(rvt_data_lgln(bb, "dsm", res = 10, partial = FALSE))
+
+  # each tile takes the newest year that holds it, not the newest year overall
+  items <- rvtr:::.lgln_search("dsm", as.numeric(sf::st_bbox(bb)))
+  picked <- rvtr:::.lgln_pick(items, as.numeric(sf::st_bbox(bb)), NULL, "dsm")
+  expect_length(unique(picked$items$year), 2L)
+  expect_equal(picked$coverage, 1)
+  expect_equal(picked$year, "2016-2019")
+  for (i in seq_len(nrow(picked$items))) {
+    same <- items[items$xmin == picked$items$xmin[i] &
+                    items$ymin == picked$items$ymin[i], , drop = FALSE]
+    expect_equal(picked$items$date[i], max(same$date))
+  }
+})
+
+test_that("where one year covers everything, that year is what you get", {
+  skip_if_offline()
+  pt <- c(9.9464, 51.6317)
+  y <- rvt_data_lgln_years(pt, "rgb")
+  a <- lgln_info(rvt_data_lgln(pt, "rgb", res = 10))
+  b <- lgln_info(rvt_data_lgln(pt, "rgb", year = max(y$year), res = 10))
+  expect_equal(a$v, b$v)
+  # fully covered by one year, so neither the coverage nor the mixed-year
+  # message fires (the licence one can, hence matching text not expect_silent)
+  msgs <- testthat::capture_messages(
+    rvt_data_lgln(pt, "rgb", res = 10, partial = FALSE))
+  expect_false(any(grepl("covers|combines", msgs)))
 })
 
 test_that("places outside Lower Saxony are refused", {

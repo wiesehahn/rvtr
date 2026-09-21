@@ -10,6 +10,7 @@ rvt_data_lgln(
   year = NULL,
   res = NULL,
   download = FALSE,
+  partial = TRUE,
   max_mb = 500,
   refresh = FALSE,
   threads = rvt_threads()
@@ -21,15 +22,19 @@ EPSG:25832 raster}
 
 \item{product}{\code{"dtm"} (default), \code{"dsm"}, \code{"bdom"} or \code{"rgb"}}
 
-\item{year}{flight year, or \code{NULL} (default) for the most recent one whose
-tiles fill the whole area - the years with \code{covers = TRUE} in
-\code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}}}
+\item{year}{one flight year, giving a single survey throughout, or \code{NULL}
+(default) to give each tile its own latest flight - see the Years
+section, and \code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} for what exists}
 
 \item{res}{output resolution in metres, or \code{NULL} (default) for native -
 or, when \code{x} is a raster, for that raster's own resolution}
 
 \item{download}{\code{FALSE} (default) returns a virtual raster reading the
 remote files on demand; \code{TRUE} stores a local copy in the user cache}
+
+\item{partial}{\code{TRUE} (default) returns data wherever the chosen tiles
+reach and leaves the rest NoData; \code{FALSE} errors instead of returning a
+hole}
 
 \item{max_mb}{stop before reading if the estimated download exceeds this
 many megabytes (default 500)}
@@ -128,16 +133,31 @@ source instead.
 
 \section{Years}{
 
-Only one year is ever used, so neighbouring tiles come from the same survey
-rather than from surfaces flown years apart. \code{year = NULL} uses the most
-recent year whose tiles fill the whole area; a year that leaves a gap is
-refused rather than returning a raster with a hole in it.
-\code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} lists which years those are, in its \code{covers}
-column.
+Any one year is flown over only part of Lower Saxony, so a single year's
+tiles may fill your area or stop partway across it.
 
-Flights in one year can be spread over several dates between neighbouring
-tiles, so years are chosen, not dates; within a year each tile uses its
-latest flight.
+\strong{\code{year = NULL} (the default) gives every tile its own latest flight}, so
+you get the newest picture of the ground \emph{and} the widest coverage: where
+2024 reaches you get 2024, and where it does not you get whatever year last
+covered that tile. The cost is that neighbouring tiles can be surveys years
+apart - trees grown, buildings put up - which can show as a seam. A message
+names the years whenever more than one is used.
+
+\strong{Naming a \code{year} means that year and no other}, one survey throughout.
+Where it was not flown you get NoData, and a message names the share
+covered; \code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} reports the same share up front, in its
+\code{coverage} column.
+
+\code{partial = FALSE} refuses a hole rather than returning one: it errors on a
+named year that does not reach everywhere, and on ground that no year has
+ever covered. Within a year, each tile still takes its latest flight -
+one year's flights are spread over several dates between neighbouring
+tiles, so years are chosen, not dates.
+
+Orthophotos are the exception to the NoData rule. DOP20 declares no NoData
+value, so the uncovered part of an \code{"rgb"} result comes back \strong{black}
+rather than flagged, which no downstream function can tell from a very dark
+pixel. Use \code{partial = FALSE} there, or mask the result yourself.
 }
 
 \section{Licence}{

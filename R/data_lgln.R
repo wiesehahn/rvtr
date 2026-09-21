@@ -189,46 +189,113 @@
   items[hit, , drop = FALSE]
 }
 
-## Points sampled over the extent, to test whether a year's tiles cover it.
-.lgln_probe <- function(extent) {
-  step <- max(500, (extent[3] - extent[1]) / 200, (extent[4] - extent[2]) / 200)
-  xs <- unique(pmin(pmax(seq(extent[1], extent[3], by = step), extent[1] + 0.01),
-                    extent[3] - 0.01))
-  ys <- unique(pmin(pmax(seq(extent[2], extent[4], by = step), extent[2] + 0.01),
-                    extent[4] - 0.01))
-  as.matrix(expand.grid(c(xs, extent[3] - 0.01), c(ys, extent[4] - 0.01)))
+## What fraction of the extent a set of tiles covers, exactly.
+##
+## The tiles are axis-aligned rectangles on a whole-kilometre grid, so the area
+## of their union is a coordinate sweep: cut the extent at every tile edge, and
+## every cell of the resulting grid is either wholly inside a tile or wholly
+## outside one. Summing the inside ones is exact, and stays exact if two tiles
+## overlap, which adding their areas would not. This replaced a probe grid
+## sampled every 500 m, which could not see a narrower gap and could not give
+## a fraction.
+.lgln_coverage <- function(items, extent) {
+  area <- (extent[3] - extent[1]) * (extent[4] - extent[2])
+  if (is.null(items) || !nrow(items) || area <= 0) return(0)
+  # one row per distinct tile: a year can hold the same tile under several dates
+  it <- items[!duplicated(paste(items$xmin, items$ymin, items$xmax, items$ymax)),
+              , drop = FALSE]
+  brk <- function(v, lo, hi) sort(unique(pmin(pmax(c(lo, hi, v), lo), hi)))
+  xs <- brk(c(it$xmin, it$xmax), extent[1], extent[3])
+  ys <- brk(c(it$ymin, it$ymax), extent[2], extent[4])
+  if (length(xs) < 2L || length(ys) < 2L) return(0)
+  covered <- 0
+  for (i in seq_len(length(xs) - 1L)) {
+    cx <- (xs[i] + xs[i + 1L]) / 2
+    inx <- cx > it$xmin & cx < it$xmax
+    if (!any(inx)) next
+    for (j in seq_len(length(ys) - 1L)) {
+      cy <- (ys[j] + ys[j + 1L]) / 2
+      if (any(inx & cy > it$ymin & cy < it$ymax))
+        covered <- covered + (xs[i + 1L] - xs[i]) * (ys[j + 1L] - ys[j])
+    }
+  }
+  min(1, covered / area)
 }
 
 .lgln_covers <- function(items, extent) {
-  pts <- .lgln_probe(extent)
-  all(vapply(seq_len(nrow(pts)), function(i)
-    any(pts[i, 1] >= items$xmin & pts[i, 1] < items$xmax &
-        pts[i, 2] >= items$ymin & pts[i, 2] < items$ymax), logical(1)))
+  .lgln_coverage(items, extent) >= 1 - 1e-9
 }
 
-## The year to use, and one item (the latest flight in that year) per tile.
-.lgln_pick <- function(items, extent, year, product) {
+## Which items to use, and how much of the extent they cover.
+##
+## Two different questions, and they were conflated once: *which* survey a tile
+## comes from, and whether the result has a hole in it.
+##
+## `year = NULL` asks for the best available picture of the ground, so every
+## tile takes its own latest flight, whatever year that falls in - a partial
+## 2024 over a full 2022 gives 2024 where it was flown and 2022 for the rest.
+## That is the only way to get both the newest data and full coverage, and it
+## is why this does not choose a year at all. The cost is that neighbouring
+## tiles can be surveys years apart, so .lgln_get() says so when it happens.
+##
+## Naming a `year` means that year and no other - one survey, a hole where it
+## did not reach. `partial` then decides between that hole and an error, and
+## for `year = NULL` it decides the same for ground no year has ever covered.
+.lgln_pick <- function(items, extent, year, product, partial = TRUE) {
   if (is.null(items) || !nrow(items))
     stop(sprintf(paste("No LGLN %s data covers this location. rvt_data_lgln() only",
                        "covers Lower Saxony."), product), call. = FALSE)
   years <- sort(unique(items$year), decreasing = TRUE)
-  full <- years[vapply(years, function(y)
-    .lgln_covers(items[items$year == y, , drop = FALSE], extent), logical(1))]
+  cov <- vapply(years, function(y)
+    .lgln_coverage(items[items$year == y, , drop = FALSE], extent), numeric(1))
+  full <- years[cov >= 1 - 1e-9]
+
   if (is.null(year)) {
-    if (!length(full))
-      stop(sprintf(paste("No single year of %s covers this whole area, it lies at",
-                         "the edge of the data. Years present: %s."), product,
-                   paste(sort(years), collapse = ", ")), call. = FALSE)
-    year <- full[1]
-  } else if (!year %in% full) {
-    stop(sprintf("No %s from %s covers this area. Years that do: %s.", product,
-                 year, if (length(full)) paste(sort(full), collapse = ", ") else "none"),
+    it <- items                         # every year, newest per tile below
+  } else if (!year %in% years) {
+    stop(sprintf("No %s from %s at this location. Years present: %s.", product,
+                 year, paste(sort(years), collapse = ", ")), call. = FALSE)
+  } else {
+    it <- items[items$year == year, , drop = FALSE]
+  }
+
+  coverage <- .lgln_coverage(it, extent)
+  if (!partial && coverage < 1 - 1e-9) {
+    if (is.null(year))
+      stop(sprintf(paste("No LGLN %s reaches all of this area - every year",
+                         "together covers %s of it, so it lies at the edge of",
+                         "the data. Years present: %s. Pass partial = TRUE to",
+                         "take what there is, NoData elsewhere."), product,
+                   .lgln_pct(coverage), paste(sort(years), collapse = ", ")),
+           call. = FALSE)
+    stop(sprintf(paste("No %s from %s covers this area (%s of it). Years that do:",
+                       "%s. Pass partial = TRUE for the part it does cover,",
+                       "NoData elsewhere, or leave `year` unset to fill the rest",
+                       "from other years."), product, year, .lgln_pct(coverage),
+                 if (length(full)) paste(sort(full), collapse = ", ") else "none"),
          call. = FALSE)
   }
-  it <- items[items$year == year, , drop = FALSE]
+
+  # newest first, then one row per tile: each tile keeps its latest flight
   it <- it[order(it$date, decreasing = TRUE), , drop = FALSE]
   it <- it[!duplicated(paste(it$xmin, it$ymin, it$xmax, it$ymax)), , drop = FALSE]
-  list(year = as.integer(year), items = it)
+  used <- sort(unique(it$year), decreasing = TRUE)
+  list(year = .lgln_label(used), years = used, items = it, coverage = coverage,
+       full = sort(full))
+}
+
+## How to name the survey in a filename, in metadata and in messages: the year,
+## or the span when tiles come from several.
+.lgln_label <- function(years) {
+  if (length(years) == 1L) as.character(years)
+  else paste0(min(years), "-", max(years))
+}
+
+## A coverage fraction as a percentage, never rounded to "100%" while a gap
+## remains - "100% of this area, the rest is NoData" would read as nonsense.
+.lgln_pct <- function(x) {
+  if (x >= 1 - 1e-9) return("100%")
+  sprintf("%.4g%%", min(99.9, max(0.1, 100 * x)))
 }
 
 .lgln_guard <- function(product, extent, res, max_mb) {
@@ -272,15 +339,35 @@
 
 ## Fetch one product for an extent: lazy VRT, or a cached COG with download.
 .lgln_get <- function(extent, product, year, res, download, out_path, refresh,
-                      max_mb, threads) {
+                      max_mb, threads, partial = TRUE) {
   p <- .lgln_products[[product]]
   .lgln_guard(product, extent, res, max_mb)
-  picked <- .lgln_pick(.lgln_search(product, extent), extent, year, product)
+  picked <- .lgln_pick(.lgln_search(product, extent), extent, year, product,
+                       partial)
+  # said before the cache check, so a cached result says the same as a fresh one
+  if (length(picked$years) > 1L) {
+    n <- table(picked$items$year)[as.character(picked$years)]
+    message(sprintf(paste("LGLN %s takes each tile's latest flight, so this",
+                          "area combines %d years: %s. Neighbouring tiles can",
+                          "be surveys years apart; name a `year` for one",
+                          "survey throughout."), product, length(picked$years),
+                    paste(sprintf("%d (%d %s)", picked$years, n,
+                                  ifelse(n == 1L, "tile", "tiles")),
+                          collapse = ", ")))
+  }
+  if (picked$coverage < 1 - 1e-9)
+    message(sprintf("LGLN %s %s covers %s of this area; the rest is %s.%s",
+                    product, picked$year, .lgln_pct(picked$coverage),
+                    if (product == "rgb") "black, as DOP20 declares no NoData"
+                    else "NoData",
+                    if (!is.null(year) && length(picked$full))
+                      sprintf(" Years covering it all: %s.",
+                              paste(picked$full, collapse = ", ")) else ""))
 
   if (download) {
     if (is.null(out_path))
       out_path <- fs::path(tools::R_user_dir("rvtr", "cache"), "lgln",
-                           sprintf("%s_%d_%sm_%s.tif", product, picked$year,
+                           sprintf("%s_%s_%sm_%s.tif", product, picked$year,
                                    format(res, scientific = FALSE),
                                    paste(format(extent, scientific = FALSE),
                                          collapse = "_")))
@@ -296,7 +383,7 @@
 
   vrt <- tryCatch(.lgln_vrt(picked$items$href, extent, res, p$res),
                   error = function(e) stop(sprintf(paste("Could not open the LGLN",
-                    "%s files for %d:\n%s"), product, picked$year, conditionMessage(e)),
+                    "%s files for %s:\n%s"), product, picked$year, conditionMessage(e)),
                     call. = FALSE))
   if (!download) return(.as_path(vrt))
 
@@ -304,7 +391,7 @@
   md <- c(SOURCE = paste0("LGLN ", p$label, ", ", picked$year),
           ATTRIBUTION = .lgln_credit(), LICENSE = .lgln_licence)
   if (!.data_write_cog(vrt, out_path, predictor, md, threads))
-    stop(sprintf(paste("Could not download the LGLN %s for %d. The data is fetched",
+    stop(sprintf(paste("Could not download the LGLN %s for %s. The data is fetched",
                        "on demand, so this needs an internet connection."),
                  product, picked$year), call. = FALSE)
   out_path
@@ -387,16 +474,31 @@
 #' source instead.
 #'
 #' @section Years:
-#' Only one year is ever used, so neighbouring tiles come from the same survey
-#' rather than from surfaces flown years apart. `year = NULL` uses the most
-#' recent year whose tiles fill the whole area; a year that leaves a gap is
-#' refused rather than returning a raster with a hole in it.
-#' [rvt_data_lgln_years()] lists which years those are, in its `covers`
-#' column.
+#' Any one year is flown over only part of Lower Saxony, so a single year's
+#' tiles may fill your area or stop partway across it.
 #'
-#' Flights in one year can be spread over several dates between neighbouring
-#' tiles, so years are chosen, not dates; within a year each tile uses its
-#' latest flight.
+#' **`year = NULL` (the default) gives every tile its own latest flight**, so
+#' you get the newest picture of the ground *and* the widest coverage: where
+#' 2024 reaches you get 2024, and where it does not you get whatever year last
+#' covered that tile. The cost is that neighbouring tiles can be surveys years
+#' apart - trees grown, buildings put up - which can show as a seam. A message
+#' names the years whenever more than one is used.
+#'
+#' **Naming a `year` means that year and no other**, one survey throughout.
+#' Where it was not flown you get NoData, and a message names the share
+#' covered; [rvt_data_lgln_years()] reports the same share up front, in its
+#' `coverage` column.
+#'
+#' `partial = FALSE` refuses a hole rather than returning one: it errors on a
+#' named year that does not reach everywhere, and on ground that no year has
+#' ever covered. Within a year, each tile still takes its latest flight -
+#' one year's flights are spread over several dates between neighbouring
+#' tiles, so years are chosen, not dates.
+#'
+#' Orthophotos are the exception to the NoData rule. DOP20 declares no NoData
+#' value, so the uncovered part of an `"rgb"` result comes back **black**
+#' rather than flagged, which no downstream function can tell from a very dark
+#' pixel. Use `partial = FALSE` there, or mask the result yourself.
 #'
 #' @section Licence:
 #' LGLN open geodata, licensed CC BY 4.0 under section 7 of LGLN's terms of
@@ -408,13 +510,16 @@
 #'   ymax)` extent, an sf point, geometry or bbox, or the path to an
 #'   EPSG:25832 raster
 #' @param product `"dtm"` (default), `"dsm"`, `"bdom"` or `"rgb"`
-#' @param year flight year, or `NULL` (default) for the most recent one whose
-#'   tiles fill the whole area - the years with `covers = TRUE` in
-#'   [rvt_data_lgln_years()]
+#' @param year one flight year, giving a single survey throughout, or `NULL`
+#'   (default) to give each tile its own latest flight - see the Years
+#'   section, and [rvt_data_lgln_years()] for what exists
 #' @param res output resolution in metres, or `NULL` (default) for native -
 #'   or, when `x` is a raster, for that raster's own resolution
 #' @param download `FALSE` (default) returns a virtual raster reading the
 #'   remote files on demand; `TRUE` stores a local copy in the user cache
+#' @param partial `TRUE` (default) returns data wherever the chosen tiles
+#'   reach and leaves the rest NoData; `FALSE` errors instead of returning a
+#'   hole
 #' @param max_mb stop before reading if the estimated download exceeds this
 #'   many megabytes (default 500)
 #' @param refresh with `download = TRUE`, fetch again even if cached
@@ -432,7 +537,7 @@
 #' }
 #' @export
 rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NULL,
-                      res = NULL, download = FALSE, max_mb = 500,
+                      res = NULL, download = FALSE, partial = TRUE, max_mb = 500,
                       refresh = FALSE, threads = rvt_threads()) {
   product <- .lgln_product(product)
   if (!is.null(res) && (!is.numeric(res) || length(res) != 1L || !is.finite(res) || res <= 0))
@@ -442,34 +547,33 @@ rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NU
     stop("`year` must be a single year, or NULL for the most recent.", call. = FALSE)
   area <- .lgln_area(x, res, .lgln_products[[product]]$res)
   .lgln_get(area$extent, product, year, area$res, isTRUE(download), NULL,
-            refresh, max_mb, threads)
+            refresh, max_mb, threads, isTRUE(partial))
 }
 
 #' Years of Lower Saxony data available for a place
 #'
 #' Lists the flight years LGLN holds for a location, without fetching any
 #' data: one row per product and year, with the flight dates, the number of
-#' tiles involved, and whether that year's tiles fill the whole area asked
-#' for.
+#' tiles involved, and how much of the area asked for that year's tiles fill.
 #'
-#' @section What `covers` means:
+#' @section What `coverage` and `covers` mean:
 #' The catalogue is a patchwork of 1 km and 2 km tiles, and any one year is
-#' flown over only part of Lower Saxony. `covers` is `TRUE` when the tiles
-#' from that single year fill the whole requested area, and `FALSE` when they
-#' leave a gap - typically an extent lying across the boundary between two
-#' flight campaigns, where one year's tiles stop partway over it.
+#' flown over only part of Lower Saxony. `coverage` is the exact fraction of
+#' your area that year's tiles fill, and `covers` is the same thing as a
+#' yes-or-no (`coverage` of 1). Anything below 1 means an area lying across
+#' the boundary between two flight campaigns, where that year's tiles stop
+#' partway across it.
 #'
-#' It matters because [rvt_data_lgln()] never mixes years: it picks one year
-#' first and then one tile per place from it, so neighbouring tiles come from
-#' the same survey rather than from surfaces flown years apart. `covers` is
-#' therefore exactly the set of years that call can use. `year = NULL` takes
-#' the most recent year with `covers = TRUE`, and naming a year with
-#' `covers = FALSE` is an error rather than a raster with a hole in it. If no
-#' year covers the area, shrink the extent or move it off the seam.
+#' It is what to read before naming a `year` in [rvt_data_lgln()], because a
+#' named year is used on its own: a year at 0.43 gives you that 43% and
+#' NoData for the rest (or, under `partial = FALSE`, an error). Leaving `year`
+#' unset instead gives each tile its own latest flight, which covers as much
+#' ground as all these rows together - so a set of rows that are each partial
+#' can still add up to a complete raster, assembled from several years.
 #'
 #' A point is always answered with the single 1 km tile containing it, so
-#' `covers` is `TRUE` for every year listed. Only an extent, an sf bbox or a
-#' raster grid can lie across a seam and produce `FALSE`.
+#' `coverage` is 1 for every year listed. Only an extent, an sf bbox or a
+#' raster grid can lie across a seam.
 #'
 #' @inheritParams rvt_data_lgln
 #' @param product one or more of `"dtm"`, `"dsm"`, `"bdom"`, `"rgb"` (default all)
@@ -482,9 +586,11 @@ rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NU
 #'       tiles were flown on different days of the same campaign}
 #'     \item{`tiles`}{how many distinct tiles that year contributes to the
 #'       area}
-#'     \item{`covers`}{whether those tiles fill the whole area - see above.
-#'       Only years with `TRUE` can be passed as `year` to
-#'       [rvt_data_lgln()]}
+#'     \item{`coverage`}{the fraction of the area those tiles fill, 0 to 1 -
+#'       see above. Below 1, naming that year in [rvt_data_lgln()] returns
+#'       that share and leaves the rest NoData}
+#'     \item{`covers`}{`coverage == 1`, as a convenience: the years that can
+#'       be named on their own and still fill the whole area}
 #'   }
 #' @seealso [rvt_data_lgln()]
 #' @examples
@@ -502,10 +608,11 @@ rvt_data_lgln_years <- function(x, product = c("dtm", "dsm", "bdom", "rgb")) {
     if (is.null(items) || !nrow(items)) return(NULL)
     do.call(rbind, lapply(sort(unique(items$year)), function(y) {
       it <- items[items$year == y, , drop = FALSE]
+      cov <- .lgln_coverage(it, area$extent)
       data.frame(product = pr, year = y, first_date = min(it$date),
                  last_date = max(it$date),
                  tiles = length(unique(paste(it$xmin, it$ymin, it$xmax, it$ymax))),
-                 covers = .lgln_covers(it, area$extent),
+                 coverage = round(cov, 4), covers = cov >= 1 - 1e-9,
                  stringsAsFactors = FALSE)
     }))
   })
