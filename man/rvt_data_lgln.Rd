@@ -24,7 +24,8 @@ EPSG:25832 raster}
 \item{year}{flight year, or \code{NULL} (default) for the most recent that covers
 the whole area}
 
-\item{res}{output resolution in metres, or \code{NULL} (default) for native}
+\item{res}{output resolution in metres, or \code{NULL} (default) for native -
+or, when \code{x} is a raster, for that raster's own resolution}
 
 \item{download}{\code{FALSE} (default) returns a virtual raster reading the
 remote files on demand; \code{TRUE} stores a local copy in the user cache}

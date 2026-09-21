@@ -123,3 +123,29 @@ test_that("places outside Lower Saxony are refused", {
   skip_if_offline()
   expect_error(rvt_data_lgln(c(11.58, 48.14), "dtm"), "only covers Lower Saxony")
 })
+
+test_that("a raster `x` sets the grid, and the product default doesn't fight it", {
+  # A DTM rasterised from a LAS at 0.25 m: its own grid is the answer, and
+  # asking for the orthophoto must not compare 0.25 against the product's
+  # native 0.2. That used to make rvt_data_lgln_years(dtm, "rgb") and
+  # rvt_data_lgln(dtm, "rgb") errors, though nothing had asked for a resolution.
+  p <- fs::file_temp(ext = "tif")
+  on.exit(unlink(p), add = TRUE)
+  gdalraster::create("GTiff", p, 200, 200, 1, "Float32")
+  ds <- methods::new(gdalraster::GDALRaster, p, read_only = FALSE)
+  ds$setGeoTransform(c(564500, 0.25, 0, 5720550, 0, -0.25))
+  ds$setProjection(gdalraster::srs_to_wkt("EPSG:25832"))
+  ds$close()
+
+  a <- rvtr:::.lgln_area(p, NULL, 0.2)          # nothing asked, rgb default
+  expect_equal(a$res, 0.25)
+  expect_equal(a$kind, "raster")
+  expect_equal(a$extent, c(564500, 5720500, 564550, 5720550))
+
+  # an explicit, conflicting request is still refused
+  expect_error(rvtr:::.lgln_area(p, 1, 0.2), "can't differ")
+  expect_equal(rvtr:::.lgln_area(p, 0.25, 0.2)$res, 0.25)
+
+  # and the default still applies where the location brings no grid
+  expect_equal(rvtr:::.lgln_area(c(9.9464, 51.6317), NULL, 0.2)$res, 0.2)
+})

@@ -62,7 +62,13 @@
 }
 
 ## Any location -> list(extent in EPSG:25832, res, kind).
-.lgln_area <- function(x, res) {
+##
+## `res` is what the *caller* asked for and may be NULL; `default` is the
+## product's own resolution, used only when nothing was asked and the location
+## does not bring a grid of its own. The two must stay apart: passing the
+## product default as `res` made a raster `x` of any other resolution an error,
+## even though the caller had asked for nothing.
+.lgln_area <- function(x, res, default = NULL) {
   # a raster: exactly its grid, which must already be EPSG:25832
   if (is.character(x) && length(x) == 1L && fs::file_exists(x)) {
     ds <- methods::new(gdalraster::GDALRaster, x, read_only = TRUE)
@@ -77,6 +83,9 @@
            call. = FALSE)
     return(list(extent = as.numeric(ds$bbox()), res = rr, kind = "raster"))
   }
+
+  # every other location has no grid of its own, so it is snapped to `res`
+  if (is.null(res)) res <- default
 
   # sf objects carry their own CRS
   if (inherits(x, c("sf", "sfc", "sfg", "bbox"))) {
@@ -348,7 +357,8 @@
 #' @param product `"dtm"` (default), `"dsm"` or `"rgb"`
 #' @param year flight year, or `NULL` (default) for the most recent that covers
 #'   the whole area
-#' @param res output resolution in metres, or `NULL` (default) for native
+#' @param res output resolution in metres, or `NULL` (default) for native -
+#'   or, when `x` is a raster, for that raster's own resolution
 #' @param download `FALSE` (default) returns a virtual raster reading the
 #'   remote files on demand; `TRUE` stores a local copy in the user cache
 #' @param max_mb stop before reading if the estimated download exceeds this
@@ -376,7 +386,7 @@ rvt_data_lgln <- function(x, product = c("dtm", "dsm", "rgb"), year = NULL,
          call. = FALSE)
   if (!is.null(year) && (!is.numeric(year) || length(year) != 1L))
     stop("`year` must be a single year, or NULL for the most recent.", call. = FALSE)
-  area <- .lgln_area(x, if (is.null(res)) .lgln_products[[product]]$res else res)
+  area <- .lgln_area(x, res, .lgln_products[[product]]$res)
   .lgln_get(area$extent, product, year, area$res, isTRUE(download), NULL,
             refresh, max_mb, threads)
 }
@@ -402,7 +412,7 @@ rvt_data_lgln_years <- function(x, product = c("dtm", "dsm", "rgb")) {
       !all(product %in% names(.lgln_products)))
     stop('`product` must be any of "dtm", "dsm" and "rgb".', call. = FALSE)
   out <- lapply(product, function(pr) {
-    area <- .lgln_area(x, .lgln_products[[pr]]$res)
+    area <- .lgln_area(x, NULL, .lgln_products[[pr]]$res)
     items <- .lgln_search(pr, area$extent)
     if (is.null(items) || !nrow(items)) return(NULL)
     do.call(rbind, lapply(sort(unique(items$year)), function(y) {
