@@ -1,8 +1,6 @@
 # terra SpatRasters as input. Everything funnels through .as_path(), so these
 # check the conversion rule rather than every function.
 
-dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-
 read_all <- function(p, band = 1L) {
   ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
   on.exit(ds$close())
@@ -16,7 +14,7 @@ test_that("a file-backed SpatRaster hands over its own file, with no copy", {
   expect_equal(as.character(rvtr:::.as_path(r)), as.character(rvtr:::.as_path(dem)))
 
   # and the result is identical to computing from the path
-  expect_identical(read_all(rvt_slope(r)), read_all(rvt_slope(dem)))
+  expect_identical(read_all(rvt_slope(r)), read_all(fx_slope()))
 })
 
 test_that("a SpatRaster computed in memory is written out and used", {
@@ -32,7 +30,7 @@ test_that("a SpatRaster computed in memory is written out and used", {
   # slope is unchanged by adding a constant, so it must match the original.
   # Not exactly: terra holds the computed raster in double and writes Float64,
   # where the source file is Float32.
-  expect_equal(read_all(rvt_slope(r)), read_all(rvt_slope(dem)), tolerance = 1e-3)
+  expect_equal(read_all(rvt_slope(r)), read_all(fx_slope()), tolerance = 1e-3)
 })
 
 test_that("a band subset keeps its own band, not band 1 of the file", {

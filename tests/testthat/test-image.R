@@ -1,8 +1,6 @@
 # Display images: WebP and JPEG written straight from the tiled pass, by
 # rvt_render(), rvt_vat(), rvt_relight() and rvt_image().
 
-dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-
 img_read <- function(p) {
   ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
   on.exit(ds$close())
@@ -11,21 +9,12 @@ img_read <- function(p) {
        bands = lapply(seq_len(ds$getRasterCount()), function(b)
          matrix(as.numeric(ds$read(b, 0, 0, nx, ny, nx, ny)), ny, nx, byrow = TRUE)))
 }
-cog_read <- function(p) {
-  ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
-  on.exit(ds$close())
-  nx <- ds$getRasterXSize(); ny <- ds$getRasterYSize()
-  m <- matrix(as.numeric(ds$read(1, 0, 0, nx, ny, nx, ny)), ny, nx, byrow = TRUE)
-  nd <- ds$getNoDataValue(1)
-  if (!is.na(nd)) m[m == nd] <- NA
-  m
-}
 img_dir <- function() { d <- tempfile("img"); dir.create(d); d }
 
 test_that("a blend renders straight to WebP and JPEG, with no sidecar files", {
   d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
-  st <- rvt_blend(rvt_hillshade(dem), rvt_svf(dem), "multiply", opacity = 0.5)
-  cog <- cog_read(rvt_render(st))
+  st <- rvt_blend(fx_hillshade(), fx_svf(), "multiply", opacity = 0.5)
+  cog <- read_band(rvt_render(st))
 
   w <- img_read(rvt_render(st, file.path(d, "a.webp")))
   j <- img_read(rvt_render(st, file.path(d, "a.jpg")))
@@ -46,7 +35,7 @@ test_that("a blend renders straight to WebP and JPEG, with no sidecar files", {
 
 test_that("tiling changes nothing in the picture", {
   d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
-  st <- rvt_blend(rvt_hillshade(dem), rvt_svf(dem), "multiply", opacity = 0.5)
+  st <- rvt_blend(fx_hillshade(), fx_svf(), "multiply", opacity = 0.5)
   # the encoder sees identical pixels either way, so even lossy output matches
   w <- img_read(rvt_render(st, file.path(d, "a.webp")))
   pieces <- img_read(rvt_render(st, file.path(d, "b.webp"), tile_size = 137))
@@ -75,8 +64,8 @@ test_that("the WebP size limit stops the call before any tile is computed", {
 
 test_that("rvt_image stretches over the range and colours through the palette", {
   d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
-  svf <- rvt_svf(dem)
-  v <- cog_read(svf)
+  svf <- fx_svf()
+  v <- read_band(svf)
 
   # Grays over c(0.7, 1): the picture is lossy, so close rather than exact
   g <- img_read(rvt_image(svf, file.path(d, "g.webp"), range = c(0.7, 1)))
@@ -105,14 +94,14 @@ test_that("rvt_vat and rvt_image of a stack write pictures too", {
   d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
   v <- img_read(rvt_vat(dem, file.path(d, "vat.jpg")))
   expect_equal(c(v$nx, length(v$bands), v$driver), c("1000", "1", "JPEG"))
-  st <- rvt_blend(rvt_hillshade(dem), rvt_svf(dem), "multiply", opacity = 0.5)
+  st <- rvt_blend(fx_hillshade(), fx_svf(), "multiply", opacity = 0.5)
   s <- img_read(rvt_image(st, file.path(d, "st.webp"), "Viridis"))
   expect_equal(length(s$bands), 4L)
   expect_false(identical(s$bands[[1]], s$bands[[3]]))
 })
 
 test_that("relight writes a picture directly", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   crop <- function(p) {
     out <- tempfile(fileext = ".tif")

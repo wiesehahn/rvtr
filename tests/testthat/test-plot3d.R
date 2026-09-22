@@ -2,8 +2,6 @@
 # geometry handed to rgl rather than pixels: the grid the DEM is read onto,
 # that NoData stays NA, and that a drape is rendered exactly once.
 
-dem_path <- function() system.file("extdata", "dtm1.tif", package = "rvtr")
-
 test_that("arguments are validated before any work", {
   skip_if_not_installed("rgl")
   expect_error(rvt_plot3d(dem_path(), exaggeration = 0), "exaggeration")
@@ -16,8 +14,7 @@ test_that("a raster passed as col says so, in words", {
   # `col` is the second argument in both plot functions, so the slip in this
   # direction is passing the drape positionally. Without the guard it fails
   # inside the palette lookup, which explains nothing.
-  hs <- rvt_hillshade(dem_path())
-  on.exit(unlink(hs), add = TRUE)
+  hs <- fx_hillshade()
   expect_error(rvt_plot3d(dem_path(), hs), "drape")
   expect_error(rvt_plot3d(dem_path(), rvt_stack(hs)), "drape")
 })
@@ -173,8 +170,7 @@ test_that("the drape lands the right way up on the surface", {
   # north 37, south 242 - and CLAUDE.md records it. Flipping t here reverses
   # the drape, which is what this test exists to catch.
   dem <- dem_path()
-  hs <- rvt_hillshade(dem)
-  on.exit(unlink(hs), add = TRUE)
+  hs <- fx_hillshade()
 
   args <- NULL
   testthat::with_mocked_bindings(
@@ -220,8 +216,7 @@ test_that("a flat drape does not divide by a zero range", {
 
 test_that("a blend stack drape is rendered once", {
   dem <- dem_path()
-  hs <- rvt_hillshade(dem)
-  on.exit(unlink(hs), add = TRUE)
+  hs <- fx_hillshade()
   stack <- rvt_stack(hs)
 
   rendered <- 0L
@@ -235,12 +230,12 @@ test_that("a blend stack drape is rendered once", {
 
 test_that("a three-band drape keeps its own colours", {
   dem <- dem_path()
-  hs <- rvt_hillshade(dem)
+  hs <- fx_hillshade()
   rgb3 <- tempfile(fileext = ".tif")
   gdalraster::translate(hs, rgb3, quiet = TRUE,
                         cl_arg = c("-b", "1", "-b", "1", "-b", "1",
                                    "-ot", "Byte", "-scale"))
-  on.exit(unlink(c(hs, rgb3)), add = TRUE)
+  on.exit(unlink(rgb3), add = TRUE)
 
   png <- rvtr:::.plot3d_texture(rgb3, "Grays", max_dim = 60)
   on.exit(unlink(png), add = TRUE)

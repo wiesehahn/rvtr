@@ -1,13 +1,16 @@
 # rvt_data_lgln(). Location handling and the cost guard run offline; everything
 # that reads data needs the LGLN catalogue and skips itself when offline.
 
-lgln_info <- function(p) {
+## `values = FALSE` where only the grid is asserted. Reading band 1 of the
+## native 0.2 m orthophoto is 25 million values for a test that checks nx, ny
+## and the bounding box.
+lgln_info <- function(p, values = TRUE) {
   ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
   on.exit(ds$close())
   nx <- ds$getRasterXSize(); ny <- ds$getRasterYSize()
   list(nx = nx, ny = ny, nb = ds$getRasterCount(), gt = ds$getGeoTransform(),
        bbox = ds$bbox(), epsg = gdalraster::srs_find_epsg(ds$getProjection()),
-       v = as.numeric(ds$read(1, 0, 0, nx, ny, nx, ny)),
+       v = if (values) as.numeric(ds$read(1, 0, 0, nx, ny, nx, ny)),
        nodata = ds$getNoDataValue(1))
 }
 
@@ -96,7 +99,7 @@ test_that("bad arguments and oversized requests stop before any network use", {
 })
 
 test_that("the lazy raster matches the downloaded copy", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   lazy <- lgln_info(rvt_data_lgln(pt, "dtm"))
   local <- lgln_info(rvt_data_lgln(pt, "dtm", download = TRUE))
@@ -112,7 +115,7 @@ test_that("the lazy raster matches the downloaded copy", {
 })
 
 test_that("a second download is served from the cache", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   p <- rvt_data_lgln(pt, "dtm", download = TRUE)
   before <- fs::file_info(p)$modification_time
@@ -121,14 +124,14 @@ test_that("a second download is served from the cache", {
 })
 
 test_that("the native orthophoto keeps its 0.2 m pixels on the tile", {
-  skip_if_offline()
-  i <- lgln_info(rvt_data_lgln(c(9.9464, 51.6317), "rgb", year = 2025))
+  skip_unless_network()
+  i <- lgln_info(rvt_data_lgln(c(9.9464, 51.6317), "rgb", year = 2025), values = FALSE)
   expect_equal(c(i$nx, i$ny, i$nb), c(5000, 5000, 3))
   expect_equal(i$bbox, c(565000, 5720000, 566000, 5721000))
 })
 
 test_that("an extent across tile borders comes back whole and seamless", {
-  skip_if_offline(); skip_if_not_installed("sf")
+  skip_unless_network(); skip_if_not_installed("sf")
   bb <- sf::st_bbox(c(xmin = 565500, ymin = 5720500, xmax = 566500,
                       ymax = 5721500), crs = 25832)
   r <- lgln_info(rvt_data_lgln(bb, "dtm"))
@@ -137,7 +140,7 @@ test_that("an extent across tile borders comes back whole and seamless", {
 })
 
 test_that("lazy resampled reads are tile-invariant", {
-  skip_if_offline()
+  skip_unless_network()
   dem <- rvt_data_lgln(c(9.9464, 51.6317), "dtm", res = 2)
   whole <- lgln_info(rvt_svf(dem, reach = 20))$v
   pieces <- lgln_info(rvt_svf(dem, reach = 20, tile_size = 137))$v
@@ -145,23 +148,24 @@ test_that("lazy resampled reads are tile-invariant", {
 })
 
 test_that("products fetched for one place at one res share a grid", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   dtm <- rvt_data_lgln(pt, "dtm", res = 1)
   dsm <- rvt_data_lgln(pt, "dsm", res = 1)
   rgb <- rvt_data_lgln(pt, "rgb", res = 1)
   bdom <- rvt_data_lgln(pt, "bdom", res = 1)
-  a <- lgln_info(dtm); b <- lgln_info(dsm); c <- lgln_info(rgb)
-  d <- lgln_info(bdom)
+  a <- lgln_info(dtm, values = FALSE); b <- lgln_info(dsm, values = FALSE)
+  c <- lgln_info(rgb, values = FALSE); d <- lgln_info(bdom, values = FALSE)
   expect_equal(b$gt, a$gt); expect_equal(c$gt, a$gt); expect_equal(d$gt, a$gt)
   expect_equal(c(c$nx, c$ny, c$nb), c(a$nx, a$ny, 3))
   hs <- rvt_hillshade(dtm)
   on.exit(unlink(hs), add = TRUE)
-  expect_equal(lgln_info(rvt_render(rvt_blend(rgb, hs, "multiply", 0.6)))$nb, 3L)
+  expect_equal(lgln_info(rvt_render(rvt_blend(rgb, hs, "multiply", 0.6)),
+                         values = FALSE)$nb, 3L)
 })
 
 test_that("years are listed and selectable", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   y <- rvt_data_lgln_years(pt, "rgb")
   expect_true(all(c(2013, 2016, 2019, 2022, 2025) %in% y$year))
@@ -175,7 +179,7 @@ test_that("years are listed and selectable", {
 })
 
 test_that("a named year is used on its own, hole and all", {
-  skip_if_offline()
+  skip_unless_network()
   skip_if_not_installed("sf")
   # A real seam between flight campaigns, west of Celle: *no* single year
   # covers this 2 x 1 km box - three surface-model years each reach half of
@@ -198,7 +202,7 @@ test_that("a named year is used on its own, hole and all", {
 })
 
 test_that("year = NULL gives each tile its latest flight, across years", {
-  skip_if_offline()
+  skip_unless_network()
   skip_if_not_installed("sf")
   # The same seam. No year covers it alone, but together they do, so the
   # default must return a complete raster assembled from several years -
@@ -227,7 +231,7 @@ test_that("year = NULL gives each tile its latest flight, across years", {
 })
 
 test_that("where one year covers everything, that year is what you get", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   y <- rvt_data_lgln_years(pt, "rgb")
   a <- lgln_info(rvt_data_lgln(pt, "rgb", res = 10))
@@ -241,7 +245,7 @@ test_that("where one year covers everything, that year is what you get", {
 })
 
 test_that("places outside Lower Saxony are refused", {
-  skip_if_offline()
+  skip_unless_network()
   expect_error(rvt_data_lgln(c(11.58, 48.14), "dtm"), "only covers Lower Saxony")
 })
 
@@ -301,7 +305,7 @@ test_that("bdom item ids parse as 1 km tiles and the product is accepted", {
 })
 
 test_that("the image-based surface model comes back on the shared grid", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   # res = 1 on purpose: native 0.2 m would pull 100 MB for this one tile
   b <- lgln_info(rvt_data_lgln(pt, "bdom", res = 1))

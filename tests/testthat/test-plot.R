@@ -2,8 +2,6 @@
 # two functions must resolve the same numbers from the same arguments. Nothing
 # here draws: plot_raster() is mocked and the arguments it receives inspected.
 
-dem_path <- function() system.file("extdata", "dtm1.tif", package = "rvtr")
-
 capture_plot_args <- function(expr) {
   args <- NULL
   testthat::with_mocked_bindings(
@@ -30,8 +28,7 @@ test_that("range becomes a per-band minmax_def", {
 })
 
 test_that("pct is measured exactly as rvt_image() measures it", {
-  svf <- rvt_svf(dem_path())
-  on.exit(unlink(svf), add = TRUE)
+  svf <- fx_svf()
   a <- capture_plot_args(rvt_plot(svf, pct = c(2, 98)))
   expect_equal(a$minmax_def, rvt_range(svf, pct = c(2, 98)))
 })

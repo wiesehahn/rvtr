@@ -7,24 +7,6 @@
 #    rvt-py. That pins the whole pipeline - normalisation, mode, opacity,
 #    ordering - to a known-good result without touching rvt_vat() itself.
 
-dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
-
-read_b <- function(p, b = 1L) {
-  ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
-  on.exit(ds$close())
-  nx <- ds$getRasterXSize(); ny <- ds$getRasterYSize()
-  m <- matrix(as.numeric(ds$read(b, 0, 0, nx, ny, nx, ny)),
-              nrow = ny, ncol = nx, byrow = TRUE)
-  nd <- ds$getNoDataValue(b)
-  if (!is.na(nd)) m[m == nd] <- NA
-  m
-}
-n_bands <- function(p) {
-  ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
-  on.exit(ds$close())
-  ds$getRasterCount()
-}
-
 test_that("every blend mode matches its closed form", {
   # endpoints and midpoints, including the 0 and 1 that make dodge and burn
   # divide by zero if they are not guarded
@@ -70,9 +52,9 @@ test_that("the blend engine reproduces the VAT stack", {
   # opacity and layer ordering are all right at once.
   hs   <- rvt_hillshade(dem, sun_elevation = 35)
   slp  <- rvt_slope(dem)
-  svf  <- rvt_svf(dem, reach = 10)
+  svf  <- fx_svf()
   opns <- rvt_openness(dem, reach = 10)
-  on.exit(unlink(c(hs, slp, svf, opns)), add = TRUE)
+  on.exit(unlink(c(hs, slp, opns)), add = TRUE)
 
   p <- rvt_preset_general
   got <- rvt_stack(hs, range = c(0, 1)) |>
@@ -80,10 +62,10 @@ test_that("the blend engine reproduces the VAT stack", {
     rvt_blend(opns, "overlay",  0.5,  range = p$opns) |>
     rvt_blend(svf,  "multiply", 0.25, range = p$svf) |>
     rvt_render()
-  want <- rvtr:::.vat_stack(read_b(hs), read_b(slp), read_b(opns),
-                            read_b(svf), p)
+  want <- rvtr:::.vat_stack(read_band(hs), read_band(slp), read_band(opns),
+                            read_band(svf), p)
 
-  a <- read_b(got)
+  a <- read_band(got)
   ok <- !is.na(a) & !is.na(want)
   # 1e-6 is the Float32 output floor, not slack in the arithmetic
   expect_lt(max(abs(a[ok] - want[ok])), 1e-6)
@@ -91,23 +73,21 @@ test_that("the blend engine reproduces the VAT stack", {
 })
 
 test_that("blending is tile-invariant and preserves NoData", {
-  hs  <- rvt_hillshade(dem)
-  svf <- rvt_svf(dem, reach = 10)
-  on.exit(unlink(c(hs, svf)), add = TRUE)
+  hs  <- fx_hillshade()
+  svf <- fx_svf()
 
   st <- hs |> rvt_blend(svf, "multiply", 0.25, range = c(0.7, 1))
   # ranges are frozen before the first tile, which is the whole reason this
   # holds - a per-tile stretch would give the same ground different values
-  expect_identical(read_b(rvt_render(st)),
-                   read_b(rvt_render(st, tile_size = 137)))
+  expect_identical(read_band(rvt_render(st)),
+                   read_band(rvt_render(st, tile_size = 137)))
   # a blend of a hole is a hole, and only a hole
-  expect_identical(is.na(read_b(rvt_render(st))), is.na(read_b(dem)))
+  expect_identical(is.na(read_band(rvt_render(st))), is.na(read_band(dem)))
 })
 
 test_that("rvt_blend() builds a recipe and writes nothing until rendered", {
-  hs  <- rvt_hillshade(dem)
-  svf <- rvt_svf(dem, reach = 10)
-  on.exit(unlink(c(hs, svf)), add = TRUE)
+  hs  <- fx_hillshade()
+  svf <- fx_svf()
 
   d <- fs::path_temp()
   before <- length(fs::dir_ls(d, glob = "*.tif"))
@@ -121,25 +101,24 @@ test_that("rvt_blend() builds a recipe and writes nothing until rendered", {
   expect_equal(length(fs::dir_ls(d, glob = "*.tif")), before + 1L)
 
   # a bare path and rvt_stack() must be the same starting point
-  expect_identical(read_b(rvt_render(rvt_blend(hs, svf, "multiply", 0.25))),
-                   read_b(rvt_render(rvt_blend(rvt_stack(hs), svf,
+  expect_identical(read_band(rvt_render(rvt_blend(hs, svf, "multiply", 0.25))),
+                   read_band(rvt_render(rvt_blend(rvt_stack(hs), svf,
                                                 "multiply", 0.25))))
 })
 
 test_that("opacity 0 leaves the background untouched, for every mode", {
-  hs  <- rvt_hillshade(dem)
-  svf <- rvt_svf(dem, reach = 10)
-  on.exit(unlink(c(hs, svf)), add = TRUE)
-  base <- read_b(rvt_render(rvt_stack(hs)))
+  hs  <- fx_hillshade()
+  svf <- fx_svf()
+  base <- read_band(rvt_render(rvt_stack(hs)))
   for (nm in rvt_blend_modes)
-    expect_equal(read_b(rvt_render(rvt_blend(hs, svf, nm, opacity = 0))),
+    expect_equal(read_band(rvt_render(rvt_blend(hs, svf, nm, opacity = 0))),
                  base, tolerance = 1e-6, label = nm)
 })
 
 test_that("a three-band layer broadcasts against a single-band one", {
-  hs  <- rvt_hillshade(dem)
+  hs  <- fx_hillshade()
   rgb <- rvt_mstp(dem)
-  on.exit(unlink(c(hs, rgb)), add = TRUE)
+  on.exit(unlink(rgb), add = TRUE)
   expect_equal(n_bands(rgb), 3L)
 
   out <- rgb |> rvt_blend(hs, "multiply", opacity = 1) |> rvt_render()
@@ -149,10 +128,10 @@ test_that("a three-band layer broadcasts against a single-band one", {
   # per-band stretch would silently change the hue
   rs <- vapply(1:3, function(b) rvt_range(rgb, band = b), numeric(2))
   rng <- c(min(rs[1, ]), max(rs[2, ]))
-  a <- rvtr:::.norm_lin(read_b(hs), rvt_range(hs)[1], rvt_range(hs)[2])
+  a <- rvtr:::.norm_lin(read_band(hs), rvt_range(hs)[1], rvt_range(hs)[2])
   for (k in 1:3) {
-    want <- a * rvtr:::.norm_lin(read_b(rgb, k), rng[1], rng[2])
-    got <- read_b(out, k)
+    want <- a * rvtr:::.norm_lin(read_band(rgb, k), rng[1], rng[2])
+    got <- read_band(out, k)
     ok <- !is.na(want) & !is.na(got)
     expect_lt(max(abs(want[ok] - got[ok])), 1e-6)
   }
@@ -162,7 +141,7 @@ test_that("a three-band layer broadcasts against a single-band one", {
 })
 
 test_that("misaligned layers are refused, not silently blended", {
-  hs <- rvt_hillshade(dem)
+  hs <- fx_hillshade()
   small <- tempfile(fileext = ".tif")
   gdalraster::translate(dem, small, quiet = TRUE,
                          cl_arg = c("-srcwin", "0", "0", "500", "500"))
@@ -174,7 +153,7 @@ test_that("misaligned layers are refused, not silently blended", {
   gt <- ds$getGeoTransform(); gt[1] <- gt[1] + 10; ds$setGeoTransform(gt); ds$close()
   # 2.5 m against 1 m: not a whole factor
   r25 <- rvt_resample(dem, 2.5)
-  on.exit(unlink(c(hs, small, shifted, r25)), add = TRUE)
+  on.exit(unlink(c(small, shifted, r25)), add = TRUE)
 
   expect_error(rvt_blend(hs, small, "multiply"), "same extent")
   expect_error(rvt_blend(hs, shifted, "multiply"), "same extent")
@@ -182,41 +161,40 @@ test_that("misaligned layers are refused, not silently blended", {
 })
 
 test_that("layers at whole-factor resolutions render on the finest grid", {
-  hs <- rvt_hillshade(dem)
+  hs <- fx_hillshade()
   svf4 <- rvt_svf(rvt_resample(dem, 4), reach = 16)       # 250 x 250 at 4 m
-  on.exit(unlink(c(hs, svf4)), add = TRUE)
+  on.exit(unlink(svf4), add = TRUE)
 
   # whichever way round, the output is the fine grid
   a <- rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0.5))
   b <- rvt_render(rvt_blend(svf4, hs, "multiply", opacity = 0.5))
   on.exit(unlink(c(a, b)), add = TRUE)
-  expect_equal(dim(read_b(a)), c(1000L, 1000L))
-  expect_equal(dim(read_b(b)), c(1000L, 1000L))
+  expect_equal(dim(read_band(a)), c(1000L, 1000L))
+  expect_equal(dim(read_band(b)), c(1000L, 1000L))
   expect_output(print(rvt_blend(svf4, hs)), "1000 x 1000, 1 m")
 
   # the coarse layer arrives smoothly, not as 4 x 4 blocks: bilinear, so
   # neighbouring fine cells inside one coarse cell differ
-  up <- read_b(rvt_render(rvt_stack(svf4) |> rvt_blend(hs, opacity = 0)))
+  up <- read_band(rvt_render(rvt_stack(svf4) |> rvt_blend(hs, opacity = 0)))
   expect_gt(mean(up[2:999, 2] != up[2:999, 3]), 0.5)
 
   # at opacity 0 the coarse layer changes nothing where it has data (NoData in
   # any layer is NoData out, whatever its opacity)
-  fine_only <- read_b(rvt_render(rvt_stack(hs)))
-  zero <- read_b(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0)))
+  fine_only <- read_band(rvt_render(rvt_stack(hs)))
+  zero <- read_band(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0)))
   ok <- !is.na(zero)
   expect_gt(mean(ok), 0.95)
   expect_equal(zero[ok], fine_only[ok])
 
   # and the render still cannot depend on tile_size
-  whole  <- read_b(a)
-  pieces <- read_b(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0.5),
+  whole  <- read_band(a)
+  pieces <- read_band(rvt_render(rvt_blend(hs, svf4, "multiply", opacity = 0.5),
                               tile_size = 137))
   expect_identical(whole, pieces)
 })
 
 test_that("rvt_range reads a frozen stretch off the raster", {
-  svf <- rvt_svf(dem, reach = 10)
-  on.exit(unlink(svf), add = TRUE)
+  svf <- fx_svf()
   full <- rvt_range(svf)
   cut <- rvt_range(svf, pct = c(2, 98))
   expect_length(full, 2L)

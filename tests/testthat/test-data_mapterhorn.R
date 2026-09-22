@@ -57,7 +57,7 @@ test_that("bad arguments stop before any network use", {
 })
 
 test_that("a point returns an exact square on the grid, in local UTM", {
-  skip_if_offline()
+  skip_unless_network()
   i <- mt_info(rvt_data_mapterhorn(c(9.9464, 51.6317)))
   expect_equal(c(i$nx, i$ny), c(1000, 1000))
   expect_equal(i$epsg, "EPSG:32632")
@@ -66,7 +66,7 @@ test_that("a point returns an exact square on the grid, in local UTM", {
 })
 
 test_that("heights agree with the survey's own 1 m terrain model", {
-  skip_if_offline()
+  skip_unless_network()
   lgln <- rvt_data_lgln(c(9.9464, 51.6317), "dtm")
   a <- mt_info(lgln)
   b <- mt_info(rvt_data_mapterhorn(lgln))       # on exactly the LGLN grid
@@ -83,7 +83,7 @@ test_that("heights agree with the survey's own 1 m terrain model", {
 })
 
 test_that("resampling never touches the encoded RGB (no contour-line spikes)", {
-  skip_if_offline()
+  skip_unless_network()
   # Interpolating Terrarium RGB across a channel wrap (G every 1 m, R every
   # 256 m) makes spikes that draw contour lines in a hillshade, worst on steep
   # ground. The output may not have more Laplacian spikes than the decoded
@@ -107,7 +107,7 @@ test_that("resampling never touches the encoded RGB (no contour-line spikes)", {
 })
 
 test_that("where finer data stops, coarser data fills in with no holes", {
-  skip_if_offline()
+  skip_unless_network()
   # from Germany (1 m) 13 km into the Netherlands, where only the 30 m base
   # exists: the finest zoom alone leaves 45% of this NoData
   bb <- c(6.83, 52.245, 7.08, 52.26)
@@ -119,7 +119,7 @@ test_that("where finer data stops, coarser data fills in with no holes", {
 })
 
 test_that("open ocean has no sources but still returns the base", {
-  skip_if_offline()
+  skip_unless_network()
   expect_equal(nrow(rvt_data_mapterhorn_sources(c(-30, 40))), 0L)
   i <- mt_info(rvt_data_mapterhorn(c(-30, 40), res = 100, size = 5000))
   expect_equal(c(i$nx, i$ny), c(50, 50))
@@ -127,7 +127,7 @@ test_that("open ocean has no sources but still returns the base", {
 })
 
 test_that("sources are listed finest first, and res cannot be finer", {
-  skip_if_offline()
+  skip_unless_network()
   s <- rvt_data_mapterhorn_sources(c(9.9464, 51.6317))
   expect_equal(s$source, c("deniedersachsen", "glo30"))
   expect_equal(s$resolution, c(1, 30))
@@ -135,12 +135,12 @@ test_that("sources are listed finest first, and res cannot be finer", {
 })
 
 test_that("oversized requests stop before reading any tiles", {
-  skip_if_offline()
+  skip_unless_network()
   expect_error(rvt_data_mapterhorn(c(9.5, 51.5, 10.5, 52.0)), "max_mb")
 })
 
 test_that("the lazy raster matches the downloaded copy, and reads tile-invariantly", {
-  skip_if_offline()
+  skip_unless_network()
   pt <- c(9.9464, 51.6317)
   lazy <- rvt_data_mapterhorn(pt, res = 2)
   local <- rvt_data_mapterhorn(pt, res = 2, download = TRUE, refresh = TRUE)

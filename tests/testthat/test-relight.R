@@ -12,13 +12,13 @@ relight_crop <- function(path, size = 300L) {
                         cl_arg = c("-srcwin", "350", "350", size, size))
   out
 }
-relight_read <- function(p) {
+relight_read <- function(p, values = TRUE) {
   ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
   on.exit(ds$close())
   nx <- ds$getRasterXSize(); ny <- ds$getRasterYSize()
   list(nx = nx, ny = ny, nb = ds$getRasterCount(), gt = ds$getGeoTransform(),
        structure = ds$getMetadata(0, "IMAGE_STRUCTURE"),
-       bands = lapply(seq_len(ds$getRasterCount()), function(b)
+       bands = if (values) lapply(seq_len(ds$getRasterCount()), function(b)
          as.numeric(ds$read(b, 0, 0, nx, ny, nx, ny))))
 }
 
@@ -48,14 +48,14 @@ test_that("bad styles and settings fail clearly, before any work", {
 })
 
 test_that("every style renders a WebP COG on the orthophoto's grid", {
-  skip_if_offline()
+  skip_unless_network()
   rgb <- relight_crop(relight_rgb())
   dsm <- relight_crop(relight_dsm())
   on.exit(unlink(c(rgb, dsm)), add = TRUE)
-  ref <- relight_read(rgb)
+  ref <- relight_read(rgb, values = FALSE)
 
   for (nm in names(rvt_relight_styles)) {
-    r <- relight_read(rvt_relight(rgb, dsm, style = nm))
+    r <- relight_read(rvt_relight(rgb, dsm, style = nm), values = FALSE)
     expect_equal(c(r$nx, r$ny, r$nb), c(ref$nx, ref$ny, 3), label = nm)
     expect_equal(r$gt, ref$gt, label = nm)
     expect_true(all(c("LAYOUT=COG", "COMPRESSION=WEBP") %in% r$structure),
@@ -64,7 +64,7 @@ test_that("every style renders a WebP COG on the orthophoto's grid", {
 })
 
 test_that("neutral light gives the orthophoto back", {
-  skip_if_offline()
+  skip_unless_network()
   rgb <- relight_crop(relight_rgb())
   dsm <- relight_crop(relight_dsm())
   on.exit(unlink(c(rgb, dsm)), add = TRUE)
@@ -79,7 +79,7 @@ test_that("neutral light gives the orthophoto back", {
 })
 
 test_that("tile borders leave no seams", {
-  skip_if_offline()
+  skip_unless_network()
   rgb <- relight_crop(relight_rgb())
   dsm <- relight_crop(relight_dsm())
   on.exit(unlink(c(rgb, dsm)), add = TRUE)
@@ -92,7 +92,7 @@ test_that("tile borders leave no seams", {
 })
 
 test_that("an orthophoto covering a different area is refused", {
-  skip_if_offline()
+  skip_unless_network()
   rgb <- relight_crop(relight_rgb(), 300L)
   dsm <- relight_crop(relight_dsm(), 200L)
   on.exit(unlink(c(rgb, dsm)), add = TRUE)
@@ -100,7 +100,7 @@ test_that("an orthophoto covering a different area is refused", {
 })
 
 test_that("a coarser surface lights the photo at the photo's resolution", {
-  skip_if_offline()
+  skip_unless_network()
   # the same 300 m: photo at 1 m, surface at 2 m
   rgb <- relight_crop(relight_rgb(), 300L)
   dsm2 <- tempfile(fileext = ".tif")
@@ -110,7 +110,7 @@ test_that("a coarser surface lights the photo at the photo's resolution", {
 
   whole <- relight_read(rvt_relight(rgb, dsm2))
   expect_equal(c(whole$nx, whole$ny, whole$nb), c(300, 300, 3))
-  expect_equal(whole$gt, relight_read(rgb)$gt)
+  expect_equal(whole$gt, relight_read(rgb, values = FALSE)$gt)
   # still independent of tile_size (WebP allows one level of error)
   pieces <- relight_read(rvt_relight(rgb, dsm2, tile_size = 137))
   for (k in 1:3) expect_lte(max(abs(whole$bands[[k]] - pieces$bands[[k]])), 1)
@@ -120,5 +120,5 @@ test_that("a coarser surface lights the photo at the photo's resolution", {
   gdalraster::translate(rgb, rgb2, quiet = TRUE, cl_arg = c("-outsize", "150", "150"))
   dsm <- relight_crop(relight_dsm(), 300L)
   on.exit(unlink(c(rgb2, dsm)), add = TRUE)
-  expect_equal(relight_read(rvt_relight(rgb2, dsm))$nx, 300)
+  expect_equal(relight_read(rvt_relight(rgb2, dsm), values = FALSE)$nx, 300)
 })
