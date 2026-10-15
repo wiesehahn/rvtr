@@ -53,6 +53,7 @@ a raster to get data on its grid.</p>
 <span>  product <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dtm"</span>, <span class="st">"dsm"</span>, <span class="st">"bdom"</span>, <span class="st">"rgb"</span><span class="op">)</span>,</span>
 <span>  year <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  res <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"cubic"</span>,</span>
 <span>  download <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  partial <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  max_mb <span class="op">=</span> <span class="fl">500</span>,</span>
@@ -83,6 +84,13 @@ section, and <code><a href="rvt_data_lgln_years.html">rvt_data_lgln_years()</a><
 <dt id="arg-res">res<a class="anchor" aria-label="anchor" href="#arg-res"></a></dt>
 <dd><p>output resolution in metres, or <code>NULL</code> (default) for native -
 or, when <code>x</code> is a raster, for that raster's own resolution</p></dd>
+
+
+<dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
+<dd><p>resampling when <code>res</code> differs from the native grid:
+<code>"cubic"</code> (default), <code>"bilinear"</code>, <code>"cubicspline"</code>, <code>"lanczos"</code>,
+<code>"average"</code>, <code>"rms"</code>, <code>"max"</code>, <code>"min"</code>, <code>"med"</code>, <code>"q1"</code>, <code>"q3"</code>,
+<code>"mode"</code>, <code>"near"</code> or <code>"sum"</code> - see the Resolution section</p></dd>
 
 
 <dt id="arg-download">download<a class="anchor" aria-label="anchor" href="#arg-download"></a></dt>
@@ -170,13 +178,21 @@ be EPSG:25832.</p></li>
     <h2 id="resolution-and-download-size">Resolution and download size<a class="anchor" aria-label="anchor" href="#resolution-and-download-size"></a></h2>
 
 
-<p><code>res = NULL</code> keeps native resolution. A number resamples, cubic, onto a grid
-of whole multiples of <code>res</code>, so products fetched for the same place at the
+<p><code>res = NULL</code> keeps native resolution. A number resamples onto a grid of
+whole multiples of <code>res</code>, so products fetched for the same place at the
 same <code>res</code> line up exactly and can go straight into <code><a href="rvt_blend.html">rvt_blend()</a></code>.</p>
-<p>Coarser requests read from the files' overviews, which cuts orthophoto
-downloads roughly tenfold at 1 m. <strong>The terrain and surface files have no
-overview coarser than 2 m</strong>, though, so even a 100 m request still reads
-about 1 MB per km² - all of Lower Saxony would be around 50 GB. Before
+<p><code>method</code> sets how, and only matters when <code>res</code> differs from the native
+grid. Any method <code>gdalwarp</code> performs is accepted:</p><table class="table table"><tr><td>method</td><td>each coarse cell gets</td><td>for</td></tr><tr><td><code>"cubic"</code> (default)</td><td>a smooth cubic interpolation</td><td>continuous data: terrain, orthophotos</td></tr><tr><td><code>"bilinear"</code>, <code>"cubicspline"</code>, <code>"lanczos"</code></td><td>other interpolations - smoother, or sharper with some ringing</td><td>continuous data</td></tr><tr><td><code>"average"</code>, <code>"rms"</code></td><td>the mean, or root mean square, of the pixels beneath</td><td>continuous data</td></tr><tr><td><code>"max"</code></td><td>the highest pixel beneath</td><td>surface models, where roofs, crowns and walls should keep their height</td></tr><tr><td><code>"min"</code></td><td>the lowest pixel beneath</td><td>ground under a surface model, ditches</td></tr><tr><td><code>"med"</code>, <code>"q1"</code>, <code>"q3"</code></td><td>the median, or lower or upper quartile</td><td>robust alternatives to mean and max</td></tr><tr><td><code>"mode"</code></td><td>the commonest value</td><td>classes</td></tr><tr><td><code>"near"</code></td><td>one pixel, unchanged</td><td>exact original values, unevenly sampled</td></tr><tr><td><code>"sum"</code></td><td>the sum of the pixels beneath</td><td>counts, rarely elevation</td></tr></table><p>For a surface model coarsened to analyse obstruction, <code>"max"</code> is the one to
+reach for: cubic would lower a narrow crown or wall towards the ground
+beside it. <code><a href="rvt_resample.html">rvt_resample()</a></code> explains the trade-offs at more length.</p>
+<p>With the default, coarser requests read from the files' overviews, which
+cuts orthophoto downloads roughly tenfold at 1 m. <strong>Any other <code>method</code> reads
+every native pixel</strong>, because the overviews were made with LGLN's own
+resampling and a maximum over them would be a maximum over averages. A
+<code>"bdom"</code> at 1 m with <code>"max"</code> therefore costs the full 100 MB per km².</p>
+<p><strong>The terrain and surface files have no overview coarser than 2 m</strong>, so
+even a 100 m cubic request still reads about 1 MB per km², and any other
+method about 3.4 - all of Lower Saxony would be around 50 GB. Before
 anything is read, the download is estimated and the call stops above
 <code>max_mb</code>. For large areas at coarse resolution, use a coarse elevation
 source instead.</p>

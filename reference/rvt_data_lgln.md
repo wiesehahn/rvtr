@@ -13,6 +13,7 @@ rvt_data_lgln(
   product = c("dtm", "dsm", "bdom", "rgb"),
   year = NULL,
   res = NULL,
+  method = "cubic",
   download = FALSE,
   partial = TRUE,
   max_mb = 500,
@@ -45,6 +46,13 @@ rvt_data_lgln(
 
   output resolution in metres, or `NULL` (default) for native - or, when
   `x` is a raster, for that raster's own resolution
+
+- method:
+
+  resampling when `res` differs from the native grid: `"cubic"`
+  (default), `"bilinear"`, `"cubicspline"`, `"lanczos"`, `"average"`,
+  `"rms"`, `"max"`, `"min"`, `"med"`, `"q1"`, `"q3"`, `"mode"`, `"near"`
+  or `"sum"` - see the Resolution section
 
 - download:
 
@@ -145,18 +153,45 @@ guard stops the call before it starts if you forget.
 
 ## Resolution and download size
 
-`res = NULL` keeps native resolution. A number resamples, cubic, onto a
-grid of whole multiples of `res`, so products fetched for the same place
-at the same `res` line up exactly and can go straight into
+`res = NULL` keeps native resolution. A number resamples onto a grid of
+whole multiples of `res`, so products fetched for the same place at the
+same `res` line up exactly and can go straight into
 [`rvt_blend()`](https://wiesehahn.github.io/rvtr/reference/rvt_blend.md).
 
-Coarser requests read from the files' overviews, which cuts orthophoto
-downloads roughly tenfold at 1 m. **The terrain and surface files have
-no overview coarser than 2 m**, though, so even a 100 m request still
-reads about 1 MB per km² - all of Lower Saxony would be around 50 GB.
-Before anything is read, the download is estimated and the call stops
-above `max_mb`. For large areas at coarse resolution, use a coarse
-elevation source instead.
+`method` sets how, and only matters when `res` differs from the native
+grid. Any method `gdalwarp` performs is accepted:
+
+|  |  |  |
+|----|----|----|
+| method | each coarse cell gets | for |
+| `"cubic"` (default) | a smooth cubic interpolation | continuous data: terrain, orthophotos |
+| `"bilinear"`, `"cubicspline"`, `"lanczos"` | other interpolations - smoother, or sharper with some ringing | continuous data |
+| `"average"`, `"rms"` | the mean, or root mean square, of the pixels beneath | continuous data |
+| `"max"` | the highest pixel beneath | surface models, where roofs, crowns and walls should keep their height |
+| `"min"` | the lowest pixel beneath | ground under a surface model, ditches |
+| `"med"`, `"q1"`, `"q3"` | the median, or lower or upper quartile | robust alternatives to mean and max |
+| `"mode"` | the commonest value | classes |
+| `"near"` | one pixel, unchanged | exact original values, unevenly sampled |
+| `"sum"` | the sum of the pixels beneath | counts, rarely elevation |
+
+For a surface model coarsened to analyse obstruction, `"max"` is the one
+to reach for: cubic would lower a narrow crown or wall towards the
+ground beside it.
+[`rvt_resample()`](https://wiesehahn.github.io/rvtr/reference/rvt_resample.md)
+explains the trade-offs at more length.
+
+With the default, coarser requests read from the files' overviews, which
+cuts orthophoto downloads roughly tenfold at 1 m. **Any other `method`
+reads every native pixel**, because the overviews were made with LGLN's
+own resampling and a maximum over them would be a maximum over averages.
+A `"bdom"` at 1 m with `"max"` therefore costs the full 100 MB per km².
+
+**The terrain and surface files have no overview coarser than 2 m**, so
+even a 100 m cubic request still reads about 1 MB per km², and any other
+method about 3.4 - all of Lower Saxony would be around 50 GB. Before
+anything is read, the download is estimated and the call stops above
+`max_mb`. For large areas at coarse resolution, use a coarse elevation
+source instead.
 
 ## Years
 
