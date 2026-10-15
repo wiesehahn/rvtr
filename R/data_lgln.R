@@ -298,11 +298,18 @@
   sprintf("%.4g%%", min(99.9, max(0.1, 100 * x)))
 }
 
-.lgln_guard <- function(product, extent, res, max_mb) {
+.lgln_guard <- function(product, extent, res, max_mb, method = "cubic") {
+  native <- .lgln_native_read(method)
+  # skipping the overviews means paying for every native pixel
+  read_res <- if (native) min(res, .lgln_products[[product]]$res) else res
   km2 <- (extent[3] - extent[1]) * (extent[4] - extent[2]) / 1e6
-  mb <- km2 * .lgln_mb_per_km2(product, res)
+  mb <- km2 * .lgln_mb_per_km2(product, read_res)
   if (mb <= max_mb) return(invisible(mb))
-  why <- if (product == "bdom" && res < 0.4)
+  why <- if (native && read_res < res)
+    sprintf(paste(" `method = \"%s\"` reads every native pixel, because the",
+                  "files' overviews were made with LGLN's own resampling; only",
+                  "the default \"cubic\" can use them."), method)
+  else if (product == "bdom" && res < 0.4)
     paste(" The image-based surface model is uncompressed 0.2 m Float32 - 100 MB",
           "per km² at native resolution, about 20 times the orthophoto - so pass",
           "`res` unless you really need every pixel.")
@@ -317,9 +324,19 @@
                mb, km2, product, format(res), format(max_mb), why), call. = FALSE)
 }
 
+## Resampling methods gdalwarp performs, which is everything rvt_resample()
+## knows (resample.R) except `gauss` - that one only gdal_translate has.
+.lgln_methods <- function() c(setdiff(.rasterio_methods, "gauss"), .warp_only_methods)
+
+## Whether a resample must read native pixels rather than the files' overviews.
+## The default cubic reads overviews, which is what keeps coarse requests
+## cheap. Any other method has to skip them: the overviews were built by LGLN
+## with their own resampling, so a max over them is a max over averages.
+.lgln_native_read <- function(method) method != "cubic"
+
 ## Build the lazy raster: a native-resolution crop, or a warped VRT when
 ## resampling. Both reference the remote COGs, so nothing is downloaded yet.
-.lgln_vrt <- function(hrefs, extent, res, native) {
+.lgln_vrt <- function(hrefs, extent, res, native, method = "cubic") {
   src <- paste0("/vsicurl/", hrefs)
   te <- sprintf("%.6f", extent)
   tr <- format(res, scientific = FALSE)
@@ -331,7 +348,8 @@
     gdalraster::buildVRT(mosaic, src, quiet = TRUE)
     gdalraster::warp(mosaic, out, t_srs = "EPSG:25832",
                      cl_arg = c("-of", "VRT", "-te", te, "-tr", tr, tr,
-                                "-r", "cubic"),
+                                "-r", method,
+                                if (.lgln_native_read(method)) c("-ovr", "NONE")),
                      quiet = TRUE)
   }
   out
@@ -339,9 +357,9 @@
 
 ## Fetch one product for an extent: lazy VRT, or a cached COG with download.
 .lgln_get <- function(extent, product, year, res, download, out_path, refresh,
-                      max_mb, threads, partial = TRUE) {
+                      max_mb, threads, partial = TRUE, method = "cubic") {
   p <- .lgln_products[[product]]
-  .lgln_guard(product, extent, res, max_mb)
+  .lgln_guard(product, extent, res, max_mb, method)
   picked <- .lgln_pick(.lgln_search(product, extent), extent, year, product,
                        partial)
   # said before the cache check, so a cached result says the same as a fresh one
@@ -367,8 +385,12 @@
   if (download) {
     if (is.null(out_path))
       out_path <- fs::path(tools::R_user_dir("rvtr", "cache"), "lgln",
-                           sprintf("%s_%s_%sm_%s.tif", product, picked$year,
+                           sprintf("%s_%s_%sm%s_%s.tif", product, picked$year,
                                    format(res, scientific = FALSE),
+                                   # cubic keeps the old names, so caches stay valid
+                                   if (method == "cubic" ||
+                                       isTRUE(all.equal(res, p$res))) ""
+                                   else paste0("_", method),
                                    paste(format(extent, scientific = FALSE),
                                          collapse = "_")))
     out_path <- .out_path(out_path)
@@ -381,7 +403,7 @@
     .lgln_state$credited <- TRUE
   }
 
-  vrt <- tryCatch(.lgln_vrt(picked$items$href, extent, res, p$res),
+  vrt <- tryCatch(.lgln_vrt(picked$items$href, extent, res, p$res, method),
                   error = function(e) stop(sprintf(paste("Could not open the LGLN",
                     "%s files for %s:\n%s"), product, picked$year, conditionMessage(e)),
                     call. = FALSE))
@@ -461,14 +483,38 @@
 #'   be EPSG:25832.
 #'
 #' @section Resolution and download size:
-#' `res = NULL` keeps native resolution. A number resamples, cubic, onto a grid
-#' of whole multiples of `res`, so products fetched for the same place at the
+#' `res = NULL` keeps native resolution. A number resamples onto a grid of
+#' whole multiples of `res`, so products fetched for the same place at the
 #' same `res` line up exactly and can go straight into [rvt_blend()].
 #'
-#' Coarser requests read from the files' overviews, which cuts orthophoto
-#' downloads roughly tenfold at 1 m. **The terrain and surface files have no
-#' overview coarser than 2 m**, though, so even a 100 m request still reads
-#' about 1 MB per km² - all of Lower Saxony would be around 50 GB. Before
+#' `method` sets how, and only matters when `res` differs from the native
+#' grid. Any method `gdalwarp` performs is accepted:
+#'
+#' | method | each coarse cell gets | for |
+#' |---|---|---|
+#' | `"cubic"` (default) | a smooth cubic interpolation | continuous data: terrain, orthophotos |
+#' | `"bilinear"`, `"cubicspline"`, `"lanczos"` | other interpolations - smoother, or sharper with some ringing | continuous data |
+#' | `"average"`, `"rms"` | the mean, or root mean square, of the pixels beneath | continuous data |
+#' | `"max"` | the highest pixel beneath | surface models, where roofs, crowns and walls should keep their height |
+#' | `"min"` | the lowest pixel beneath | ground under a surface model, ditches |
+#' | `"med"`, `"q1"`, `"q3"` | the median, or lower or upper quartile | robust alternatives to mean and max |
+#' | `"mode"` | the commonest value | classes |
+#' | `"near"` | one pixel, unchanged | exact original values, unevenly sampled |
+#' | `"sum"` | the sum of the pixels beneath | counts, rarely elevation |
+#'
+#' For a surface model coarsened to analyse obstruction, `"max"` is the one to
+#' reach for: cubic would lower a narrow crown or wall towards the ground
+#' beside it. [rvt_resample()] explains the trade-offs at more length.
+#'
+#' With the default, coarser requests read from the files' overviews, which
+#' cuts orthophoto downloads roughly tenfold at 1 m. **Any other `method` reads
+#' every native pixel**, because the overviews were made with LGLN's own
+#' resampling and a maximum over them would be a maximum over averages. A
+#' `"bdom"` at 1 m with `"max"` therefore costs the full 100 MB per km².
+#'
+#' **The terrain and surface files have no overview coarser than 2 m**, so
+#' even a 100 m cubic request still reads about 1 MB per km², and any other
+#' method about 3.4 - all of Lower Saxony would be around 50 GB. Before
 #' anything is read, the download is estimated and the call stops above
 #' `max_mb`. For large areas at coarse resolution, use a coarse elevation
 #' source instead.
@@ -515,6 +561,10 @@
 #'   section, and [rvt_data_lgln_years()] for what exists
 #' @param res output resolution in metres, or `NULL` (default) for native -
 #'   or, when `x` is a raster, for that raster's own resolution
+#' @param method resampling when `res` differs from the native grid:
+#'   `"cubic"` (default), `"bilinear"`, `"cubicspline"`, `"lanczos"`,
+#'   `"average"`, `"rms"`, `"max"`, `"min"`, `"med"`, `"q1"`, `"q3"`,
+#'   `"mode"`, `"near"` or `"sum"` - see the Resolution section
 #' @param download `FALSE` (default) returns a virtual raster reading the
 #'   remote files on demand; `TRUE` stores a local copy in the user cache
 #' @param partial `TRUE` (default) returns data wherever the chosen tiles
@@ -537,9 +587,13 @@
 #' }
 #' @export
 rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NULL,
-                      res = NULL, download = FALSE, partial = TRUE, max_mb = 500,
-                      refresh = FALSE, threads = rvt_threads()) {
+                      res = NULL, method = "cubic", download = FALSE,
+                      partial = TRUE, max_mb = 500, refresh = FALSE,
+                      threads = rvt_threads()) {
   product <- .lgln_product(product)
+  if (!is.character(method) || length(method) != 1L || !method %in% .lgln_methods())
+    stop(sprintf("`method` must be one of %s.",
+                 paste0('"', .lgln_methods(), '"', collapse = ", ")), call. = FALSE)
   if (!is.null(res) && (!is.numeric(res) || length(res) != 1L || !is.finite(res) || res <= 0))
     stop("`res` must be a single positive number of metres, or NULL for native.",
          call. = FALSE)
@@ -547,7 +601,7 @@ rvt_data_lgln <- function(x, product = c("dtm", "dsm", "bdom", "rgb"), year = NU
     stop("`year` must be a single year, or NULL for the most recent.", call. = FALSE)
   area <- .lgln_area(x, res, .lgln_products[[product]]$res)
   .lgln_get(area$extent, product, year, area$res, isTRUE(download), NULL,
-            refresh, max_mb, threads, isTRUE(partial))
+            refresh, max_mb, threads, isTRUE(partial), method)
 }
 
 #' Years of Lower Saxony data available for a place

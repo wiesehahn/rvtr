@@ -9,6 +9,7 @@ rvt_data_lgln(
   product = c("dtm", "dsm", "bdom", "rgb"),
   year = NULL,
   res = NULL,
+  method = "cubic",
   download = FALSE,
   partial = TRUE,
   max_mb = 500,
@@ -28,6 +29,11 @@ section, and \code{\link[=rvt_data_lgln_years]{rvt_data_lgln_years()}} for what 
 
 \item{res}{output resolution in metres, or \code{NULL} (default) for native -
 or, when \code{x} is a raster, for that raster's own resolution}
+
+\item{method}{resampling when \code{res} differs from the native grid:
+\code{"cubic"} (default), \code{"bilinear"}, \code{"cubicspline"}, \code{"lanczos"},
+\code{"average"}, \code{"rms"}, \code{"max"}, \code{"min"}, \code{"med"}, \code{"q1"}, \code{"q3"},
+\code{"mode"}, \code{"near"} or \code{"sum"} - see the Resolution section}
 
 \item{download}{\code{FALSE} (default) returns a virtual raster reading the
 remote files on demand; \code{TRUE} stores a local copy in the user cache}
@@ -118,14 +124,38 @@ be EPSG:25832.
 
 \section{Resolution and download size}{
 
-\code{res = NULL} keeps native resolution. A number resamples, cubic, onto a grid
-of whole multiples of \code{res}, so products fetched for the same place at the
+\code{res = NULL} keeps native resolution. A number resamples onto a grid of
+whole multiples of \code{res}, so products fetched for the same place at the
 same \code{res} line up exactly and can go straight into \code{\link[=rvt_blend]{rvt_blend()}}.
 
-Coarser requests read from the files' overviews, which cuts orthophoto
-downloads roughly tenfold at 1 m. \strong{The terrain and surface files have no
-overview coarser than 2 m}, though, so even a 100 m request still reads
-about 1 MB per km² - all of Lower Saxony would be around 50 GB. Before
+\code{method} sets how, and only matters when \code{res} differs from the native
+grid. Any method \code{gdalwarp} performs is accepted:\tabular{lll}{
+   method \tab each coarse cell gets \tab for \cr
+   \code{"cubic"} (default) \tab a smooth cubic interpolation \tab continuous data: terrain, orthophotos \cr
+   \code{"bilinear"}, \code{"cubicspline"}, \code{"lanczos"} \tab other interpolations - smoother, or sharper with some ringing \tab continuous data \cr
+   \code{"average"}, \code{"rms"} \tab the mean, or root mean square, of the pixels beneath \tab continuous data \cr
+   \code{"max"} \tab the highest pixel beneath \tab surface models, where roofs, crowns and walls should keep their height \cr
+   \code{"min"} \tab the lowest pixel beneath \tab ground under a surface model, ditches \cr
+   \code{"med"}, \code{"q1"}, \code{"q3"} \tab the median, or lower or upper quartile \tab robust alternatives to mean and max \cr
+   \code{"mode"} \tab the commonest value \tab classes \cr
+   \code{"near"} \tab one pixel, unchanged \tab exact original values, unevenly sampled \cr
+   \code{"sum"} \tab the sum of the pixels beneath \tab counts, rarely elevation \cr
+}
+
+
+For a surface model coarsened to analyse obstruction, \code{"max"} is the one to
+reach for: cubic would lower a narrow crown or wall towards the ground
+beside it. \code{\link[=rvt_resample]{rvt_resample()}} explains the trade-offs at more length.
+
+With the default, coarser requests read from the files' overviews, which
+cuts orthophoto downloads roughly tenfold at 1 m. \strong{Any other \code{method} reads
+every native pixel}, because the overviews were made with LGLN's own
+resampling and a maximum over them would be a maximum over averages. A
+\code{"bdom"} at 1 m with \code{"max"} therefore costs the full 100 MB per km².
+
+\strong{The terrain and surface files have no overview coarser than 2 m}, so
+even a 100 m cubic request still reads about 1 MB per km², and any other
+method about 3.4 - all of Lower Saxony would be around 50 GB. Before
 anything is read, the download is estimated and the call stops above
 \code{max_mb}. For large areas at coarse resolution, use a coarse elevation
 source instead.

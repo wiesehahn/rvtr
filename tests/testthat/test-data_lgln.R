@@ -323,3 +323,47 @@ test_that("the image-based surface model comes back on the shared grid", {
   # how well it describes a canopy depends on the flight season, so nothing
   # here pins that - see ?rvt_data_lgln and the measurements in CLAUDE.md
 })
+
+test_that("a non-default method is costed at native resolution", {
+  # cubic at 1 m reads the 0.8 m overview; max must read every 0.2 m pixel
+  expect_no_error(rvtr:::.lgln_guard("bdom", c(0, 0, 3000, 3000), 1, 500))
+  expect_error(rvtr:::.lgln_guard("bdom", c(0, 0, 3000, 3000), 1, 500, "max"),
+               "reads every native pixel")
+  expect_error(rvt_data_lgln(c(9.9, 51.6), "bdom", res = 1, method = "maximum"),
+               "must be one of")
+})
+
+test_that("method = \"max\" keeps the highest native pixel in each cell", {
+  skip_unless_network()
+  # 200 m square: 1000 x 1000 native pixels, 4 MB
+  ext <- c(565400, 5720600, 565600, 5720800)
+  bb <- sf::st_bbox(c(xmin = ext[1], ymin = ext[2], xmax = ext[3], ymax = ext[4]),
+                    crs = 25832)
+  mx <- rvt_data_lgln(bb, "bdom", year = 2025, res = 1, method = "max")
+  nat <- lgln_info(rvt_data_lgln(bb, "bdom", year = 2025))
+  m <- lgln_info(mx)
+  expect_equal(c(m$nx, m$ny), c(200, 200))
+  expect_equal(m$bbox, ext)
+
+  # block maximum of the 0.2 m pixels, 5 x 5 per 1 m cell, skipping NoData as
+  # gdalwarp does (an all-NoData block gives -Inf here, NA there)
+  z <- matrix(nat$v, nrow = nat$ny, byrow = TRUE)
+  blk <- (seq_len(nat$ny) - 1L) %/% 5L
+  mx_na <- function(v) suppressWarnings(max(v, na.rm = TRUE))
+  want <- sapply(split(seq_len(nat$nx), (seq_len(nat$nx) - 1L) %/% 5L),
+                 function(j) tapply(apply(z[, j, drop = FALSE], 1, mx_na), blk, mx_na))
+  want[!is.finite(want)] <- NA
+  expect_equal(matrix(m$v, nrow = m$ny, byrow = TRUE), unname(want),
+               tolerance = 1e-6, ignore_attr = TRUE)
+
+  # cubic undercuts it somewhere: that is the point of asking for max
+  cu <- lgln_info(rvt_data_lgln(bb, "bdom", year = 2025, res = 1))
+  expect_gt(max(m$v - cu$v, na.rm = TRUE), 0.5)
+
+  # the lazy read does not depend on the window it is read through
+  ds <- methods::new(gdalraster::GDALRaster, mx, read_only = TRUE)
+  on.exit(ds$close())
+  win <- c(ds$read(1, 0, 0, 200, 137, 200, 137),
+           ds$read(1, 0, 137, 200, 63, 200, 63))
+  expect_identical(win, m$v)
+})
