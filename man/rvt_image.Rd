@@ -11,6 +11,8 @@ rvt_image(
   range = NULL,
   pct = NULL,
   band = NULL,
+  stretch = "auto",
+  contrast = 1.5,
   quality = 90,
   tile_size = NULL,
   threads = rvt_threads(),
@@ -35,6 +37,15 @@ a temporary \code{.webp} file. A folder that does not exist yet is created.}
 
 \item{band}{which band to draw, or three band numbers for red, green and
 blue. Defaults to band 1, or 1-3 for a three-band raster.}
+
+\item{stretch}{\code{"auto"} (default) uses \code{"tanh"} for signed data and
+\code{"linear"} for everything else; \code{"linear"} clips everything outside the
+range to the end colours; \code{"tanh"} compresses it softly instead - see
+\strong{Soft stretch}}
+
+\item{contrast}{with \code{stretch = "tanh"}, how steep the curve is (default
+1.5): higher brings out more mid-range texture and pushes the tails
+further towards the end colours}
 
 \item{quality}{compression quality, 1-100 (default 90)}
 
@@ -93,7 +104,11 @@ picture does not depend on \code{tile_size}.
 Three bands - an RGB result such as \code{\link[=rvt_mstp]{rvt_mstp()}}, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and \code{col} is
 not used. A blend stack is stretched layer by layer when it is blended (see
-\code{\link[=rvt_blend]{rvt_blend()}}), so neither \code{range} nor \code{pct} applies to it.
+\code{\link[=rvt_blend]{rvt_blend()}}), so neither \code{range}, \code{pct} nor \code{stretch} applies to it.
+
+Signed data - relief models, curvature - gets a soft \code{"tanh"} stretch by
+default, decided exactly as in \code{\link[=rvt_plot]{rvt_plot()}}: see \strong{Soft stretch} there.
+\code{stretch = "linear"} or \code{"tanh"} overrides the choice.
 }
 
 \examples{
@@ -105,6 +120,11 @@ dem |> rvt_svf() |> rvt_image(pct = c(2, 98))
 
 # signed data: a diverging palette with a symmetric range
 dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
+
+# signed data keeps detail inside the deepest gullies by default; linear
+# clips them to the end colour
+dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3")
+dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3", pct = c(2, 98), stretch = "linear")
 }
 \seealso{
 \code{\link[=rvt_plot]{rvt_plot()}} for a quick look on screen, \code{\link[=rvt_render]{rvt_render()}} for blends

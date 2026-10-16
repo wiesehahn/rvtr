@@ -140,7 +140,11 @@
 #' Three bands - an RGB result such as [rvt_mstp()], or a blend stack over an
 #' orthophoto - are stretched over one range spanning all bands, and `col` is
 #' not used. A blend stack is stretched layer by layer when it is blended (see
-#' [rvt_blend()]), so neither `range` nor `pct` applies to it.
+#' [rvt_blend()]), so neither `range`, `pct` nor `stretch` applies to it.
+#'
+#' Signed data - relief models, curvature - gets a soft `"tanh"` stretch by
+#' default, decided exactly as in [rvt_plot()]: see **Soft stretch** there.
+#' `stretch = "linear"` or `"tanh"` overrides the choice.
 #'
 #' @param x a raster path, or an `rvt_stack` from [rvt_blend()]
 #' @param out_path the image to write, ending in `.webp` or `.jpg`. Defaults to
@@ -153,6 +157,7 @@
 #'   `c(2, 98)`, measured with [rvt_range()]. Not with `range`.
 #' @param band which band to draw, or three band numbers for red, green and
 #'   blue. Defaults to band 1, or 1-3 for a three-band raster.
+#' @inheritParams rvt_plot
 #' @param quality compression quality, 1-100 (default 90)
 #' @inheritParams rvt_svf
 #' @return `out_path`, invisibly
@@ -166,9 +171,15 @@
 #'
 #' # signed data: a diverging palette with a symmetric range
 #' dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
+#'
+#' # signed data keeps detail inside the deepest gullies by default; linear
+#' # clips them to the end colour
+#' dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3")
+#' dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3", pct = c(2, 98), stretch = "linear")
 #' @export
 rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
                       col = "Grays", range = NULL, pct = NULL, band = NULL,
+                      stretch = "auto", contrast = 1.5,
                       quality = 90, tile_size = NULL, threads = rvt_threads(),
                       overwrite = FALSE, progress = FALSE) {
   out_path <- .out_path(out_path)
@@ -176,6 +187,7 @@ rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
   if (is.null(format))
     stop("`out_path` must end in `.webp` or `.jpg`.", call. = FALSE)
   .check_quality(quality)
+  stretch <- .check_stretch(stretch, contrast)
   if (!is.null(range) && (length(range) != 2L || !all(is.finite(range)) ||
                            range[1] >= range[2]))
     stop("`range` must be `c(lo, hi)` with lo < hi, or NULL", call. = FALSE)
@@ -207,11 +219,19 @@ rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
   if (!length(band) %in% c(1L, 3L) || any(band < 1) || any(band > nb_src))
     stop(sprintf("`band` must be one or three band numbers from 1 to %d.", nb_src),
          call. = FALSE)
+  q98 <- NULL
+  if (stretch == "auto") {
+    a <- .auto_stretch(x, band)
+    stretch <- a$stretch; q98 <- a$q
+  }
   if (is.null(range)) {
-    rs <- vapply(band, function(b) rvt_range(x, pct = pct, band = b), numeric(2))
-    range <- c(min(rs[1, ]), max(rs[2, ]))
+    # tanh without a range takes 2-98%, as in rvt_plot(); linear keeps the
+    # raster's own minimum and maximum
+    range <- if (stretch == "tanh" && is.null(pct) && !is.null(q98)) q98
+             else .pct_range(x, band, if (stretch == "tanh" && is.null(pct)) c(2, 98) else pct)
     if (!all(is.finite(range)) || range[1] >= range[2]) range <- c(range[1], range[1] + 1)
   }
+  if (stretch == "tanh") range <- .tanh_range(range)
 
   info <- .dem_info(x, band[1])
   if (is.null(tile_size)) tile_size <- .auto_tile_size(info$nx, info$ny, 0L)
@@ -220,7 +240,8 @@ rvt_image <- function(x, out_path = fs::file_temp(ext = "webp"),
 
   .process_tiled(x, list(image = out_path), 0L, tile_size,
     function(tile, xres, yres, ctx = NULL) {
-      s <- function(m) .norm_lin(m, range[1], range[2])
+      s <- if (stretch == "tanh") function(m) .norm_tanh(m, range[1], range[2], contrast)
+           else function(m) .norm_lin(m, range[1], range[2])
       b <- if (length(band) == 1L) .apply_col(s(tile), table)
            else c(list(s(tile)), lapply(ctx$aux, function(w) s(w$m)))
       list(image = .image_bands(b, format))

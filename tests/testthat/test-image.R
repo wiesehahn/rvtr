@@ -90,6 +90,39 @@ test_that("rvt_image stretches over the range and colours through the palette", 
   expect_lt(mean(abs(r$bands[[1]] - r$bands[[2]])), 1)
 })
 
+test_that("the tanh stretch compresses the tails instead of clipping them", {
+  x <- seq(-3, 3, by = 0.01)
+  s <- rvtr:::.norm_tanh(x, -1, 1, 1.5)
+  expect_equal(rvtr:::.norm_tanh(0, -1, 1, 1.5), 0.5)          # centred
+  expect_equal(rvtr:::.norm_tanh(c(-1, 1), -1, 1, 1.5),        # range ends
+               0.5 + c(-0.5, 0.5) * tanh(1.5))
+  expect_false(is.unsorted(s, strictly = TRUE))                 # never flat
+  expect_true(all(s > 0 & s < 1))                               # never clipped
+  expect_error(rvt_image(fx_svf(), stretch = "log"), '"auto", "linear" or "tanh"')
+  expect_error(rvt_image(fx_svf(), stretch = "tanh", contrast = 0), "positive")
+})
+
+test_that("rvt_image follows the tanh curve, tails included", {
+  d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  m <- fx_msrm()
+  v <- read_band(m)
+  q <- rvtr:::.tanh_range(rvt_range(m, pct = c(2, 98)))   # signed: centred on 0
+  g <- img_read(rvt_image(m, file.path(d, "t.webp"), pct = c(2, 98),
+                          stretch = "tanh"))
+  tab <- rvtr:::.col_table("Grays")
+  ok <- !is.na(v)
+  s <- rvtr:::.norm_tanh(v[ok], q[1], q[2], 1.5)
+  want <- round(tab[1, pmin(floor(s * 256), 255) + 1] * 255)
+  expect_lt(mean(abs(g$bands[[1]][ok] - want)), 3)
+  # beyond the range the picture still follows the data (measured cor 0.67),
+  # where a linear stretch paints the lowest 1% one flat black and only WebP
+  # noise is left (cor 0.01)
+  low <- v[ok] < quantile(v[ok], 0.01)
+  expect_gt(cor(g$bands[[1]][ok][low], v[ok][low]), 0.5)
+  lin <- img_read(rvt_image(m, file.path(d, "l.webp"), pct = c(2, 98), stretch = "linear"))
+  expect_lt(abs(cor(lin$bands[[1]][ok][low], v[ok][low])), 0.2)
+})
+
 test_that("rvt_vat and rvt_image of a stack write pictures too", {
   d <- img_dir(); on.exit(unlink(d, recursive = TRUE), add = TRUE)
   v <- img_read(rvt_vat(dem, file.path(d, "vat.jpg")))

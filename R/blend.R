@@ -20,6 +20,58 @@
   (x - lo) / (hi - lo)
 }
 
+## The soft alternative for display, as texture-shade's tone map: `lo`/`hi`
+## set the centre and the spread, and values beyond them are compressed
+## towards 0 and 1 rather than clipped. The range ends land at
+## 0.5 -/+ 0.5 * tanh(contrast) - 0.05 and 0.95 at the default 1.5. Every
+## constant comes from the caller's frozen range, never from the tile.
+.norm_tanh <- function(x, lo, hi, contrast) {
+  if (hi == lo) return(x * 0 + 0.5)
+  0.5 + 0.5 * tanh(contrast * (x - (lo + hi) / 2) / ((hi - lo) / 2))
+}
+
+## Signed data, for `stretch = "auto"`: the 2-98% range crosses zero and
+## neither tail is more than four times the other. That picks out the relief
+## models and curvatures (convex against concave) and leaves positive data,
+## class codes and a DEM that dips just below sea level linear.
+.is_signed <- function(q) {
+  q[1] < 0 && q[2] > 0 && max(-q[1], q[2]) <= 4 * min(-q[1], q[2])
+}
+
+## A tanh range that crosses zero is centred on zero, spread to the larger
+## tail, so a diverging palette's neutral colour sits on zero and convex
+## mirrors concave.
+.tanh_range <- function(r) {
+  if (r[1] < 0 && r[2] > 0) { h <- max(-r[1], r[2]); c(-h, h) } else r
+}
+
+## Resolve `stretch = "auto"` for a single band; anything else is linear.
+## Returns the stretch and the 2-98% range it measured, so a caller that then
+## needs that range does not read it twice.
+.auto_stretch <- function(path, band) {
+  if (length(band) != 1L) return(list(stretch = "linear", q = NULL))
+  q <- rvt_range(path, pct = c(2, 98), band = band)
+  list(stretch = if (.is_signed(q)) "tanh" else "linear", q = q)
+}
+
+## One range across several bands, cut at `pct`, as rvt_plot()/rvt_image()
+## measure it.
+.pct_range <- function(path, band, pct = c(2, 98)) {
+  rs <- vapply(band, function(b) rvt_range(path, pct = pct, band = b), numeric(2))
+  c(min(rs[1, ]), max(rs[2, ]))
+}
+
+## `stretch` and `contrast` as rvt_image() and rvt_plot() take them.
+.check_stretch <- function(stretch, contrast) {
+  if (!is.character(stretch) || length(stretch) != 1L ||
+      !stretch %in% c("auto", "linear", "tanh"))
+    stop('`stretch` must be "auto", "linear" or "tanh".', call. = FALSE)
+  if (!is.numeric(contrast) || length(contrast) != 1L || !is.finite(contrast) ||
+      contrast <= 0)
+    stop("`contrast` must be a single positive number.", call. = FALSE)
+  stretch
+}
+
 .blend_overlay <- function(active, background) {
   out <- background
   hi <- !is.na(background) & background > 0.5
