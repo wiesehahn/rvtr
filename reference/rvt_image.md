@@ -17,6 +17,8 @@ rvt_image(
   range = NULL,
   pct = NULL,
   band = NULL,
+  stretch = "auto",
+  contrast = 1.5,
   quality = 90,
   tile_size = NULL,
   threads = rvt_threads(),
@@ -60,6 +62,19 @@ rvt_image(
 
   which band to draw, or three band numbers for red, green and blue.
   Defaults to band 1, or 1-3 for a three-band raster.
+
+- stretch:
+
+  `"auto"` (default) uses `"tanh"` for signed data and `"linear"` for
+  everything else; `"linear"` clips everything outside the range to the
+  end colours; `"tanh"` compresses it softly instead - see **Soft
+  stretch**
+
+- contrast:
+
+  with `stretch = "tanh"`, how steep the curve is (default 1.5): higher
+  brings out more mid-range texture and pushes the tails further towards
+  the end colours
 
 - quality:
 
@@ -134,7 +149,13 @@ or a blend stack over an orthophoto - are stretched over one range
 spanning all bands, and `col` is not used. A blend stack is stretched
 layer by layer when it is blended (see
 [`rvt_blend()`](https://wiesehahn.github.io/rvtr/reference/rvt_blend.md)),
-so neither `range` nor `pct` applies to it.
+so neither `range`, `pct` nor `stretch` applies to it.
+
+Signed data - relief models, curvature - gets a soft `"tanh"` stretch by
+default, decided exactly as in
+[`rvt_plot()`](https://wiesehahn.github.io/rvtr/reference/rvt_plot.md):
+see **Soft stretch** there. `stretch = "linear"` or `"tanh"` overrides
+the choice.
 
 ## See also
 
@@ -154,4 +175,9 @@ dem |> rvt_svf() |> rvt_image(pct = c(2, 98))
 
 # signed data: a diverging palette with a symmetric range
 dem |> rvt_slrm() |> rvt_image(col = "Blue-Red 3", range = c(-1, 1))
+
+# signed data keeps detail inside the deepest gullies by default; linear
+# clips them to the end colour
+dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3")
+dem |> rvt_msrm() |> rvt_image(col = "Blue-Red 3", pct = c(2, 98), stretch = "linear")
 ```

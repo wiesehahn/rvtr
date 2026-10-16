@@ -24,6 +24,8 @@ rvt_plot(
   band = NULL,
   range = NULL,
   pct = NULL,
+  stretch = "auto",
+  contrast = 1.5,
   ...
 )
 ```
@@ -79,6 +81,19 @@ rvt_plot(
   [`rvt_range()`](https://wiesehahn.github.io/rvtr/reference/rvt_range.md).
   Not with `range`.
 
+- stretch:
+
+  `"auto"` (default) uses `"tanh"` for signed data and `"linear"` for
+  everything else; `"linear"` clips everything outside the range to the
+  end colours; `"tanh"` compresses it softly instead - see **Soft
+  stretch**
+
+- contrast:
+
+  with `stretch = "tanh"`, how steep the curve is (default 1.5): higher
+  brings out more mid-range texture and pushes the tails further towards
+  the end colours
+
 - ...:
 
   passed on to
@@ -92,10 +107,11 @@ pipe-friendly: `path |> rvt_plot()`.
 
 ## Controlling the stretch
 
-By default the colours are stretched across the data's full range, which
-is often the wrong choice: a handful of extreme cells then compress
-everything interesting into the middle of the palette. Two arguments
-override it, and they are spelled as in
+Signed data gets a soft stretch by default (see **Soft stretch**).
+Everything else is stretched linearly across the data's full range,
+which is often the wrong choice: a handful of extreme cells then
+compress everything interesting into the middle of the palette. Two
+arguments override it, and they are spelled as in
 [`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md),
 so a stretch chosen on screen carries over to the written picture
 unchanged:
@@ -142,6 +158,48 @@ for an orthophoto.
 own `minmax_def` and `minmax_pct_cut` still work through `...` when you
 do want a separate stretch per band, but they cannot be combined with
 `range` or `pct`.
+
+## Soft stretch
+
+A linear stretch clips: every value beyond `range` gets the end colour,
+so the inside of the deepest gully or the top of the highest bank reads
+as one flat black or white. `stretch = "tanh"` bends the colour scale
+into an S instead. `range` (or `pct`) still sets where the contrast is
+concentrated, but its ends land at 5% and 95% of the palette rather than
+0% and 100%, and values beyond fade gradually into the end colours.
+Detail survives in the tails, and the middle gains a little contrast.
+
+    p |> rvt_plot(pct = c(2, 98), stretch = "tanh")
+    p |> rvt_plot(pct = c(2, 98), stretch = "tanh", contrast = 2.5)  # harder
+
+It suits signed results -
+[`rvt_msrm()`](https://wiesehahn.github.io/rvtr/reference/rvt_msrm.md),
+[`rvt_slrm()`](https://wiesehahn.github.io/rvtr/reference/rvt_slrm.md),
+[`rvt_tpi()`](https://wiesehahn.github.io/rvtr/reference/rvt_slrm.md),
+[`rvt_dev()`](https://wiesehahn.github.io/rvtr/reference/rvt_dev.md),
+[`rvt_log()`](https://wiesehahn.github.io/rvtr/reference/rvt_log.md),
+curvature. On a lopsided one such as
+[`rvt_svf()`](https://wiesehahn.github.io/rvtr/reference/rvt_svf.md),
+where most cells sit close to 1, the curve is centred in the wrong place
+and mainly washes out the open ground. So **the default,
+`stretch = "auto"`, decides from the data**: a single band whose 2-98%
+range crosses zero, with neither tail more than four times the other, is
+drawn with `"tanh"`, and everything else - positive data, class codes,
+RGB - linearly. Name the stretch to override it.
+
+A tanh range that crosses zero is **centred on zero**, spreading as far
+as the larger tail, so a diverging palette's neutral colour sits on zero
+and convex mirrors concave even when the two tails differ. Without
+`range` or `pct`, tanh takes the 2-98% range rather than the full
+minimum and maximum, which would centre the curve on a few outliers.
+
+With a legend, the scale stays in data units and shows the curve.
+[`rvt_image()`](https://wiesehahn.github.io/rvtr/reference/rvt_image.md)
+takes the same arguments and decides the same way, so a stretch settled
+on screen is the one you write.
+
+The idea is the tone map of Leland Brown's texture shading, as
+implemented in `texture-shade`.
 
 ## Other display options
 
@@ -194,6 +252,12 @@ dem |> rvt_slrm() |> rvt_plot("Blue-Red 3", range = c(-1, 1), legend = TRUE)
 
 # percentile stretch when the range isn't known
 dem |> rvt_curvature() |> rvt_plot("Blue-Red 3", pct = c(2, 98))
+
+
+# signed data gets soft tails by default; ask for linear to clip instead
+dem |> rvt_msrm() |> rvt_plot("Blue-Red 3")
+
+dem |> rvt_msrm() |> rvt_plot("Blue-Red 3", pct = c(2, 98), stretch = "linear")
 
 
 # a blend stack draws directly, with no rvt_render() call

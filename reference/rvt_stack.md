@@ -45,6 +45,6 @@ to write the result
 dem <- system.file("extdata", "dtm1.tif", package = "rvtr")
 dem |> rvt_hillshade() |> rvt_stack(range = c(0, 1))
 #> <rvt_stack> 1 layer, bottom to top
-#>   1. file220d783d5272.tif         (background) opacity 1.00  range 0-1
+#>   1. file22657136d96a.tif         (background) opacity 1.00  range 0-1
 #> Renders at 1000 x 1000, 1 m. Not a raster yet - call rvt_render() to write it.
 ```

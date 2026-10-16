@@ -55,6 +55,8 @@ this makes the file you put on a web page or in a report.</p>
 <span>  range <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pct <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  band <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  stretch <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  contrast <span class="op">=</span> <span class="fl">1.5</span>,</span>
 <span>  quality <span class="op">=</span> <span class="fl">90</span>,</span>
 <span>  tile_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  threads <span class="op">=</span> <span class="fu"><a href="rvt_threads.html">rvt_threads</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -94,6 +96,19 @@ a temporary <code>.webp</code> file. A folder that does not exist yet is created
 <dt id="arg-band">band<a class="anchor" aria-label="anchor" href="#arg-band"></a></dt>
 <dd><p>which band to draw, or three band numbers for red, green and
 blue. Defaults to band 1, or 1-3 for a three-band raster.</p></dd>
+
+
+<dt id="arg-stretch">stretch<a class="anchor" aria-label="anchor" href="#arg-stretch"></a></dt>
+<dd><p><code>"auto"</code> (default) uses <code>"tanh"</code> for signed data and
+<code>"linear"</code> for everything else; <code>"linear"</code> clips everything outside the
+range to the end colours; <code>"tanh"</code> compresses it softly instead - see
+<strong>Soft stretch</strong></p></dd>
+
+
+<dt id="arg-contrast">contrast<a class="anchor" aria-label="anchor" href="#arg-contrast"></a></dt>
+<dd><p>with <code>stretch = "tanh"</code>, how steep the curve is (default
+1.5): higher brings out more mid-range texture and pushes the tails
+further towards the end colours</p></dd>
 
 
 <dt id="arg-quality">quality<a class="anchor" aria-label="anchor" href="#arg-quality"></a></dt>
@@ -158,7 +173,10 @@ picture does not depend on <code>tile_size</code>.</p>
 <p>Three bands - an RGB result such as <code><a href="rvt_mstp.html">rvt_mstp()</a></code>, or a blend stack over an
 orthophoto - are stretched over one range spanning all bands, and <code>col</code> is
 not used. A blend stack is stretched layer by layer when it is blended (see
-<code><a href="rvt_blend.html">rvt_blend()</a></code>), so neither <code>range</code> nor <code>pct</code> applies to it.</p>
+<code><a href="rvt_blend.html">rvt_blend()</a></code>), so neither <code>range</code>, <code>pct</code> nor <code>stretch</code> applies to it.</p>
+<p>Signed data - relief models, curvature - gets a soft <code>"tanh"</code> stretch by
+default, decided exactly as in <code><a href="rvt_plot.html">rvt_plot()</a></code>: see <strong>Soft stretch</strong> there.
+<code>stretch = "linear"</code> or <code>"tanh"</code> overrides the choice.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -175,6 +193,11 @@ not used. A blend stack is stretched layer by layer when it is blended (see
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># signed data: a diverging palette with a symmetric range</span></span></span>
 <span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_slrm.html">rvt_slrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"Blue-Red 3"</span>, range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># signed data keeps detail inside the deepest gullies by default; linear</span></span></span>
+<span class="r-in"><span><span class="co"># clips them to the end colour</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_msrm.html">rvt_msrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"Blue-Red 3"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dem</span> <span class="op">|&gt;</span> <span class="fu"><a href="rvt_msrm.html">rvt_msrm</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">rvt_image</span><span class="op">(</span>col <span class="op">=</span> <span class="st">"Blue-Red 3"</span>, pct <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">98</span><span class="op">)</span>, stretch <span class="op">=</span> <span class="st">"linear"</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
