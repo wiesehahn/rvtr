@@ -182,3 +182,31 @@ test_that("max resampling really takes the block maximum", {
   expect_equal(max(read_band(rvt_resample(p, 8, method = "min"))), 0)
 })
 
+
+test_that("a vertical CRS is not a reason to drop a tile from a mosaic", {
+  # gdalbuildvrt silently left out files whose CRS differed from the first
+  # one's - including LGLN's autumn-2025 bDOM, which adds DHHN2016 heights to
+  # the same ETRS89 / UTM 32N grid
+  stamp <- function(src, srs, x0) {
+    p <- tempfile(fileext = ".tif")
+    gdalraster::translate(src, p, quiet = TRUE, cl_arg = c(
+      "-srcwin", x0, "0", "500", "500", "-a_srs", srs,
+      "-a_ullr", 500000 + x0, 5700000, 500500 + x0, 5699500))
+    p
+  }
+  a <- stamp(dem_path(), "EPSG:25832+7837", 0)        # compound
+  b <- stamp(dem_path(), "EPSG:25832", 500)           # plain, to the east
+  v <- rvt_mosaic(c(a, b))
+  expect_equal(rvtr:::.vrt_n_sources(v), 2L)
+  expect_identical(read_band(v), cbind(read_band(a), read_band(b)))
+
+  # a genuinely different projection is an error, not a silent hole
+  merc <- tempfile(fileext = ".tif")
+  gdalraster::warp(b, merc, t_srs = "EPSG:3857", quiet = TRUE)
+  expect_error(rvt_mosaic(c(a, merc)), "different coordinate system")
+
+  # and the horizontal part of a compound CRS is the plain one
+  h <- rvtr:::.srs_horizontal(gdalraster::srs_to_wkt("EPSG:25832+7837"))
+  expect_true(gdalraster::srs_is_same(h, gdalraster::srs_to_wkt("EPSG:25832")))
+  expect_identical(rvtr:::.srs_horizontal(""), "")
+})

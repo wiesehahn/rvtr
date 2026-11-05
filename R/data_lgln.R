@@ -341,15 +341,24 @@
   te <- sprintf("%.6f", extent)
   tr <- format(res, scientific = FALSE)
   out <- fs::file_temp(ext = "vrt")
+  # The autumn-2025 bDOM flights carry ETRS89 / UTM 32N + DHHN2016, every other
+  # file plain EPSG:25832. buildVRT treats that as a different projection and
+  # silently drops the odd files out - half an area NoData where the two meet.
+  # Horizontally they are the same, and the heights are DHHN2016 throughout, so
+  # accept the difference and stamp the mosaic plain 2D; the warp below then
+  # never sees a vertical CRS to shift heights through (see .novshift()).
+  same_crs <- c("-allow_projection_difference", "-a_srs", "EPSG:25832")
   if (isTRUE(all.equal(res, native))) {
-    gdalraster::buildVRT(out, src, cl_arg = c("-te", te, "-tr", tr, tr), quiet = TRUE)
+    gdalraster::buildVRT(out, src, cl_arg = c("-te", te, "-tr", tr, tr, same_crs),
+                         quiet = TRUE)
   } else {
     mosaic <- fs::file_temp(ext = "vrt")
-    gdalraster::buildVRT(mosaic, src, quiet = TRUE)
+    gdalraster::buildVRT(mosaic, src, cl_arg = same_crs, quiet = TRUE)
     gdalraster::warp(mosaic, out, t_srs = "EPSG:25832",
                      cl_arg = c("-of", "VRT", "-te", te, "-tr", tr, tr,
                                 "-r", method,
-                                if (.lgln_native_read(method)) c("-ovr", "NONE")),
+                                if (.lgln_native_read(method)) c("-ovr", "NONE"),
+                                .novshift()),
                      quiet = TRUE)
   }
   out

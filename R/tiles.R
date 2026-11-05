@@ -134,6 +134,27 @@ rvt_threads <- function(n = NULL) {
   invisible(NULL)
 }
 
+## Heights are never moved vertically by this package. Since GDAL 3.4 a warp
+## between a compound CRS (horizontal + vertical) and a 2D one is promoted to
+## 3D with ellipsoidal heights, and the heights are shifted through the geoid
+## wherever PROJ can reach the grid: LGLN's autumn-2025 bDOM (ETRS89 / UTM 32N
+## + DHHN2016) came out ~40 m too high warped to EPSG:25832. Without the grid
+## PROJ silently applies a zero "ballpark" shift instead, so the bug only
+## showed on machines with PROJ_NETWORK on or the grid installed.
+.novshift <- function() {
+  if (gdalraster::gdal_version_num() >= 3040000L) "-novshift" else character(0)
+}
+
+## The horizontal part of a CRS: a compound CRS's first component, anything
+## else unchanged. Used where a raster's CRS becomes a warp target or a
+## mosaic's CRS, so that a vertical component cannot trigger a height shift.
+.srs_horizontal <- function(srs) {
+  if (!nzchar(srs) || !gdalraster::srs_is_compound(srs)) return(srs)
+  j <- jsonlite::fromJSON(gdalraster::srs_to_projjson(srs), simplifyVector = FALSE)
+  gdalraster::srs_to_wkt(as.character(
+    jsonlite::toJSON(j$components[[1]], auto_unbox = TRUE, digits = NA)))
+}
+
 .dem_info <- function(path, band = 1L) {
   ds <- methods::new(gdalraster::GDALRaster, path, read_only = TRUE)
   on.exit(ds$close())

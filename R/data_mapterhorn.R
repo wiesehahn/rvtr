@@ -65,7 +65,9 @@
     stop(paste("`crs` must be a projected coordinate system in metres. Distances",
                "in this package are map units, so degrees would not work."),
          call. = FALSE)
-  crs
+  # a compound CRS keeps only its horizontal part, so no warp shifts heights
+  wkt <- gdalraster::srs_to_wkt(crs)
+  if (gdalraster::srs_is_compound(wkt)) .srs_horizontal(wkt) else crs
 }
 
 ## Any location -> list(extent in `crs` (unsnapped), crs, ll = WGS84 bbox,
@@ -87,7 +89,9 @@
     # a raster: exactly its grid and its own CRS
     ds <- methods::new(gdalraster::GDALRaster, x, read_only = TRUE)
     on.exit(ds$close())
-    rcrs <- ds$getProjection()
+    # horizontal only: a compound CRS (LGLN's autumn-2025 bDOM) as the warp
+    # target would have GDAL shift heights through the geoid (.novshift())
+    rcrs <- .srs_horizontal(ds$getProjection())
     if (!nzchar(rcrs) || !gdalraster::srs_is_projected(rcrs))
       stop("A raster given as `x` must be in a projected coordinate system in metres.",
            call. = FALSE)
@@ -304,7 +308,7 @@
       cl_arg = c("-of", "VRT", "-te", sprintf("%.6f", extent), "-tr", tr, tr,
                  "-r", "cubic", "-ot", "Float64", "-et", "0", "-ovr", "NONE",
                  "-wo", paste0("XSCALE=", scale), "-wo", paste0("YSCALE=", scale),
-                 "-srcnodata", "0", "-dstnodata", "-9999"),
+                 "-srcnodata", "0", "-dstnodata", "-9999", .novshift()),
       quiet = TRUE)
     out
   }, character(1))

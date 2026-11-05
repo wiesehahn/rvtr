@@ -367,3 +367,52 @@ test_that("method = \"max\" keeps the highest native pixel in each cell", {
            ds$read(1, 0, 137, 200, 63, 200, 63))
   expect_identical(win, m$v)
 })
+
+## The autumn-2025 bDOM flights carry ETRS89 / UTM 32N + DHHN2016 where every
+## other file is plain EPSG:25832. Warped as they were, GDAL promoted the target
+## to ellipsoidal heights and shifted them ~40 m through the geoid - but only
+## where PROJ can reach the geoid grid, which it cannot by default here. So the
+## read happens in a child process with PROJ_NETWORK=ON (it cannot be switched
+## on at runtime), and the old warp is rebuilt there as a control: if that
+## shows no shift, the grid is out of reach and the test cannot prove anything.
+test_that("autumn-2025 bDOM keeps its DHHN2016 heights", {
+  skip_unless_network()
+  skip_if_not_installed("callr")
+  url <- paste0("/vsicurl/https://bdom20.s3.eu-de.cloud-object-storage.appdomain.cloud/",
+                "324075949/2025-10-19/bdom20_32_407_5949_1_ni_2025-10-19.tif")
+  ext <- c(407400, 5949400, 407600, 5949600)
+  bb <- sf::st_bbox(c(xmin = ext[1], ymin = ext[2], xmax = ext[3], ymax = ext[4]),
+                    crs = 25832)
+  vrt <- rvt_data_lgln(bb, "bdom", year = 2025, res = 1, method = "max")
+
+  d <- callr::r(function(url, vrt, ext) {
+    rd <- function(p) {
+      ds <- methods::new(gdalraster::GDALRaster, p, read_only = TRUE)
+      on.exit(ds$close())
+      as.numeric(ds$read(1, 0, 0, 200, 200, 200, 200))
+    }
+    old <- tempfile(fileext = ".vrt")                   # the warp as it was
+    gdalraster::warp(url, old, t_srs = "EPSG:25832", quiet = TRUE,
+      cl_arg = c("-of", "VRT", "-te", ext, "-tr", "1", "1", "-r", "max", "-ovr", "NONE"))
+    raw <- tempfile(fileext = ".tif")                   # no warp, no shift
+    gdalraster::warp(url, raw, quiet = TRUE, t_srs = gdalraster::srs_to_wkt("EPSG:25832+7837"),
+      cl_arg = c("-te", ext, "-tr", "1", "1", "-r", "max", "-ovr", "NONE"))
+    c(old = stats::median(rd(old) - rd(raw), na.rm = TRUE),
+      new = stats::median(rd(vrt) - rd(raw), na.rm = TRUE))
+  }, args = list(url = url, vrt = vrt, ext = ext),
+     env = c(callr::rcmd_safe_env(), PROJ_NETWORK = "ON"))
+
+  skip_if(abs(d[["old"]]) < 10, "PROJ cannot reach the DHHN2016 geoid grid here")
+  expect_gt(d[["old"]], 35)                             # the trap is live...
+  expect_lt(abs(d[["new"]]), 0.05)                      # ...and not sprung
+})
+
+test_that("a mosaic of compound- and plain-CRS tiles keeps every tile", {
+  skip_unless_network()
+  # 2025-10-19 (compound CRS) north of 5948 km, a 2026 flight (plain) south:
+  # buildVRT used to drop the compound tile and leave half the area NoData
+  ext <- c(407400, 5947600, 407600, 5948400)
+  bb <- sf::st_bbox(c(xmin = ext[1], ymin = ext[2], xmax = ext[3], ymax = ext[4]),
+                    crs = 25832)
+  expect_equal(mean(is.na(lgln_info(rvt_data_lgln(bb, "bdom", res = 1))$v)), 0)
+})

@@ -187,7 +187,8 @@ rvt_resample <- function(src, res, method = "cubic",
                           "one of: %s."),
                     method, paste(.rasterio_methods, collapse = ", ")),
             call. = FALSE)
-    gdalraster::warp(src, out_path, t_srs = srs, cl_arg = common, quiet = TRUE)
+    gdalraster::warp(src, out_path, t_srs = srs, cl_arg = c(common, .novshift()),
+                     quiet = TRUE)
   } else {
     gdalraster::translate(src, out_path, cl_arg = common, quiet = TRUE)
   }
